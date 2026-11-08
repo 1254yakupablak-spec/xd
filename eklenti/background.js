@@ -166,8 +166,8 @@ chrome.runtime.onInstalled.addListener(refreshSiteTabs);
 chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.xbetHost) refreshSiteTabs(); });
 
 // ---------- veri servisi: dün, bugün ve yarının maçları + canlı skorlar ----------
-// Sekme gerekmez: 6q açıkken içerik betiği 30 saniyede bir "skPoll" ister. Maç listesi 30 dakikada bir (3 istek),
-// canlı skorlar en sık 25 saniyede bir (1 istek) alınır; birden çok 6q sekmesi açık olsa da sıklık artmaz. Canlı listeden düşen maç (bitti) için bugünün listesi yenilenir.
+// Sekme gerekmez: 6q açıkken içerik betiği 15 saniyede bir "skPoll" ister. Maç listesi 30 dakikada bir (3 istek),
+// canlı skorlar en sık 12 saniyede bir (1 istek) alınır (kullanıcı 15 sn istedi); birden çok 6q sekmesi açık olsa da sıklık artmaz. Canlı listeden düşen maç (bitti) için bugünün listesi yenilenir.
 const SK_API = 'https://skorcum.com/api/football/';
 let skBusy = false;
 
@@ -219,7 +219,7 @@ async function skPoll() {
       meta.fixturesAt = now;
       changed = true;
     }
-    if (now - (meta.liveAt || 0) > 25 * 1000) {
+    if (now - (meta.liveAt || 0) > 12 * 1000) {
       const live = await skGet('live');
       const ids = new Set(live.map((f) => f.id));
       for (const f of live) events[f.id] = { ...events[f.id], ...skConv(f) };
@@ -291,7 +291,7 @@ chrome.runtime.onInstalled.addListener(() => pullSharedLearned(true));
 
 // ---------- maç olayları: kuponlardaki canlı maçlar için ----------
 // Kırmızı kart, VAR kararları, penaltılar ve kendi kalesine gol. Sadece kuponlarda olan canlı maçlar, maç başına
-// en sık 50 sn'de bir, tek seferde en çok 10 maç. Önemsiz olaylar (değişiklik, sarı kart) saklanmaz.
+// en sık 25 sn'de bir, tek seferde en çok 10 maç. Önemsiz olaylar (değişiklik, sarı kart) saklanmaz.
 const SK_KEY_EVENTS = new Set(['GOAL', 'OWN_GOAL', 'PENALTY', 'MISSED_PENALTY', 'RED_CARD', 'SECOND_YELLOW', 'VAR']);
 let skFeedBusy = false;
 async function skFeedPoll(ids) {
@@ -300,7 +300,7 @@ async function skFeedPoll(ids) {
   try {
     const { skFeed = {} } = await chrome.storage.local.get('skFeed');
     const now = Date.now();
-    const due = [...new Set(ids.map(String))].filter((id) => /^\d+$/.test(id) && now - (skFeed[id]?.at || 0) > 50 * 1000).slice(0, 10);
+    const due = [...new Set(ids.map(String))].filter((id) => /^\d+$/.test(id) && now - (skFeed[id]?.at || 0) > 25 * 1000).slice(0, 10);
     let changed = false;
     for (const id of due) {
       try {
