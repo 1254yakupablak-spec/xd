@@ -74,6 +74,16 @@ async function pickFolder() {
   }
 }
 
+// Git'in dosya özeti: SHA-1("blob <boyut>\0" + içerik). files.json'daki hashes ile aynı hesap.
+async function blobSha(buf) {
+  const head = new TextEncoder().encode(`blob ${buf.byteLength}\0`);
+  const all = new Uint8Array(head.length + buf.byteLength);
+  all.set(head, 0);
+  all.set(new Uint8Array(buf), head.length);
+  const h = await crypto.subtle.digest('SHA-1', all);
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 async function writeFile(root, path, data) {
   const parts = path.split('/');
   let dir = root;
@@ -104,9 +114,19 @@ async function runUpdate() {
     $('progress').hidden = false;
     for (const [i, p] of files.entries()) {
       setStatus(`İndiriliyor: ${p}`);
-      const res = await fetch(`${UPDATE_BASE}${p}?t=${Date.now()}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`${p} indirilemedi (${res.status})`);
-      got.push([p, await res.arrayBuffer()]);
+      // GitHub'ın dosya sunucusu yeni yüklenen dosyanın eski kopyasını birkaç dakika verebiliyor. Her dosyanın
+      // parmak izi files.json'dakiyle karşılaştırılır; tutmazsa tekrar denenir, yine tutmazsa hiçbir şey yazılmaz.
+      const want = list.hashes?.[p];
+      let data = null;
+      for (let tryNo = 0; tryNo < 4 && !data; tryNo++) {
+        if (tryNo) { setStatus(`Bekleniyor: ${p} (GitHub henüz yenilemedi)`); await new Promise((r) => setTimeout(r, 4000)); }
+        const res = await fetch(`${UPDATE_BASE}${p}?t=${Date.now()}-${tryNo}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`${p} indirilemedi (${res.status})`);
+        const buf = await res.arrayBuffer();
+        if (!want || (await blobSha(buf)) === want) data = buf;
+      }
+      if (!data) throw new Error(`${p} henüz yeni sürüme geçmemiş. GitHub birkaç dakika gecikebiliyor, 5 dakika sonra tekrar dene. Klasöre hiçbir şey yazılmadı.`);
+      got.push([p, data]);
       $('progress').firstElementChild.style.width = `${Math.round(((i + 1) / files.length) * 50)}%`;
     }
     // manifest.json en son yazılır: yarıda kalırsa eklenti eski sürüm numarasıyla kalır.
