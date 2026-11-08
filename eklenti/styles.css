@@ -883,3 +883,21 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-a); }
 .kcs-move span { margin-right: auto; text-transform: uppercase; letter-spacing: 0.8px; font-size: 10.5px; }
 .kcs-move-btn { min-width: 30px; height: 26px; padding: 0 9px; border: 1px solid var(--kcs-line); border-radius: 6px; background: var(--kcs-panel); color: var(--kcs-fg); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
 .kcs-move-btn:hover { border-color: var(--kcs-a); color: var(--kcs-a); }
+/* Önemli maç olayları */
+.kcs-goal-tag--red { background: #ff4757; color: #fff; }
+.kcs-goal-tag--var { background: #ff9f43; color: #1a1205; }
+.kcs-goal-tag--pen { background: #7cc4ff; color: #06121f; }
+@keyframes kcs-flash-red { 0%, 100% { background-color: transparent; } 50% { background-color: rgba(255, 71, 87, 0.22); } }
+@keyframes kcs-flash-var { 0%, 100% { background-color: transparent; } 50% { background-color: rgba(255, 159, 67, 0.22); } }
+@keyframes kcs-flash-pen { 0%, 100% { background-color: transparent; } 50% { background-color: rgba(124, 196, 255, 0.2); } }
+.kcs-flash--red { box-shadow: inset 3px 0 0 #ff4757; animation-name: kcs-flash-red; }
+.kcs-flash--var { box-shadow: inset 3px 0 0 #ff9f43; animation-name: kcs-flash-var; }
+.kcs-flash--pen { box-shadow: inset 3px 0 0 #7cc4ff; animation-name: kcs-flash-pen; }
+.kcs-reds { display: inline-flex; gap: 2px; margin-left: 6px; vertical-align: middle; }
+.kcs-reds i { width: 8px; height: 11px; border-radius: 1.5px; background: #ff4757; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.kcs-evs { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 4px 0 2px; }
+.kcs-legs--sb > .kcs-evs, .kcs-legs > .kcs-evs { padding: 4px 12px; }
+.kcs-ev { padding: 1px 7px; border-radius: 4px; font-size: 11.5px; font-weight: 700; line-height: 17px; }
+.kcs-ev--red { background: rgba(255, 71, 87, 0.15); color: #ff6b7a; }
+.kcs-ev--var { background: rgba(255, 159, 67, 0.15); color: #ffb26b; }
+.kcs-ev--pen { background: rgba(124, 196, 255, 0.14); color: #8fcbff; }
