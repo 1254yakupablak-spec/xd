@@ -2814,6 +2814,8 @@
       restored++;
     }
     if (restored && !queryOne('.kcs-info')) renderInfo();
+    // Bahislerim üst paneli: site sayfayı yeniden kurunca panel de silinir, ekran çizilmeden geri konur.
+    if (queryOne('.sb-bets-view-head') && !queryOne('.kcs-status')) renderStatus();
     return restored;
   }
 

@@ -247,13 +247,13 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 
 // ---------- güncelleme: GitHub'daki sürüm ----------
-// 30 dakikada bir son sürüm numarasına bakılır; yeni sürüm varsa paneller "Güncelle" düğmesi gösterir.
+// GitHub'ın dosya sunucusu 5 dk önbellekte tutar: adrese ?t= eklenir, hep son hali gelir. 10 dakikada bir son sürüm numarasına bakılır; yeni sürüm varsa paneller "Güncelle" düğmesi gösterir.
 const UPDATE_BASE = 'https://raw.githubusercontent.com/1254yakupablak-spec/xd/main/eklenti/';
 async function checkUpdate(force = false) {
   const { updateInfo = {} } = await chrome.storage.local.get('updateInfo');
-  if (!force && Date.now() - (updateInfo.checkedAt || 0) < 30 * 60 * 1000) return;
+  if (!force && Date.now() - (updateInfo.checkedAt || 0) < 10 * 60 * 1000) return;
   try {
-    const res = await fetch(UPDATE_BASE + 'manifest.json', { cache: 'no-store', credentials: 'omit' });
+    const res = await fetch(UPDATE_BASE + 'manifest.json?t=' + Date.now(), { cache: 'no-store', credentials: 'omit' });
     const m = res.ok ? await res.json() : null;
     await chrome.storage.local.set({ updateInfo: { latest: m?.version || updateInfo.latest || null, checkedAt: Date.now() } });
   } catch {
@@ -275,7 +275,7 @@ async function pullSharedLearned(force = false) {
   if (!force && Date.now() - learnedSharedAt < 3 * 3600 * 1000) return;
   await chrome.storage.local.set({ learnedSharedAt: Date.now() });
   try {
-    const res = await fetch(UPDATE_BASE + 'learned.json', { cache: 'no-store', credentials: 'omit' });
+    const res = await fetch(UPDATE_BASE + 'learned.json?t=' + Date.now(), { cache: 'no-store', credentials: 'omit' });
     if (res.ok) await importLearned(await res.json());
   } catch {
     // Ortak dosya alınamadı: kendi öğrenilenlerle devam.
