@@ -1,0 +1,30 @@
+{
+ "version": "3.91.0",
+ "files": [
+  "BENIOKU.md",
+  "background.js",
+  "bar.js",
+  "content.js",
+  "feed-hook.js",
+  "icons/1xbet.png",
+  "icons/icon128.png",
+  "icons/icon16.png",
+  "icons/icon32.png",
+  "icons/icon48.png",
+  "icons/stake.ico",
+  "learned.js",
+  "learned.json",
+  "manifest.json",
+  "notes.json",
+  "popup.css",
+  "popup.html",
+  "popup.js",
+  "stake.js",
+  "styles.css",
+  "teams.json",
+  "update.css",
+  "update.html",
+  "update.js",
+  "xbet.js"
+ ]
+}

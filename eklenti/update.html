@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KOKLEYİCİ SPORTS · Güncelleme</title>
+  <link rel="stylesheet" href="update.css">
+</head>
+<body>
+  <main>
+    <header>
+      <img src="icons/icon128.png" alt="" width="44" height="44">
+      <div>
+        <h1>KOKLEYİCİ SPORTS</h1>
+        <p class="sub">Eklenti güncellemesi</p>
+      </div>
+    </header>
+
+    <section class="versions">
+      <div><span>Yüklü sürüm</span><b id="current">…</b></div>
+      <div><span>Son sürüm</span><b id="latest">…</b></div>
+    </section>
+
+    <section id="folder-box" class="box">
+      <h2>Eklenti klasörü</h2>
+      <p id="folder-text">Güncelleme dosyaları doğrudan eklentinin klasörüne yazılır. İlk seferde eklentiyi yüklediğin klasörü bir kez seç (içinde <code>manifest.json</code> olan klasör).</p>
+      <button id="pick" class="btn">Klasörü seç</button>
+    </section>
+
+    <button id="update" class="btn btn--main" disabled>Güncelle</button>
+    <div id="progress" class="progress" hidden><i></i></div>
+    <p id="status" class="status"></p>
+
+    <section id="done" class="box box--ok" hidden>
+      <h2>Dosyalar güncellendi</h2>
+      <p>Son adım: Chrome'un <b>Uzantılar</b> sayfasında KOKLEYİCİ SPORTS kartındaki <b>yenile</b> (yuvarlak ok) simgesine bas, sonra 6q sekmesini yenile.</p>
+      <button id="open-ext" class="btn">Uzantılar sayfasını aç</button>
+    </section>
+  </main>
+  <script src="update.js"></script>
+</body>
+</html>

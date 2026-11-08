@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>KOKLEYİCİ SPORTS</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img class="app-logo" src="icons/icon48.png" alt="">
+    <h1>KOKLEYİCİ SPORTS</h1>
+    <span id="version"></span>
+  </header>
+  <button id="open-update" class="btn btn--wide update-btn">Güncellemeleri denetle</button>
+
+  <section>
+    <label class="toggle">
+      <span>Canlı skor</span>
+      <input type="checkbox" id="feat-scores"><i></i>
+    </label>
+    <label class="toggle">
+      <span>Arbitraj</span>
+      <input type="checkbox" id="feat-arb"><i></i>
+    </label>
+    <label class="toggle">
+      <span>Bilgiler</span>
+      <input type="checkbox" id="feat-info"><i></i>
+    </label>
+    
+  </section>
+
+  <details>
+    <summary>Ayarlar</summary>
+
+    <label class="field-label" for="xbet-host">1xBet adresi</label>
+    <div class="line">
+      <input id="xbet-host" class="input" type="text" placeholder="1xbet.com" spellcheck="false">
+      <button id="xbet-host-save" class="btn">Kaydet</button>
+    </div>
+    <p id="xbet-host-note" class="note"></p>
+
+    <label class="field-label" for="notes-url">Ortak yorum adresi</label>
+    <div class="line">
+      <input id="notes-url" class="input" type="text" placeholder="https://raw.githubusercontent.com/..." spellcheck="false">
+      <button id="notes-url-save" class="btn">Kaydet</button>
+    </div>
+    <p id="notes-url-note" class="note"></p>
+
+    <label class="field-label">Öğrenilenler</label>
+    <p id="learn-meta" class="note"></p>
+    <div class="line">
+      <button id="learn-export" class="btn btn--wide">Dışa aktar</button>
+      <button id="learn-import" class="btn btn--wide">İçe aktar</button>
+      <input id="learn-file" type="file" accept=".json,application/json" hidden>
+    </div>
+  </details>
+
+  <script src="learned.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

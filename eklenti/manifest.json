@@ -1,0 +1,89 @@
+{
+  "manifest_version": 3,
+  "name": "KOKLEYİCİ SPORTS",
+  "version": "3.91.0",
+  "description": "Bahislerim kuponlarında canlı skor ve Özel Oranlar arbitrajı (1xBet, Stake).",
+  "permissions": [
+    "storage",
+    "downloads",
+    "unlimitedStorage",
+    "tabGroups"
+  ],
+  "host_permissions": [
+    "https://1xbet.com/*",
+    "https://*.1xbet.com/*",
+    "https://stake.com/*",
+    "https://*.stake.com/*",
+    "https://raw.githubusercontent.com/*",
+    "https://gist.githubusercontent.com/*",
+    "https://skorcum.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*/*"
+      ],
+      "js": [
+        "feed-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://*/*"
+      ],
+      "js": [
+        "bar.js",
+        "xbet.js",
+        "stake.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "KOKLEYİCİ SPORTS",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*",
+        "teams.json",
+        "styles.css",
+        "notes.json"
+      ],
+      "matches": [
+        "https://*/*"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
