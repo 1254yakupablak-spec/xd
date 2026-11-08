@@ -821,10 +821,13 @@
     const side = (e) => (e.teamId === f.homeTid ? f.home : e.teamId === f.awayTid ? f.away : '');
     const fresh = list.filter(({ e }) => now - evSeen.get(e.id) < FLASH_MS).pop() || null;
     const last = list.slice(-2).map(({ e, info }) => ({ ...info, text: `${e.minute ?? ''}${e.added ? `+${e.added}` : ''}' ${info.text}${e.player ? ` · ${e.player}` : ''}${side(e) ? ` (${side(e)})` : ''}` }));
-    return { reds, last, fresh: fresh ? { ...fresh.info } : null };
+    const freshLine = fresh ? last.find((x) => x.text.includes(fresh.info.text)) || { ...fresh.info } : null;
+    return { reds, last, fresh: fresh ? { ...fresh.info } : null, freshLine };
   }
   const redIcons = (n) => (n > 0 ? `<span class="kcs-reds" title="${n} kırmızı kart">${'<i></i>'.repeat(Math.min(n, 3))}</span>` : '');
-  const evLines = (ev) => (ev?.last.length ? `<div class="kcs-evs">${ev.last.map((x) => `<span class="kcs-ev kcs-ev--${x.cls}">${esc(x.text)}</span>`).join('')}</div>` : '');
+  // Olaylar kalıcı değil: sadece yeni olay (45 sn) yazılır, sonra kaybolur (gol efekti gibi).
+  const evLines = (ev) => (ev?.freshLine ? `<div class="kcs-evs"><span class="kcs-ev kcs-ev--${ev.freshLine.cls}">${esc(ev.freshLine.text)}</span></div>` : '');
+  const evLinesOld = (ev) => (ev?.last.length ? `<div class="kcs-evs">${ev.last.map((x) => `<span class="kcs-ev kcs-ev--${x.cls}">${esc(x.text)}</span>`).join('')}</div>` : '');
 
   function sbLegHtml({ label, f, how, waiting, searching }) {
     const key = rowKey(label);
@@ -853,7 +856,7 @@
     return `<div class="kcs-sb-row"><${open} class="sb-mb-leg kcs-sb-leg${f.isLive ? ' is-live' : ''}${flashCls}${f.ended ? ' is-done' : ''}">`
       + `<div class="sb-mb-leg-top"><span class="sb-mb-leg-pick"><span class="sb-mb-leg-date">${date}</span></span></div>`
       + (state ? `<div class="sb-mb-leg-sub"><span class="sb-mb-leg-market">${state}</span></div>` : '')
-      + `<div class="sb-mb-leg-teams"><div class="sb-mb-leg-names">${team(f.home, f.homeLogo, ev?.reds.home)}${team(f.away, f.awayLogo, ev?.reds.away)}</div>`
+      + `<div class="sb-mb-leg-teams"><div class="sb-mb-leg-names">${team(f.home, f.homeLogo)}${team(f.away, f.awayLogo)}</div>`
       + `<div class="sb-mb-score${f.isLive ? ' is-live' : ''}"><span class="sb-score-digit${flash?.home ? ' is-new' : ''}">${g(f.hs)}</span><span class="sb-score-digit${flash?.away ? ' is-new' : ''}">${g(f.as)}</span></div></div>${evLines(ev)}`
       + `</${close}><div class="kcs-sb-foot"><span>${esc(label)}</span>${fixBtn}</div></div>${edit}`;
   }
@@ -1016,7 +1019,7 @@
     const evAlert = ev?.fresh ? `<div class="kcs-goal-alert"><span class="kcs-goal-tag kcs-goal-tag--${ev.fresh.cls}">${esc(ev.fresh.text.toLocaleUpperCase('tr-TR'))}</span></div>` : '';
     const goalAlert = flash ? (flash.cancel ? `<div class="kcs-goal-alert"><span class="kcs-goal-tag kcs-goal-tag--var">GOL İPTAL</span> Skor ${esc(digits[0])} - ${esc(digits[1])} oldu</div>`
       : `<div class="kcs-goal-alert"><span class="kcs-goal-tag">GOL</span> Skor ${esc(digits[0])} - ${esc(digits[1])} oldu</div>`) : '';
-    const reds = ev && (ev.reds.home || ev.reds.away) ? `<div class="kcs-evs"><span class="kcs-ev kcs-ev--red">Kırmızı kart: ${esc(teams[0])} ${ev.reds.home} · ${esc(teams[1])} ${ev.reds.away}</span></div>` : '';
+    const reds = '' && ev && (ev.reds.home || ev.reds.away) ? `<div class="kcs-evs"><span class="kcs-ev kcs-ev--red">Kırmızı kart: ${esc(teams[0])} ${ev.reds.home} · ${esc(teams[1])} ${ev.reds.away}</span></div>` : '';
     const legStartMs = parseLegDate(leg?.querySelector('.sb-mb-leg-date')?.textContent || '');
     const countdown = !leg?.matches('.is-live') && !hasGoal && legStartMs ? countdownHtml(legStartMs / 1000) : '';
     const html = poweredHtml() + (sbSort === 'manual' ? moveHtml('bets') : '') + (countdown ? `<div class="kcs-sb-status kcs-sb-left">Maça ${countdown}</div>` : '') + evAlert + goalAlert + reds + evLines(ev) + status + aiSection(key, ai);
