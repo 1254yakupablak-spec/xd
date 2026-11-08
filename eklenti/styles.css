@@ -863,3 +863,11 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-a); }
 .kx .kcs-seg .kcs-cols-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 9px; border: 0; border-radius: 6px; background: transparent; color: var(--kcs-muted); font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .kx .kcs-seg .kcs-cols-btn:hover { background: var(--kcs-bg); color: var(--kcs-fg); }
 .kx .kcs-seg .kcs-cols-btn.is-on { background: var(--kcs-a); color: var(--kcs-ink); }
+/* Tam genişlik anahtarı */
+.kx .kcs-wide-btn { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--kcs-muted); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.kx .kcs-wide-btn:hover { background: var(--kcs-bg); }
+.kx .kcs-wide-btn i { position: relative; width: 24px; height: 14px; border-radius: 999px; background: var(--kcs-line); transition: background 0.15s; }
+.kx .kcs-wide-btn i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--kcs-muted); transition: transform 0.15s, background 0.15s; }
+.kx .kcs-wide-btn.is-on { color: var(--kcs-fg); }
+.kx .kcs-wide-btn.is-on i { background: color-mix(in srgb, var(--kcs-a) 35%, transparent); }
+.kx .kcs-wide-btn.is-on i::after { background: var(--kcs-a); transform: translateX(10px); }
