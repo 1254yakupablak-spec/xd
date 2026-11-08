@@ -174,7 +174,7 @@
   // ---------- SofaScore verisi ve elle düzeltmeler (chrome.storage) ----------
 
   const hasStore = typeof chrome !== 'undefined' && !!chrome.storage?.local;
-  const STORE_KEYS = ['manualOrder', 'groupSpecial', 'groupBets', 'fullWidth', 'colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
+  const STORE_KEYS = ['skFeed', 'manualOrder', 'groupSpecial', 'groupBets', 'fullWidth', 'colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
     ...['xbet', 'stake'].flatMap((k) => [`${k}Events`, `${k}Odds`, `${k}Meta`])];
   let sofaEvents = {};
   // Liste sürümleri: skor ya da oran güncellemesi taramayı yenilemez, sadece maç sayısı değişince artar.
@@ -195,6 +195,8 @@
   let seededLines = false;
   let lsMeta = {};
   let updateInfo = {};     // { latest, checkedAt }: GitHub'daki son sürüm (background.js)
+  let skFeed = {};         // veri servisi maç olayları: { maç no: { at, events } } (background.js)
+  const trackedSk = new Set(); // kuponlardaki canlı maçlar: olayları istenir
   let manualOrder = { special: [], bets: [] }; // elle sıralama: kupon anahtarları sırayla
   let groupSpecial = 'none'; // Özel Oranlar gruplama: none, single (tekli önce), multi (çoklu önce)
   let groupBets = 'none';    // Bahislerim gruplama
@@ -239,6 +241,7 @@
     colsSpecial = [0, 1, 2, 3, 4, 5, 6].includes(s.colsSpecial) ? s.colsSpecial : 0;
     fullWidth = s.fullWidth !== false;
     manualOrder = { special: s.manualOrder?.special || [], bets: s.manualOrder?.bets || [] };
+    skFeed = s.skFeed || {};
     groupSpecial = ['none', 'single', 'multi'].includes(s.groupSpecial) ? s.groupSpecial : 'none';
     groupBets = ['none', 'single', 'multi'].includes(s.groupBets) ? s.groupBets : 'none';
     colsBets = [0, 1, 2, 3, 4, 5, 6].includes(s.colsBets) ? s.colsBets : 0;
@@ -283,6 +286,7 @@
       if (changes.arbLinks) { arbLinks = changes.arbLinks.newValue || {}; matchDirty = true; redraw = true; }
       if (changes.arbLearned) { arbLearned = changes.arbLearned.newValue || {}; matchDirty = true; redraw = true; }
       if (changes.skMeta) skMeta = changes.skMeta.newValue || {};
+      if (changes.skFeed) { skFeed = changes.skFeed.newValue || {}; if (onBetsPage) redraw = true; }
       if (changes.updateInfo) { updateInfo = changes.updateInfo.newValue || {}; redraw = true; }
       if (changes.skEvents) {
         const next = changes.skEvents.newValue || {};
@@ -341,6 +345,7 @@
       id: `k${e.id}`,
       home: e.home, away: e.away, homeShort: '', awayShort: '',
       homeLogo: e.homeLogo || '', awayLogo: e.awayLogo || '',
+      homeTid: e.homeTid ?? null, awayTid: e.awayTid ?? null,
       hs: e.hs, as: e.as,
       isLive: live, ended,
       hasScore: e.hs != null && e.as != null && (live || ended),
@@ -776,11 +781,50 @@
     const prev = scoreSeen.get(id);
     if (!prev) { scoreSeen.set(id, { hs, as, at: 0, home: false, away: false }); return null; }
     if (prev.hs !== hs || prev.as !== as) {
-      scoreSeen.set(id, { hs, as, at: Date.now(), home: hs !== prev.hs, away: as !== prev.as });
+      // Skor düştüyse gol iptal edilmiştir (VAR): GOL değil "GOL İPTAL" gösterilir.
+      scoreSeen.set(id, { hs, as, at: Date.now(), home: hs !== prev.hs, away: as !== prev.as, cancel: hs + as < prev.hs + prev.as });
     }
     const cur = scoreSeen.get(id);
     return Date.now() - cur.at < FLASH_MS ? cur : null;
   }
+
+  // ---------- önemli maç olayları ----------
+  const EV_INFO = (e) => {
+    if (e.kind === 'RED_CARD') return { cls: 'red', text: 'Kırmızı kart', icon: 'red' };
+    if (e.kind === 'SECOND_YELLOW') return { cls: 'red', text: 'İkinci sarıdan kırmızı', icon: 'red' };
+    if (e.kind === 'MISSED_PENALTY') return { cls: 'pen', text: 'Penaltı kaçtı' };
+    if (e.kind === 'PENALTY') return { cls: 'pen', text: 'Penaltı golü' };
+    if (e.kind === 'OWN_GOAL') return { cls: 'pen', text: 'Kendi kalesine gol' };
+    if (e.kind === 'VAR') {
+      return {
+        GOAL_DISALLOWED: { cls: 'var', text: 'Gol iptal (VAR)' }, GOAL_AWARDED: { cls: 'var', text: 'Gol verildi (VAR)' },
+        PENALTY_CANCELLED: { cls: 'var', text: 'Penaltı iptal (VAR)' }, PENALTY_CONFIRMED: { cls: 'var', text: 'Penaltı verildi (VAR)' },
+        CARD_ADJUSTED: { cls: 'var', text: 'Kart değişti (VAR)' },
+      }[e.decision] || { cls: 'var', text: 'VAR incelemesi' };
+    }
+    return null;
+  };
+  const evSeen = new Map(); // olay no → ilk görüldüğü an (sayfa açılınca gelenler eski sayılır)
+  let evPrimed = false;
+
+  // Maçın önemli olayları: kırmızı kart sayısı (takım başına), son olaylar ve yeni (45 sn) olay.
+  function matchEvents(f) {
+    const id = String(f?.id || '').replace(/^k/, '');
+    if (f?.isLive && /^\d+$/.test(id)) trackedSk.add(id);
+    const feed = skFeed[id];
+    if (!feed) return null;
+    const list = feed.events.map((e) => ({ e, info: EV_INFO(e) })).filter((x) => x.info);
+    const now = Date.now();
+    for (const { e } of list) if (!evSeen.has(e.id)) evSeen.set(e.id, evPrimed ? now : 0);
+    const reds = { home: 0, away: 0 };
+    for (const { e, info } of list) if (info.icon === 'red') reds[e.teamId === f.homeTid ? 'home' : e.teamId === f.awayTid ? 'away' : 'home']++;
+    const side = (e) => (e.teamId === f.homeTid ? f.home : e.teamId === f.awayTid ? f.away : '');
+    const fresh = list.filter(({ e }) => now - evSeen.get(e.id) < FLASH_MS).pop() || null;
+    const last = list.slice(-2).map(({ e, info }) => ({ ...info, text: `${e.minute ?? ''}${e.added ? `+${e.added}` : ''}' ${info.text}${e.player ? ` · ${e.player}` : ''}${side(e) ? ` (${side(e)})` : ''}` }));
+    return { reds, last, fresh: fresh ? { ...fresh.info } : null };
+  }
+  const redIcons = (n) => (n > 0 ? `<span class="kcs-reds" title="${n} kırmızı kart">${'<i></i>'.repeat(Math.min(n, 3))}</span>` : '');
+  const evLines = (ev) => (ev?.last.length ? `<div class="kcs-evs">${ev.last.map((x) => `<span class="kcs-ev kcs-ev--${x.cls}">${esc(x.text)}</span>`).join('')}</div>` : '');
 
   function sbLegHtml({ label, f, how, waiting, searching }) {
     const key = rowKey(label);
@@ -796,17 +840,21 @@
     const close = f.url ? 'a' : 'div';
     const date = f.start ? `${esc(dayText(f.start))} - ${esc(timeText(f.start))}` : '';
     const flash = f.hasScore ? scoreFlash(f.id, f.hs, f.as) : null;
-    const goalTag = flash ? '<span class="kcs-goal-tag">GOL</span>' : '';
+    const ev = matchEvents(f);
+    // Yeni önemli olay varsa onun etiketi, yoksa skor değişimi (GOL / GOL İPTAL).
+    const goalTag = ev?.fresh ? `<span class="kcs-goal-tag kcs-goal-tag--${ev.fresh.cls}">${esc(ev.fresh.text.toLocaleUpperCase('tr-TR'))}</span>`
+      : flash ? (flash.cancel ? '<span class="kcs-goal-tag kcs-goal-tag--var">GOL İPTAL</span>' : '<span class="kcs-goal-tag">GOL</span>') : '';
+    const flashCls = ev?.fresh ? ` kcs-flash kcs-flash--${ev.fresh.cls}` : flash ? (flash.cancel ? ' kcs-flash kcs-flash--var' : ' kcs-flash') : '';
     const state = f.isLive
       ? `<span class="sb-mb-live"><span class="sb-mb-live-dot"></span><span>${esc(f.clock || 'Canlı')}</span></span>${goalTag}`
       : (f.ended ? `<span class="kcs-done-badge">${esc(f.clock || 'MS')}</span>${goalTag}` : esc(f.clock || '') + goalTag);
-    const team = (name, url) => `<div class="sb-mb-team"><span class="sb-mb-team-logo">${logoSrc(url) ? `<img class="sb-team-logo sb-team-logo-img" src="${esc(logoSrc(url))}" alt="" width="22" height="22" loading="lazy" referrerpolicy="no-referrer">` : ''}</span><span class="sb-mb-team-name">${esc(name)}</span></div>`;
+    const team = (name, url, reds = 0) => `<div class="sb-mb-team"><span class="sb-mb-team-logo">${logoSrc(url) ? `<img class="sb-team-logo sb-team-logo-img" src="${esc(logoSrc(url))}" alt="" width="22" height="22" loading="lazy" referrerpolicy="no-referrer">` : ''}</span><span class="sb-mb-team-name">${esc(name)}</span>${redIcons(reds)}</div>`;
     const g = (n) => (f.hasScore ? n : '–');
-    return `<div class="kcs-sb-row"><${open} class="sb-mb-leg kcs-sb-leg${f.isLive ? ' is-live' : ''}${flash ? ' kcs-flash' : ''}${f.ended ? ' is-done' : ''}">`
+    return `<div class="kcs-sb-row"><${open} class="sb-mb-leg kcs-sb-leg${f.isLive ? ' is-live' : ''}${flashCls}${f.ended ? ' is-done' : ''}">`
       + `<div class="sb-mb-leg-top"><span class="sb-mb-leg-pick"><span class="sb-mb-leg-date">${date}</span></span></div>`
       + (state ? `<div class="sb-mb-leg-sub"><span class="sb-mb-leg-market">${state}</span></div>` : '')
-      + `<div class="sb-mb-leg-teams"><div class="sb-mb-leg-names">${team(f.home, f.homeLogo)}${team(f.away, f.awayLogo)}</div>`
-      + `<div class="sb-mb-score${f.isLive ? ' is-live' : ''}"><span class="sb-score-digit${flash?.home ? ' is-new' : ''}">${g(f.hs)}</span><span class="sb-score-digit${flash?.away ? ' is-new' : ''}">${g(f.as)}</span></div></div>`
+      + `<div class="sb-mb-leg-teams"><div class="sb-mb-leg-names">${team(f.home, f.homeLogo, ev?.reds.home)}${team(f.away, f.awayLogo, ev?.reds.away)}</div>`
+      + `<div class="sb-mb-score${f.isLive ? ' is-live' : ''}"><span class="sb-score-digit${flash?.home ? ' is-new' : ''}">${g(f.hs)}</span><span class="sb-score-digit${flash?.away ? ' is-new' : ''}">${g(f.as)}</span></div></div>${evLines(ev)}`
       + `</${close}><div class="kcs-sb-foot"><span>${esc(label)}</span>${fixBtn}</div></div>${edit}`;
   }
 
@@ -959,9 +1007,15 @@
       goal: res === 'won' || res === 'lost' ? res : (hasGoal ? goalVerdict(Number(digits[0]) + Number(digits[1]), Number(pick[1]), /alt/i.test(pick[2]) ? 'alt' : 'ust', !leg.matches('.result-pending')) : null),
     });
     const ai = teams.length === 2 ? aiForTeams(teams[0], teams[1]) : null;
-    if (!hasGoal && !ai && !flash && sbSort !== 'manual') return;
+    if (!hasGoal && !ai && !flash && sbSort !== 'manual' && !(teams.length === 2 && leg?.matches('.is-live'))) return;
     const status = hasGoal ? `<div class="kcs-sb-status">${goalHtml(Number(digits[0]) + Number(digits[1]), { line: Number(pick[1]), side: /alt/i.test(pick[2]) ? 'alt' : 'ust' }, !!res || !leg.matches('.result-pending'), '', res)}</div>` : '';
-    const html = poweredHtml() + (sbSort === 'manual' ? moveHtml('bets') : '') + (flash ? `<div class="kcs-goal-alert"><span class="kcs-goal-tag">GOL</span> Skor ${esc(digits[0])} - ${esc(digits[1])} oldu</div>` : '') + status + aiSection(key, ai);
+    const skItem = teams.length === 2 ? matchPair(`${teams[0]}-${teams[1]}`, fixtureList()) : null;
+    const ev = skItem?.raw?.sk != null ? matchEvents(fromSk(skEvents[skItem.raw.sk] || skItem.raw.skRaw)) : null;
+    const evAlert = ev?.fresh ? `<div class="kcs-goal-alert"><span class="kcs-goal-tag kcs-goal-tag--${ev.fresh.cls}">${esc(ev.fresh.text.toLocaleUpperCase('tr-TR'))}</span></div>` : '';
+    const goalAlert = flash ? (flash.cancel ? `<div class="kcs-goal-alert"><span class="kcs-goal-tag kcs-goal-tag--var">GOL İPTAL</span> Skor ${esc(digits[0])} - ${esc(digits[1])} oldu</div>`
+      : `<div class="kcs-goal-alert"><span class="kcs-goal-tag">GOL</span> Skor ${esc(digits[0])} - ${esc(digits[1])} oldu</div>`) : '';
+    const reds = ev && (ev.reds.home || ev.reds.away) ? `<div class="kcs-evs"><span class="kcs-ev kcs-ev--red">Kırmızı kart: ${esc(teams[0])} ${ev.reds.home} · ${esc(teams[1])} ${ev.reds.away}</span></div>` : '';
+    const html = poweredHtml() + (sbSort === 'manual' ? moveHtml('bets') : '') + evAlert + goalAlert + reds + evLines(ev) + status + aiSection(key, ai);
     let box = card.querySelector(':scope > .kcs-legs');
     if (!box) {
       box = document.createElement('div');
@@ -3303,6 +3357,7 @@
       }
     }
     if (sbAll.length) { applySbSort(); renderStatus(); }
+    if (Object.keys(skFeed).length) evPrimed = true;
     observer?.takeRecords();
     if (!hasStore || !sofaConnected()) return;
     // Bulunamayanları SofaScore sekmesine aratmak üzere sıraya koy.
@@ -3506,7 +3561,7 @@
     loadAliases();
     loadNotes();
     setInterval(loadNotes, 60000);
-    const skPoll = () => { if (hasStore && chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'skPoll' }).catch(() => {}); };
+    const skPoll = () => { if (hasStore && chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'skPoll', ids: [...trackedSk] }).catch(() => {}); };
     skPoll();
     setInterval(skPoll, 30000);
     // Dakikalar SofaScore'daki devre başlangıcından hesaplanıyor; 30 sn'de bir yeniden çiz.
