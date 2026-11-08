@@ -174,7 +174,7 @@
   // ---------- SofaScore verisi ve elle düzeltmeler (chrome.storage) ----------
 
   const hasStore = typeof chrome !== 'undefined' && !!chrome.storage?.local;
-  const STORE_KEYS = ['updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
+  const STORE_KEYS = ['colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
     ...['xbet', 'stake'].flatMap((k) => [`${k}Events`, `${k}Odds`, `${k}Meta`])];
   let sofaEvents = {};
   // Liste sürümleri: skor ya da oran güncellemesi taramayı yenilemez, sadece maç sayısı değişince artar.
@@ -195,6 +195,8 @@
   let seededLines = false;
   let lsMeta = {};
   let updateInfo = {};     // { latest, checkedAt }: GitHub'daki son sürüm (background.js)
+  let colsSpecial = 0;     // Özel Oranlar: satır başına kart (0 = sitenin düzeni)
+  let colsBets = 0;        // Bahislerim: satır başına kupon (0 = sitenin düzeni)
   let sbSort = 'site';      // Bahislerim: site, start, live, goal
   let cardShow = 'all';    // Özel Oranlar: all, single, multi
   let cardFolds = {};      // "arb|kart": true küçük, false açık; yoksa foldAll geçerli. Saklanmaz.
@@ -230,6 +232,8 @@
     cardShow = ['all', 'single', 'multi'].includes(s.cardShow) ? s.cardShow : 'all';
     sbSort = ['site', 'start', 'live', 'goal'].includes(s.sbSort) ? s.sbSort : 'site';
     updateInfo = s.updateInfo || {};
+    colsSpecial = [0, 1, 2, 3, 4].includes(s.colsSpecial) ? s.colsSpecial : 0;
+    colsBets = [0, 1, 2, 3, 4].includes(s.colsBets) ? s.colsBets : 0;
     applyTheme();
     learnedSides = s.learnedSides || {};
     arbLinks = s.arbLinks || {};
@@ -1022,21 +1026,31 @@
     if (st.textContent !== css) st.textContent = css;
   }
 
+  let sbGap = null;
   function applySbSort() {
     const grid = queryOne('.sb-mb-grid');
     if (!grid) return;
     const root = grid.getRootNode();
     const cards = queryAll(SB_BET);
-    if (sbSort === 'site') {
+    const siteCols = [...grid.querySelectorAll(':scope > .sb-mb-col')];
+    if (sbSort === 'site' && !colsBets) {
       sbGridStyle(root, false);
       for (const c of cards) if (c.style.order !== '') c.style.order = '';
       sbOrderMap.clear();
       return;
     }
-    if (!root.querySelector('style[data-kcs-sbsort]')) {
-      const col = grid.querySelector('.sb-mb-col');
+    if (sbGap == null && !root.querySelector('style[data-kcs-sbsort]')) {
+      const col = siteCols[0];
       const gap = (col && getComputedStyle(col).rowGap) || '16px';
-      sbGridStyle(root, true, Math.max(1, grid.querySelectorAll(':scope > .sb-mb-col').length), gap === 'normal' ? '16px' : gap);
+      sbGap = gap === 'normal' ? '16px' : gap;
+    }
+    sbGridStyle(root, true, colsBets || Math.max(1, siteCols.length), sbGap || '16px');
+    if (sbSort === 'site') {
+      // Sitenin sırası: site kuponları sütunlara sırayla dağıtıyor (1. sütun, 2. sütun, 1. sütun…).
+      const n = Math.max(1, siteCols.length);
+      siteCols.forEach((col, c) => [...col.querySelectorAll(':scope > .sb-mb')].forEach((card, i) => setOrder(card, String(i * n + c))));
+      sbOrderMap.clear();
+      return;
     }
     const items = cards.map((card, at) => ({ card, at, key: sbKeyOf(card), ...(sbInfo.get(card) || {}) }));
     if (Date.now() > sbSortUntil && sbOrderMap.size) {
@@ -1086,7 +1100,7 @@
     return `${updateHtml()}<header class="kx-head"><div class="kx-brand">${markHtml()}<div><b>KOKLEYİCİ SPORTS</b><small>Bahislerim paneli</small></div></div>`
       + `<div class="kx-stats">${stat('live', n((x) => x.live), 'canlı')}${stat('won', n((x) => x.goal === 'won'), 'tuttu')}${stat('open', n((x) => x.goal === 'open'), 'devam')}${stat('lost', n((x) => x.goal === 'lost'), 'tutmadı')}</div>`
       + `<div class="kx-sync"><span>${esc(`Canlı skor ${scoreTimes().replace(/^Veri servisi /, '')}`)}</span></div></header>`
-      + `<div class="kx-controls">${group('Özellikler', featHtml())}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}</div>`;
+      + `<div class="kx-controls">${group('Özellikler', featHtml())}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satırda', colsHtml('bets', colsBets))}</div>`;
   }
 
   // Bahislerim üstündeki saatler: skor verisinin son geldiği an. Livescore'un "açığım" yazımı sayılmaz.
@@ -2733,13 +2747,31 @@
       + `<div class="kx-sources">${sitesHtml()}</div><div class="kx-sync"><span>${esc(syncText)}</span>${features.arb ? refresh : ''}</div></header>`;
     const group = (name, body) => `<div class="kx-group"><span class="kx-label">${name}</span>${body}</div>`;
     if (!features.arb) return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}</div>`;
-    return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}${group('Göster', `<span class="kcs-seg">${shows}</span>`)}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}`
+    return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}${group('Göster', `<span class="kcs-seg">${shows}</span>`)}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satırda', colsHtml('special', colsSpecial))}`
       + `<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
       + multiChanceHtml()
       + `<footer class="kx-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Oranlar her an değişebilir. Oynamadan önce maçı ve oranı sitede kontrol et.</footer>`;
   }
 
+  function applySpecialCols() {
+    const grid = queryOne('.sb-custom-bets-grid');
+    if (!grid) return;
+    const root = grid.getRootNode();
+    let st = root.querySelector('style[data-kcs-cols]');
+    if (!colsSpecial) { st?.remove(); return; }
+    const css = `.sb-custom-bets-grid{display:grid!important;grid-template-columns:repeat(${colsSpecial},minmax(0,1fr))!important;align-items:start}`;
+    if (!st) { st = document.createElement('style'); st.dataset.kcsCols = '1'; root.append(st); }
+    if (st.textContent !== css) st.textContent = css;
+  }
+
+  // Satır başına kupon seçimi (iki sayfada da).
+  function colsHtml(page, val) {
+    return `<span class="kcs-seg">${[[0, 'Site'], [1, '1'], [2, '2'], [3, '3'], [4, '4']]
+      .map(([k, label]) => `<button type="button" class="kcs-cols-btn${val === k ? ' is-on' : ''}" data-page="${page}" data-cols="${k}" title="${k ? `Satırda ${k} kupon` : 'Sitenin kendi düzeni'}">${label}</button>`).join('')}</span>`;
+  }
+
   function renderInfo() {
+    applySpecialCols();
     const grid = queryOne('.sb-custom-bets-grid');
     let box = queryOne('.kcs-info');
     if (!grid) { box?.remove(); return; }
@@ -2788,7 +2820,7 @@
       card.append(box);
       restored++;
     }
-    if (sbSort !== 'site') for (const card of queryAll(SB_BET)) { const k = sbKeyOf(card); if (sbOrderMap.has(k)) card.style.order = String(sbOrderMap.get(k)); }
+    if ((sbSort !== 'site' || colsBets) && queryOne('.sb-mb-grid')) applySbSort();
     for (const card of queryAll(SPECIAL_CARD)) {
       if (card.querySelector(':scope > .kcs-arb-wrap')) continue;
       const key = `${card.querySelector('.sb-cbt-team')?.textContent}|${card.querySelector('.sb-cbt-pick')?.textContent}`;
@@ -2977,6 +3009,20 @@
     }
     if (btn.classList.contains('kcs-update-btn')) {
       chrome.runtime.sendMessage({ type: 'openUpdate' });
+      return true;
+    }
+    if (btn.classList.contains('kcs-cols-btn')) {
+      const v = Number(btn.dataset.cols) || 0;
+      if (btn.dataset.page === 'bets') {
+        colsBets = v;
+        if (hasStore) await chrome.storage.local.set({ colsBets });
+        applySbSort();
+        renderStatus();
+      } else {
+        colsSpecial = v;
+        if (hasStore) await chrome.storage.local.set({ colsSpecial });
+        renderInfo();
+      }
       return true;
     }
     if (btn.classList.contains('kcs-sbsort')) {
