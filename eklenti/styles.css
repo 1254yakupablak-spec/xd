@@ -871,3 +871,15 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-a); }
 .kx .kcs-wide-btn.is-on { color: var(--kcs-fg); }
 .kx .kcs-wide-btn.is-on i { background: color-mix(in srgb, var(--kcs-a) 35%, transparent); }
 .kx .kcs-wide-btn.is-on i::after { background: var(--kcs-a); transform: translateX(10px); }
+/* Gruplama ve elle sıralama */
+.kx .kcs-seg .kcs-group-btn { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--kcs-muted); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.kx .kcs-seg .kcs-group-btn:hover { background: var(--kcs-bg); color: var(--kcs-fg); }
+.kx .kcs-seg .kcs-group-btn.is-on { background: var(--kcs-a); color: var(--kcs-ink); }
+.kcs-group-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; padding: 10px 14px; border: 1px solid var(--kcs-line); border-left: 4px solid var(--kcs-a); border-radius: 8px; background: var(--kcs-bg); color: var(--kcs-fg); font-size: 15px; }
+.kcs-group-head b { font-weight: 800; letter-spacing: 0.4px; }
+.kcs-group-head span { min-width: 22px; padding: 1px 8px; border-radius: 999px; background: var(--kcs-a); color: var(--kcs-ink); font-size: 12.5px; font-weight: 800; text-align: center; }
+.kcs-group-head .kcs-mark { width: 18px; height: 18px; }
+.kcs-move { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--kcs-line); color: var(--kcs-muted); font-size: 12px; font-weight: 700; }
+.kcs-move span { margin-right: auto; text-transform: uppercase; letter-spacing: 0.8px; font-size: 10.5px; }
+.kcs-move-btn { min-width: 30px; height: 26px; padding: 0 9px; border: 1px solid var(--kcs-line); border-radius: 6px; background: var(--kcs-panel); color: var(--kcs-fg); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.kcs-move-btn:hover { border-color: var(--kcs-a); color: var(--kcs-a); }
