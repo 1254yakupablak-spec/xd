@@ -233,9 +233,9 @@
     cardShow = ['all', 'single', 'multi'].includes(s.cardShow) ? s.cardShow : 'all';
     sbSort = ['site', 'start', 'live', 'goal'].includes(s.sbSort) ? s.sbSort : 'site';
     updateInfo = s.updateInfo || {};
-    colsSpecial = [0, 1, 2, 3, 4].includes(s.colsSpecial) ? s.colsSpecial : 0;
+    colsSpecial = [0, 1, 2, 3, 4, 5, 6].includes(s.colsSpecial) ? s.colsSpecial : 0;
     fullWidth = s.fullWidth !== false;
-    colsBets = [0, 1, 2, 3, 4].includes(s.colsBets) ? s.colsBets : 0;
+    colsBets = [0, 1, 2, 3, 4, 5, 6].includes(s.colsBets) ? s.colsBets : 0;
     applyTheme();
     learnedSides = s.learnedSides || {};
     arbLinks = s.arbLinks || {};
@@ -1102,7 +1102,7 @@
     return `${updateHtml()}<header class="kx-head"><div class="kx-brand">${markHtml()}<div><b>KOKLEYİCİ SPORTS</b><small>Bahislerim paneli</small></div></div>`
       + `<div class="kx-stats">${stat('live', n((x) => x.live), 'canlı')}${stat('won', n((x) => x.goal === 'won'), 'tuttu')}${stat('open', n((x) => x.goal === 'open'), 'devam')}${stat('lost', n((x) => x.goal === 'lost'), 'tutmadı')}</div>`
       + `<div class="kx-sync"><span>${esc(`Canlı skor ${scoreTimes().replace(/^Veri servisi /, '')}`)}</span></div></header>`
-      + `<div class="kx-controls">${group('Özellikler', featHtml())}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satırda', colsHtml('bets', colsBets))}${group('Görünüm', wideHtml())}</div>`;
+      + `<div class="kx-controls">${group('Özellikler', featHtml())}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satır başı kupon', colsHtml('bets', colsBets))}${group('Görünüm', wideHtml())}</div>`;
   }
 
   // Bahislerim üstündeki saatler: skor verisinin son geldiği an. Livescore'un "açığım" yazımı sayılmaz.
@@ -2750,7 +2750,7 @@
       + `<div class="kx-sources">${sitesHtml()}</div><div class="kx-sync"><span>${esc(syncText)}</span>${features.arb ? refresh : ''}</div></header>`;
     const group = (name, body) => `<div class="kx-group"><span class="kx-label">${name}</span>${body}</div>`;
     if (!features.arb) return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}</div>`;
-    return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}${group('Göster', `<span class="kcs-seg">${shows}</span>`)}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satırda', colsHtml('special', colsSpecial))}${group('Görünüm', wideHtml())}`
+    return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}${group('Göster', `<span class="kcs-seg">${shows}</span>`)}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satır başı kupon', colsHtml('special', colsSpecial))}${group('Görünüm', wideHtml())}`
       + `<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
       + multiChanceHtml()
       + `<footer class="kx-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Oranlar her an değişebilir. Oynamadan önce maçı ve oranı sitede kontrol et.</footer>`;
@@ -2784,7 +2784,7 @@
 
   // Satır başına kupon seçimi (iki sayfada da).
   function colsHtml(page, val) {
-    return `<span class="kcs-seg">${[[0, 'Site'], [1, '1'], [2, '2'], [3, '3'], [4, '4']]
+    return `<span class="kcs-seg">${[[0, 'Site'], [1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']]
       .map(([k, label]) => `<button type="button" class="kcs-cols-btn${val === k ? ' is-on' : ''}" data-page="${page}" data-cols="${k}" title="${k ? `Satırda ${k} kupon` : 'Sitenin kendi düzeni'}">${label}</button>`).join('')}</span>`;
   }
 
