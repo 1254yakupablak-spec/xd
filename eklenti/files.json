@@ -1,5 +1,5 @@
 {
- "version": "3.96.0",
+ "version": "3.96.1",
  "files": [
   "BENIOKU.md",
   "background.js",
@@ -26,5 +26,32 @@
   "update.html",
   "update.js",
   "xbet.js"
- ]
+ ],
+ "hashes": {
+  "BENIOKU.md": "0c68e64ab12efe78596ebbc1ab6fe81dd932f1be",
+  "background.js": "ed415ab82f4843ed051606dabf4c01cfe711a746",
+  "bar.js": "02ac8978b41f5968494dc650b5e46a64178fa43b",
+  "content.js": "21edc14ab72676c00d8e517d52d67004ed1bf747",
+  "feed-hook.js": "0946b6606989b2d19326f2bed1ccc3f07574d64b",
+  "icons/1xbet.png": "d87b5da1756a6df0aae43d64e550533a253e2f4e",
+  "icons/icon128.png": "859ba4bff3b25e2ab6d0bd9528b4a60ff210bfc8",
+  "icons/icon16.png": "10c0da54915b512cffe8be9b39ea903e43ab6265",
+  "icons/icon32.png": "4fcee1e13fe38b27c165f246031892869c43037d",
+  "icons/icon48.png": "667e0bdbf56c52ece36a8d7733b8aba2bec11799",
+  "icons/stake.ico": "ecb0f7645b970de493e3bd1239e21a580925d894",
+  "learned.js": "4e6c685fe48caf43b9595714b3eaa387b1957cc3",
+  "learned.json": "11a50f6a25de2ba8b7706d5e2933d8febcc35c71",
+  "manifest.json": "a20e12337ee1f7f7e0cc6da9c8b537e74f348d8a",
+  "notes.json": "f6413c06f0f063f853cf13ed02b378fca6005861",
+  "popup.css": "b038f918af8fb474775e1a70f7169699cc0126d0",
+  "popup.html": "74dc7e79c86c73c9f9a10904d101a7729d6f5f1c",
+  "popup.js": "be67bc21f5715197ad27ebd9c356d127df5003bd",
+  "stake.js": "d6222fea22cda3da8aa3ed64568c49ef51e7b088",
+  "styles.css": "60b773ed019fc2325f790e4a648f9c6a737ab1b2",
+  "teams.json": "fea94ff68716e1f3fcd614167f0bcbea15bf5797",
+  "update.css": "77979e0bc419b410a7387a69723c0fe8519371a3",
+  "update.html": "0bc3e46772901f05a32a9ab976344eb69c12d03a",
+  "update.js": "24b0577c2e6e6ca2bee35820222d33df4183f514",
+  "xbet.js": "f46309b5eca9a865c701cf4ebc6c1566ff1f1ebf"
+ }
 }
