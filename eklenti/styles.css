@@ -860,3 +860,6 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-a); }
 .kx-update b { color: var(--kcs-a); }
 .kx .kcs-update-btn { height: 30px; padding: 0 14px; border: 0; border-radius: 7px; background: var(--kcs-a); color: var(--kcs-ink); font-size: 13px; font-weight: 800; cursor: pointer; }
 .kx-update + .kx-head { border-radius: 0; }
+.kx .kcs-seg .kcs-cols-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 9px; border: 0; border-radius: 6px; background: transparent; color: var(--kcs-muted); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.kx .kcs-seg .kcs-cols-btn:hover { background: var(--kcs-bg); color: var(--kcs-fg); }
+.kx .kcs-seg .kcs-cols-btn.is-on { background: var(--kcs-a); color: var(--kcs-ink); }
