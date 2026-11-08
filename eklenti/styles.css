@@ -901,3 +901,8 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-a); }
 .kcs-ev--red { background: rgba(255, 71, 87, 0.15); color: #ff6b7a; }
 .kcs-ev--var { background: rgba(255, 159, 67, 0.15); color: #ffb26b; }
 .kcs-ev--pen { background: rgba(124, 196, 255, 0.14); color: #8fcbff; }
+/* Maça kalan süre */
+.kcs-left { display: inline-block; margin-left: 6px; padding: 1px 7px; border: 1px solid var(--kcs-line); border-radius: 4px; background: var(--kcs-panel); color: var(--kcs-fg); font-size: 11.5px; font-weight: 700; line-height: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kcs-left.is-soon { border-color: color-mix(in srgb, var(--kcs-warn) 60%, transparent); background: color-mix(in srgb, var(--kcs-warn) 16%, transparent); color: var(--kcs-warn); }
+.kcs-sb-left { display: flex; align-items: center; gap: 4px; color: var(--kcs-muted); font-size: 12.5px; font-weight: 600; }
+.kcs-sb-left .kcs-left { margin-left: 2px; }
