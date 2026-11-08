@@ -96,7 +96,7 @@ async function runUpdate() {
     const m = await readManifest(folder);
     if (!m || m.name !== 'KOKLEYİCİ SPORTS') { setStatus('Seçili klasörde eklenti yok. Klasörü yeniden seç.', true); return; }
     setStatus('Dosya listesi alınıyor…');
-    const list = await (await fetch(`${UPDATE_BASE}files.json`, { cache: 'no-store' })).json();
+    const list = await (await fetch(`${UPDATE_BASE}files.json?t=${Date.now()}`, { cache: 'no-store' })).json();
     const files = (list.files || []).filter((p) => typeof p === 'string' && /^[\w./-]+$/.test(p) && !p.includes('..'));
     if (!files.includes('manifest.json')) throw new Error('dosya listesi eksik');
     // Önce hepsi indirilir; biri bile inmezse klasöre hiçbir şey yazılmaz.
@@ -104,7 +104,7 @@ async function runUpdate() {
     $('progress').hidden = false;
     for (const [i, p] of files.entries()) {
       setStatus(`İndiriliyor: ${p}`);
-      const res = await fetch(`${UPDATE_BASE}${p}`, { cache: 'no-store' });
+      const res = await fetch(`${UPDATE_BASE}${p}?t=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`${p} indirilemedi (${res.status})`);
       got.push([p, await res.arrayBuffer()]);
       $('progress').firstElementChild.style.width = `${Math.round(((i + 1) / files.length) * 50)}%`;
@@ -131,7 +131,7 @@ async function init() {
     folder = (await kv('folder')) || null;
   } catch { folder = null; }
   try {
-    const m = await (await fetch(`${UPDATE_BASE}manifest.json`, { cache: 'no-store' })).json();
+    const m = await (await fetch(`${UPDATE_BASE}manifest.json?t=${Date.now()}`, { cache: 'no-store' })).json();
     latest = m.version;
     $('latest').textContent = latest;
     $('latest').classList.toggle('is-new', newer(latest, current));
