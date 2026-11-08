@@ -188,6 +188,8 @@ function skConv(f) {
     hs: f.score?.home ?? null,
     as: f.score?.away ?? null,
     league: [f.competition?.country?.name, f.competition?.name].filter(Boolean).join(' '),
+    homeTid: f.home?.id ?? null,
+    awayTid: f.away?.id ?? null,
   };
 }
 
@@ -243,7 +245,7 @@ async function skPoll() {
 }
 
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type === 'skPoll') skPoll();
+  if (msg?.type === 'skPoll') { skPoll(); if (Array.isArray(msg.ids) && msg.ids.length) skFeedPoll(msg.ids); }
 });
 
 // ---------- güncelleme: GitHub'daki sürüm ----------
@@ -286,3 +288,38 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 chrome.runtime.onStartup?.addListener(() => pullSharedLearned(true));
 chrome.runtime.onInstalled.addListener(() => pullSharedLearned(true));
+
+// ---------- maç olayları: kuponlardaki canlı maçlar için ----------
+// Kırmızı kart, VAR kararları, penaltılar ve kendi kalesine gol. Sadece kuponlarda olan canlı maçlar, maç başına
+// en sık 50 sn'de bir, tek seferde en çok 10 maç. Önemsiz olaylar (değişiklik, sarı kart) saklanmaz.
+const SK_KEY_EVENTS = new Set(['GOAL', 'OWN_GOAL', 'PENALTY', 'MISSED_PENALTY', 'RED_CARD', 'SECOND_YELLOW', 'VAR']);
+let skFeedBusy = false;
+async function skFeedPoll(ids) {
+  if (skFeedBusy) return;
+  skFeedBusy = true;
+  try {
+    const { skFeed = {} } = await chrome.storage.local.get('skFeed');
+    const now = Date.now();
+    const due = [...new Set(ids.map(String))].filter((id) => /^\d+$/.test(id) && now - (skFeed[id]?.at || 0) > 50 * 1000).slice(0, 10);
+    let changed = false;
+    for (const id of due) {
+      try {
+        const res = await fetch(SK_API + 'fixtures/' + id, { cache: 'no-store', credentials: 'omit' });
+        if (!res.ok) continue;
+        const d = (await res.json())?.data;
+        const events = (d?.events || []).filter((e) => SK_KEY_EVENTS.has(e.kind)).map((e) => ({
+          id: e.id, kind: e.kind, decision: e.decision || null, teamId: e.teamId, minute: e.minute, added: e.addedMinute, player: e.player || '', detail: e.detail || '',
+        }));
+        skFeed[id] = { at: Date.now(), events };
+        changed = true;
+      } catch {
+        // bu maç bu turda alınamadı
+      }
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    for (const [id, v] of Object.entries(skFeed)) if (now - (v.at || 0) > 6 * 3600 * 1000) { delete skFeed[id]; changed = true; }
+    if (changed) await chrome.storage.local.set({ skFeed });
+  } finally {
+    skFeedBusy = false;
+  }
+}
