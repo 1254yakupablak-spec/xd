@@ -174,7 +174,7 @@
   // ---------- SofaScore verisi ve elle düzeltmeler (chrome.storage) ----------
 
   const hasStore = typeof chrome !== 'undefined' && !!chrome.storage?.local;
-  const STORE_KEYS = ['colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
+  const STORE_KEYS = ['fullWidth', 'colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
     ...['xbet', 'stake'].flatMap((k) => [`${k}Events`, `${k}Odds`, `${k}Meta`])];
   let sofaEvents = {};
   // Liste sürümleri: skor ya da oran güncellemesi taramayı yenilemez, sadece maç sayısı değişince artar.
@@ -195,6 +195,7 @@
   let seededLines = false;
   let lsMeta = {};
   let updateInfo = {};     // { latest, checkedAt }: GitHub'daki son sürüm (background.js)
+  let fullWidth = true;    // sayfa içeriği ekranın tamamını kaplasın (6q 1328 px ile sınırlıyor)
   let colsSpecial = 0;     // Özel Oranlar: satır başına kart (0 = sitenin düzeni)
   let colsBets = 0;        // Bahislerim: satır başına kupon (0 = sitenin düzeni)
   let sbSort = 'site';      // Bahislerim: site, start, live, goal
@@ -233,6 +234,7 @@
     sbSort = ['site', 'start', 'live', 'goal'].includes(s.sbSort) ? s.sbSort : 'site';
     updateInfo = s.updateInfo || {};
     colsSpecial = [0, 1, 2, 3, 4].includes(s.colsSpecial) ? s.colsSpecial : 0;
+    fullWidth = s.fullWidth !== false;
     colsBets = [0, 1, 2, 3, 4].includes(s.colsBets) ? s.colsBets : 0;
     applyTheme();
     learnedSides = s.learnedSides || {};
@@ -1100,7 +1102,7 @@
     return `${updateHtml()}<header class="kx-head"><div class="kx-brand">${markHtml()}<div><b>KOKLEYİCİ SPORTS</b><small>Bahislerim paneli</small></div></div>`
       + `<div class="kx-stats">${stat('live', n((x) => x.live), 'canlı')}${stat('won', n((x) => x.goal === 'won'), 'tuttu')}${stat('open', n((x) => x.goal === 'open'), 'devam')}${stat('lost', n((x) => x.goal === 'lost'), 'tutmadı')}</div>`
       + `<div class="kx-sync"><span>${esc(`Canlı skor ${scoreTimes().replace(/^Veri servisi /, '')}`)}</span></div></header>`
-      + `<div class="kx-controls">${group('Özellikler', featHtml())}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satırda', colsHtml('bets', colsBets))}</div>`;
+      + `<div class="kx-controls">${group('Özellikler', featHtml())}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satırda', colsHtml('bets', colsBets))}${group('Görünüm', wideHtml())}</div>`;
   }
 
   // Bahislerim üstündeki saatler: skor verisinin son geldiği an. Livescore'un "açığım" yazımı sayılmaz.
@@ -1115,6 +1117,7 @@
   }
 
   function renderStatus() {
+    applyFullWidth();
     // Yeni Bahislerim sayfası: başlığın altına tam genişlikte panel.
     const viewHead = !document.querySelector(BETS_PAGE) && !document.querySelector('.my-bets-desktop-filters') ? queryOne('.sb-bets-view-head') : null;
     if (viewHead) {
@@ -2747,7 +2750,7 @@
       + `<div class="kx-sources">${sitesHtml()}</div><div class="kx-sync"><span>${esc(syncText)}</span>${features.arb ? refresh : ''}</div></header>`;
     const group = (name, body) => `<div class="kx-group"><span class="kx-label">${name}</span>${body}</div>`;
     if (!features.arb) return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}</div>`;
-    return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}${group('Göster', `<span class="kcs-seg">${shows}</span>`)}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satırda', colsHtml('special', colsSpecial))}`
+    return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}${group('Göster', `<span class="kcs-seg">${shows}</span>`)}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Satırda', colsHtml('special', colsSpecial))}${group('Görünüm', wideHtml())}`
       + `<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
       + multiChanceHtml()
       + `<footer class="kx-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Oranlar her an değişebilir. Oynamadan önce maçı ve oranı sitede kontrol et.</footer>`;
@@ -2764,6 +2767,21 @@
     if (st.textContent !== css) st.textContent = css;
   }
 
+  // Tam genişlik: 6q içeriği ortada en fazla 1200px + 6vw genişlikte tutuyor, iki yanda boşluk kalıyor.
+  // Açıkken bu sınır kalkar (kenarda 40px pay kalır). Sadece 6q spor sayfalarında, sayfanın kendi stiline eklenir.
+  function applyFullWidth() {
+    if (!/(^|\.)6q\.net$/.test(location.hostname)) return;
+    let st = document.getElementById('kcs-fullwidth');
+    if (!fullWidth) { st?.remove(); return; }
+    if (!st) {
+      st = document.createElement('style');
+      st.id = 'kcs-fullwidth';
+      st.textContent = '[class*="max-w-[calc(1200px+6vw)]"]{max-width:none!important}';
+      (document.head || document.documentElement).append(st);
+    }
+  }
+  const wideHtml = () => `<button type="button" class="kcs-wide-btn${fullWidth ? ' is-on' : ''}" aria-pressed="${fullWidth}" title="Sayfa ekranın tamamını kaplasın"><i></i>Tam genişlik</button>`;
+
   // Satır başına kupon seçimi (iki sayfada da).
   function colsHtml(page, val) {
     return `<span class="kcs-seg">${[[0, 'Site'], [1, '1'], [2, '2'], [3, '3'], [4, '4']]
@@ -2771,6 +2789,7 @@
   }
 
   function renderInfo() {
+    applyFullWidth();
     applySpecialCols();
     const grid = queryOne('.sb-custom-bets-grid');
     let box = queryOne('.kcs-info');
@@ -3009,6 +3028,14 @@
     }
     if (btn.classList.contains('kcs-update-btn')) {
       chrome.runtime.sendMessage({ type: 'openUpdate' });
+      return true;
+    }
+    if (btn.classList.contains('kcs-wide-btn')) {
+      fullWidth = !fullWidth;
+      if (hasStore) await chrome.storage.local.set({ fullWidth });
+      applyFullWidth();
+      renderInfo();
+      renderStatus();
       return true;
     }
     if (btn.classList.contains('kcs-cols-btn')) {
