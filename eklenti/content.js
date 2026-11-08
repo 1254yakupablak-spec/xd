@@ -898,11 +898,31 @@
     + '<input class="kcs-input kcs-line-input" inputmode="decimal" placeholder="8.5" aria-label="Gol çizgisi">'
     + '<button type="button" class="kcs-line-save" data-side="alt">Alt</button><button type="button" class="kcs-line-save" data-side="ust">Üst</button></div>';
 
-  function goalHtml(total, goal, final, title = '') {
+  // Kupon sitede sonuçlandıysa (Kazanıldı / Kaybedildi) sonuç sitenin dediğidir: bazı maçlar bulunamasa,
+  // skor eksik ya da eski olsa bile. Açık kuponda null.
+  function siteResult(card) {
+    const el = card?.querySelector?.('.sb-mb-status');
+    if (!el) return null;
+    const cls = el.className || '';
+    const text = norm(el.textContent || '');
+    if (/tone-(won|win)/.test(cls) || /kazan/.test(text)) return 'won';
+    if (/tone-(lost|lose)/.test(cls) || /kaybed/.test(text)) return 'lost';
+    if (/tone-(void|refund|cancel)/.test(cls) || /iade|iptal/.test(text)) return 'void';
+    return null;
+  }
+
+  function siteResultHtml(res, title = '') {
+    const v = res === 'won' ? 'won' : res === 'lost' ? 'lost' : 'open';
+    const badge = { won: 'Tuttu', lost: 'Tutmadı', open: 'İade' }[v];
+    return `<div class="kcs-goal kcs-goal--${v}" data-title="${esc(title)}"><div class="kcs-goal-text"><span>Kupon sitede sonuçlandı</span>`
+      + `<span class="kcs-goal-badge">${badge}</span></div><div class="kcs-goal-track"><i style="width:100%"></i></div></div>`;
+  }
+
+  function goalHtml(total, goal, final, title = '', forced = null) {
     const { line, side } = goal;
-    const v = goalVerdict(total, line, side, final);
+    const v = forced === 'won' || forced === 'lost' ? forced : goalVerdict(total, line, side, final);
     const left = Math.ceil(line) - total;
-    const note = v !== 'open' ? '' : (side === 'alt' ? `${left} gol daha gelirse yatar` : `${left} gol daha lazım`);
+    const note = forced === 'won' || forced === 'lost' ? 'sitede sonuçlandı' : (v !== 'open' ? '' : (side === 'alt' ? `${left} gol daha gelirse yatar` : `${left} gol daha lazım`));
     const badge = { won: 'Tuttu', lost: 'Tutmadı', open: 'Devam ediyor' }[v];
     const pct = Math.min(100, Math.round(total / Math.ceil(line) * 100));
     const undo = goal.manual ? '<button type="button" class="kcs-line-del" title="Elle girilen çizgiyi sil">Sil</button>' : '';
@@ -920,14 +940,15 @@
     leg?.classList.toggle('kcs-flash', !!flash);
     const teams = [...(leg?.querySelectorAll('.sb-mb-team') || [])].map((e) => e.textContent.trim());
     const key = teams.join(' - ');
+    const res = siteResult(card);
     sbInfo.set(card, {
       start: parseLegDate(leg?.querySelector('.sb-mb-leg-date')?.textContent || ''),
       live: !!leg?.matches('.is-live'),
-      goal: hasGoal ? goalVerdict(Number(digits[0]) + Number(digits[1]), Number(pick[1]), /alt/i.test(pick[2]) ? 'alt' : 'ust', !leg.matches('.result-pending')) : null,
+      goal: res === 'won' || res === 'lost' ? res : (hasGoal ? goalVerdict(Number(digits[0]) + Number(digits[1]), Number(pick[1]), /alt/i.test(pick[2]) ? 'alt' : 'ust', !leg.matches('.result-pending')) : null),
     });
     const ai = teams.length === 2 ? aiForTeams(teams[0], teams[1]) : null;
     if (!hasGoal && !ai && !flash) return;
-    const status = hasGoal ? `<div class="kcs-sb-status">${goalHtml(Number(digits[0]) + Number(digits[1]), { line: Number(pick[1]), side: /alt/i.test(pick[2]) ? 'alt' : 'ust' }, !leg.matches('.result-pending'))}</div>` : '';
+    const status = hasGoal ? `<div class="kcs-sb-status">${goalHtml(Number(digits[0]) + Number(digits[1]), { line: Number(pick[1]), side: /alt/i.test(pick[2]) ? 'alt' : 'ust' }, !!res || !leg.matches('.result-pending'), '', res)}</div>` : '';
     const html = poweredHtml() + (flash ? `<div class="kcs-goal-alert"><span class="kcs-goal-tag">GOL</span> Skor ${esc(digits[0])} - ${esc(digits[1])} oldu</div>` : '') + status + aiSection(key, ai);
     let box = card.querySelector(':scope > .kcs-legs');
     if (!box) {
@@ -953,13 +974,16 @@
     const done = data.rows.filter((r) => r.f?.ended).length;
     const goals = data.rows.filter((r) => r.f?.hasScore).reduce((n, r) => n + Number(r.f.hs) + Number(r.f.as), 0);
     const summary = [live && `${live} canlı`, done && `${done} bitti`, `${data.rows.length} maç`, `toplam ${goals} gol`].filter(Boolean).join(' · ');
-    const final = data.rows.every((row) => row.f?.ended);
-    const status = data.goal ? goalHtml(goals, data.goal, final, data.title) : goalAskHtml(data.title);
+    const res = siteResult(card);
+    const final = !!res || data.rows.every((row) => row.f?.ended);
+    let status;
+    if (data.goal) status = goalHtml(goals, data.goal, final, data.title, res);
+    else status = res === 'won' || res === 'lost' ? siteResultHtml(res, data.title) : goalAskHtml(data.title);
     const starts = data.rows.map((row) => row.f?.start?.getTime()).filter(Boolean);
     sbInfo.set(card, {
       start: starts.length ? Math.min(...starts) : null,
       live: live > 0,
-      goal: data.goal ? goalVerdict(goals, data.goal.line, data.goal.side, final) : null,
+      goal: res === 'won' || res === 'lost' ? res : (data.goal ? goalVerdict(goals, data.goal.line, data.goal.side, final) : null),
     });
     const key = data.title;
     const html = `${poweredHtml()}<div class="kcs-sb-status">${status}</div>${sectionHtml('legs', key, 'Maç takibi', esc(summary), data.rows.map(sbLegHtml).join(''))}${aiSection(key, aiCalls[norm(key)])}`;
