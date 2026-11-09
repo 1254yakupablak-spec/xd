@@ -229,12 +229,13 @@ async function skPoll() {
       const ids = new Set(live.map((f) => f.id));
       for (const f of live) events[f.id] = { ...events[f.id], ...skConv(f) };
       // Canlıyken listeden düşen maç bitmiştir: son skoru ve durumu bugünün listesinden al.
-      if (Object.values(events).some((e) => SK_LIVE.has(e.status) && !ids.has(e.id))) {
+      if (Object.values(events).some((e) => e.sport !== 'basketball' && SK_LIVE.has(e.status) && !ids.has(e.id))) {
         for (const f of await skGet(`fixtures?date=${skDate(now)}`)) events[f.id] = { ...events[f.id], ...skConv(f) };
       }
       meta.liveAt = now;
       changed = true;
     }
+    if (await bkPoll(events, meta, now)) changed = true;
     if (changed) {
       meta.updatedAt = now;
       meta.count = Object.keys(events).length;
@@ -251,7 +252,7 @@ async function skPoll() {
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg?.type === 'skPoll') { skPoll(); if (Array.isArray(msg.ids) && msg.ids.length) skFeedPoll(msg.ids); }
-  if (msg?.type === 'skDetail' && /^\d+$/.test(String(msg.id))) {
+  if (msg?.type === 'skDetail' && /^b?\d+$/.test(String(msg.id))) {
     skDetail(String(msg.id)).then((d) => reply({ ok: true, d })).catch((err) => reply({ ok: false, error: String(err?.message || err) }));
     return true;
   }
@@ -343,6 +344,7 @@ async function skJson(path) {
   return (await res.json())?.data ?? null;
 }
 async function skDetail(id) {
+  if (id.startsWith('b')) return bkDetail(id.slice(1));
   const now = Date.now();
   const c = skDetailCache.get(id) || {};
   const live = SK_LIVE.has(c.detail?.fixture?.status);
@@ -364,4 +366,167 @@ async function skDetail(id) {
   skDetailCache.set(id, c);
   if (skDetailCache.size > 60) skDetailCache.delete(skDetailCache.keys().next().value);
   return { detail: c.detail, h2h: c.h2h, ctx: c.ctx, standings: c.standings };
+}
+
+// ---------- basketbol (NBA): maç listesi, canlı skor ve maç ayrıntısı ----------
+// Anahtar gerekmez. Maçlar skEvents içinde "b" önekiyle tutulur (ör. b401909952); kuponlardaki eşleştirme,
+// skor, geri sayım ve "Göz at" futbolla aynı yoldan çalışır. Liste 30 dakikada bir, canlı skor maç varken 10 sn'de bir.
+const BK_API = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/';
+const bkDate = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms)).replace(/-/g, '');
+
+function bkStatus(st) {
+  const n = st?.type?.name || '';
+  const s = st?.type?.state;
+  if (/POSTPONED/.test(n)) return 'POSTPONED';
+  if (/CANCEL/.test(n)) return 'CANCELLED';
+  if (/SUSPENDED|DELAYED/.test(n)) return 'SUSPENDED';
+  if (s === 'post') return 'FINISHED';
+  if (s === 'in') return n === 'STATUS_HALFTIME' ? 'HALFTIME' : n === 'STATUS_END_PERIOD' ? 'BREAK' : 'LIVE';
+  return 'NOT_STARTED';
+}
+function bkPeriodName(p) { return p <= 4 ? `${p}. çeyrek` : `Uzatma${p > 5 ? ` ${p - 4}` : ''}`; }
+function bkLabel(st) {
+  const p = st?.period || 0;
+  const n = st?.type?.name;
+  if (n === 'STATUS_HALFTIME') return 'Devre arası';
+  if (n === 'STATUS_END_PERIOD') return `${bkPeriodName(p)} bitti`;
+  if (st?.type?.state === 'in') return `${bkPeriodName(p)} ${st.displayClock || ''}`.trim();
+  if (st?.type?.state === 'post') return p > 4 ? 'Uzatmada bitti' : 'Maç bitti';
+  return '';
+}
+function bkConv(ev) {
+  const c = ev.competitions?.[0] || {};
+  const side = (s) => c.competitors?.find((x) => x.homeAway === s) || {};
+  const h = side('home');
+  const a = side('away');
+  const status = bkStatus(ev.status);
+  const started = status !== 'NOT_STARTED' && status !== 'POSTPONED' && status !== 'CANCELLED';
+  const odds = c.odds?.[0];
+  return {
+    id: `b${ev.id}`, sport: 'basketball', league: 'NBA',
+    home: h.team?.displayName || '', away: a.team?.displayName || '',
+    homeLogo: h.team?.logo || '', awayLogo: a.team?.logo || '',
+    homeTid: h.team?.id ?? null, awayTid: a.team?.id ?? null,
+    start: ev.date ? Math.round(Date.parse(ev.date) / 1000) : null,
+    status, label: bkLabel(ev.status), minute: null, added: null,
+    hs: started && h.score != null ? Number(h.score) : null,
+    as: started && a.score != null ? Number(a.score) : null,
+    period: ev.status?.period || 0, clock: ev.status?.displayClock || '',
+    quarters: (h.linescores || []).map((l, i) => [l.value ?? null, a.linescores?.[i]?.value ?? null]),
+    ou: odds?.overUnder ?? null, spread: odds?.details || '',
+  };
+}
+async function bkGet(date) {
+  const res = await fetch(`${BK_API}scoreboard?dates=${date}`, { cache: 'no-store', credentials: 'omit' });
+  if (!res.ok) throw new Error(`basketbol ${res.status}`);
+  return (await res.json())?.events || [];
+}
+// skPoll içinden çağrılır (aynı kilitle; skEvents'e aynı anda iki yazan olmasın). Değişiklik varsa true.
+async function bkPoll(events, meta, now) {
+  let changed = false;
+  try {
+    if (now - (meta.bkListAt || 0) > 30 * 60 * 1000) {
+      for (const [k, e] of Object.entries(events)) if (e.sport === 'basketball' && (!e.start || now / 1000 - e.start > 7 * 86400)) delete events[k];
+      const oldDue = now - (meta.bkOldAt || 0) > 24 * 3600 * 1000;
+      for (const d of oldDue ? [-3, -2, -1, 0, 1] : [-1, 0, 1]) for (const ev of await bkGet(bkDate(now + d * 864e5))) events[`b${ev.id}`] = bkConv(ev);
+      if (oldDue) meta.bkOldAt = now;
+      meta.bkListAt = now;
+      meta.bkLiveAt = now;
+      changed = true;
+    }
+    const hot = Object.values(events).filter((e) => e.sport === 'basketball' && e.start
+      && (SK_LIVE.has(e.status) || (e.status === 'NOT_STARTED' && e.start * 1000 - now < 10 * 60 * 1000 && now - e.start * 1000 < 4 * 3600 * 1000)));
+    if (hot.length && now - (meta.bkLiveAt || 0) > 10 * 1000) {
+      for (const d of new Set(hot.map((e) => bkDate(e.start * 1000)))) for (const ev of await bkGet(d)) events[`b${ev.id}`] = bkConv(ev);
+      meta.bkLiveAt = now;
+      changed = true;
+    }
+    if (meta.bkError) { meta.bkError = null; changed = true; }
+  } catch (err) {
+    meta.bkError = String(err?.message || err);
+    changed = true;
+  }
+  return changed;
+}
+
+// Maç ayrıntısı ("Göz at"): skor tablosu, sayı akışı, takım istatistikleri, oyuncular, puan durumu, sezon serisi.
+function bkSummary(j, id) {
+  const comp = j.header?.competitions?.[0] || {};
+  const st = comp.status || {};
+  const side = (s) => comp.competitors?.find((x) => x.homeAway === s) || {};
+  const team = (c) => ({
+    id: c.team?.id ?? null, name: c.team?.displayName || '', shortCode: c.team?.abbreviation || '',
+    logoUrl: c.team?.logos?.find((l) => l.rel?.includes('default'))?.href || c.team?.logos?.[0]?.href || c.team?.logo || '',
+    record: c.record?.find((r) => r.type === 'total')?.summary || c.record?.[0]?.summary || '',
+  });
+  const h = side('home');
+  const a = side('away');
+  const status = bkStatus(st);
+  const started = status !== 'NOT_STARTED';
+  const fixture = {
+    id: `b${id}`, sport: 'basketball', status, stateLabel: bkLabel(st) || (comp.date ? '' : ''), minute: null,
+    home: team(h), away: team(a), kickoffAt: comp.date || null, period: st.period || 0, clock: st.displayClock || '',
+    score: started ? { home: Number(h.score ?? 0), away: Number(a.score ?? 0) } : null,
+    quarters: (h.linescores || []).map((l, i) => [Number(l.displayValue ?? l.value ?? 0), Number(a.linescores?.[i]?.displayValue ?? a.linescores?.[i]?.value ?? 0)]),
+  };
+  const plays = (j.plays || []).map((p) => ({
+    period: p.period?.number || 0, clock: p.clock?.displayValue || '', text: p.text || '', type: p.type?.text || '',
+    hs: p.homeScore ?? null, as: p.awayScore ?? null, teamId: p.team?.id ?? null, scoring: !!p.scoringPlay, value: p.scoreValue || 0,
+  }));
+  const teamStats = {};
+  for (const t of j.boxscore?.teams || []) teamStats[t.team?.id] = Object.fromEntries((t.statistics || []).map((s) => [s.name, s.displayValue]));
+  const players = (j.boxscore?.players || []).map((t) => {
+    const s = t.statistics?.[0] || {};
+    return {
+      teamId: t.team?.id ?? null, labels: s.labels || [],
+      athletes: (s.athletes || []).map((x) => ({ name: x.athlete?.displayName || '', short: x.athlete?.shortName || '', pos: x.athlete?.position?.abbreviation || '', jersey: x.athlete?.jersey || '', starter: !!x.starter, dnp: !!x.didNotPlay, reason: x.reason || '', stats: x.stats || [] })),
+    };
+  });
+  const leaders = (j.leaders || []).map((t) => ({
+    teamId: t.team?.id ?? null,
+    list: (t.leaders || []).slice(0, 3).map((l) => ({ cat: l.name || l.displayName, value: l.leaders?.[0]?.displayValue || '', name: l.leaders?.[0]?.athlete?.displayName || '', photo: l.leaders?.[0]?.athlete?.headshot?.href || '' })),
+  }));
+  const standings = (j.standings?.groups || []).map((g) => ({
+    title: (g.header || '').replace(/^\d{4}-\d{2}\s*/, '').replace(/\s*Standings$/, ''),
+    rows: (g.standings?.entries || []).map((e) => {
+      const s = Object.fromEntries((e.stats || []).map((x) => [x.name, x.displayValue]));
+      return { id: e.id, team: e.team, abbr: (/\/name\/(\w+)\//.exec(e.link || '') || [])[1] || '', w: s.wins, l: s.losses, pct: s.winPercent, gb: s.gamesBehind, strk: s.streak };
+    }),
+  }));
+  const series = (j.seasonseries || []).slice(0, 1).map((s) => ({
+    summary: s.summary || '', score: s.seriesScore || '',
+    events: (s.events || []).map((e) => ({
+      date: e.date, done: e.statusType?.completed || e.status === 'post',
+      teams: (e.competitors || []).map((c) => ({ homeAway: c.homeAway, id: c.team?.id, name: c.team?.displayName || '', logo: c.team?.logo || '', score: c.score ?? '', winner: !!c.winner })),
+    })),
+  }))[0] || null;
+  const gi = j.gameInfo || {};
+  const pick = j.pickcenter?.[0] || null;
+  const wp = (j.winprobability || []).slice(-1)[0];
+  return {
+    sport: 'basketball', live: SK_LIVE.has(status),
+    detail: { fixture, events: [], statistics: [], lineups: [], trends: [] },
+    plays, teamStats, players, leaders, standings, series,
+    info: {
+      venue: [gi.venue?.fullName, gi.venue?.address?.city].filter(Boolean).join(', '), attendance: gi.attendance || null,
+      officials: (gi.officials || []).map((o) => o.displayName).filter(Boolean),
+      tv: [...new Set((j.broadcasts || []).map((b) => b.media?.shortName || b.station || '').filter(Boolean))].slice(0, 3),
+      line: pick ? { ou: pick.overUnder ?? null, details: pick.details || '' } : null,
+      homeWin: wp && SK_LIVE.has(status) ? Math.round(wp.homeWinPercentage * 100) : null,
+    },
+  };
+}
+async function bkDetail(id) {
+  const key = `b${id}`;
+  const now = Date.now();
+  const c = skDetailCache.get(key) || {};
+  if (!c.d || now - c.at > (c.d.live ? 10 * 1000 : 5 * 60 * 1000)) {
+    const res = await fetch(`${BK_API}summary?event=${id}`, { cache: 'no-store', credentials: 'omit' });
+    if (!res.ok) throw new Error(`basketbol ${res.status}`);
+    c.d = bkSummary(await res.json(), id);
+    c.at = now;
+  }
+  skDetailCache.set(key, c);
+  if (skDetailCache.size > 60) skDetailCache.delete(skDetailCache.keys().next().value);
+  return c.d;
 }
