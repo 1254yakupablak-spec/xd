@@ -1265,3 +1265,47 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 .kcs-ci-body > .kcs-lg { grid-column: 1 / -1; width: 100%; box-sizing: border-box; }
 .kcs-lg-head b { min-width: 0; }
 .kcs-lg-head > span { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+/* Üst panel: sıkı düzen, açılır listeler */
+.kx-head { gap: 8px 14px; padding: 8px 12px; }
+.kx-brand { gap: 8px; }
+.kx-brand .kcs-mark { width: 24px !important; height: 24px !important; border-radius: 7px; }
+.kx-brand b { font-size: 13.5px; letter-spacing: 1px; white-space: nowrap; }
+.kx-sync { flex-wrap: wrap; justify-content: flex-end; gap: 8px; font-size: 11.5px; }
+.kx-stat { height: 24px; padding: 0 10px; font-size: 12px; }
+.kx-warn-ic { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: var(--kcs-warn); cursor: help; }
+.kx-warn-ic svg { width: 15px; height: 15px; }
+.kx-warn[hidden] { display: none !important; }
+.kx-controls { position: relative; z-index: 5; gap: 6px; padding: 6px 12px; }
+.kx-dd { position: relative; }
+.kx-dd-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--kcs-line); border-radius: 8px; background: var(--kcs-panel); color: var(--kcs-fg); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; transition: border-color 0.15s ease, background 0.15s ease; }
+.kx-dd-btn > span { color: var(--kcs-muted); font-size: 10.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; }
+.kx-dd-btn > b { font-weight: 700; }
+.kx-dd-btn > b em { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--kcs-a) 45%, transparent); color: #fff; font-size: 10.5px; font-style: normal; }
+.kx-dd-btn .kcs-ci-chev { transition: transform 0.2s ease; }
+.kx-dd-btn:hover, .kx-dd.is-open > .kx-dd-btn { border-color: color-mix(in srgb, var(--kcs-a) 75%, transparent); background: color-mix(in srgb, var(--kcs-a) 16%, var(--kcs-panel)); }
+.kx-dd.is-open > .kx-dd-btn .kcs-ci-chev { transform: rotate(180deg); }
+.kx-dd-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 2147482000; display: none; min-width: 180px; padding: 6px; border: 1px solid var(--kcs-line); border-radius: 10px; background: var(--kcs-bg); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55); }
+.kx-dd.is-open > .kx-dd-menu { display: block; animation: kx-drop 0.15s ease-out; }
+@keyframes kx-drop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.kx-dd-menu .kcs-seg, .kx-dd-menu .kcs-feats { display: flex !important; flex-direction: column; gap: 2px; height: auto; border: 0; background: transparent; }
+.kx-dd-menu .kcs-seg button, .kx-dd-menu .kcs-feats button { display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--kcs-fg); font-size: 12.5px; text-align: left; }
+.kx-dd-menu .kcs-seg button:hover, .kx-dd-menu .kcs-feats button:hover { background: var(--kcs-panel); }
+.kx-dd-menu .kcs-seg button.is-on { background: color-mix(in srgb, var(--kcs-a) 35%, transparent); color: #fff; }
+.kx-dd-menu .kcs-seg button.is-on::after { content: '✓'; margin-left: auto; color: var(--kcs-text); font-weight: 800; }
+.kx-dd-menu .kcs-count { margin-left: auto; }
+.kx-dd--wide .kx-dd-menu .kcs-seg { display: grid !important; grid-template-columns: repeat(4, 1fr); min-width: 200px; }
+.kx-dd--wide .kx-dd-menu .kcs-seg button { justify-content: center; padding: 0; }
+.kx-dd--wide .kx-dd-menu .kcs-seg button.is-on::after { display: none; }
+.kx-controls .kcs-wide-btn, .kx-controls .kcs-fold-all { height: 30px; }
+.kx-controls .kcs-fold-all { margin-left: auto; }
+.kx-multi { padding: 8px 12px 10px; }
+.kx-multi-head { margin-bottom: 8px; gap: 6px 12px; }
+.kx-multi-title b { font-size: 13px; }
+.kx-multi-title small { margin-top: 0; font-size: 11px; }
+.kx-tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+.kx-tile { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 6px 10px; border-radius: 8px; }
+.kx-tile > span { flex: 1 1 100%; font-size: 10.5px; }
+.kx-tile > b { font-size: 17px; }
+.kx-tile > b em { font-size: 12px; }
+.kx-tile > small { font-size: 10.5px; }
+.kcs-info.kx { margin-bottom: 12px; }
