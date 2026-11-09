@@ -200,6 +200,7 @@
   let manualOrder = { special: [], bets: [] }; // elle sıralama: kupon anahtarları sırayla
   let groupSpecial = 'none'; // Özel Oranlar gruplama: none, single (tekli önce), multi (çoklu önce)
   let groupBets = 'none';    // Bahislerim gruplama
+  let kxDd = null;         // üst panelde açık olan liste (sırala, grupla...)
   let fullWidth = true;    // sayfa içeriği ekranın tamamını kaplasın (6q 1328 px ile sınırlıyor)
   let colsSpecial = 0;     // Özel Oranlar: satır başına kart (0 = sitenin düzeni)
   let colsBets = 0;        // Bahislerim: satır başına kupon (0 = sitenin düzeni)
@@ -1638,6 +1639,14 @@
     return `<div class="kx-update"><span><b>Yeni sürüm ${esc(updateInfo.latest)}</b> hazır (yüklü: ${esc(cur)}).</span><button type="button" class="kcs-update-btn">Güncelle</button></div>`;
   }
 
+  // Açılır liste: düğmede başlık ve seçili değer; içinde sitenin eski düğmeleri (aynı sınıflar, aynı tıklama).
+  const ddHtml = (id, label, current, body, wide = false) => `<div class="kx-dd${kxDd === id ? ' is-open' : ''}${wide ? ' kx-dd--wide' : ''}">`
+    + `<button type="button" class="kx-dd-btn" data-dd="${id}" aria-expanded="${kxDd === id}"><span>${label}</span><b>${current}</b><i class="kcs-ci-chev"></i></button>`
+    + `<div class="kx-dd-menu">${body}</div></div>`;
+  const warnIcon = (text) => `<span class="kx-warn-ic" title="${esc(text)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg></span>`;
+  const featSum = () => { const on = [features.scores, features.arb, features.info].filter(Boolean).length; return on === 3 ? 'Hepsi açık' : on ? `${on}/3 açık` : 'Kapalı'; };
+  const GROUP_TXT = { none: 'Yok', single: 'Tekli önce', multi: 'Çoklu önce' };
+  const colsTxt = (v) => (v ? `${v} kupon` : 'Site');
   function betsPanelHtml() {
     const cards = queryAll(SB_BET);
     const info = cards.map((c) => sbInfo.get(c) || {});
@@ -1646,10 +1655,13 @@
     const sorts = [['site', 'Site'], ['start', 'Maç saati'], ['live', 'Canlı önce'], ['goal', 'Gol durumu'], ['manual', 'Elle']]
       .map(([k, label]) => `<button type="button" class="kcs-sbsort${sbSort === k ? ' is-on' : ''}" data-sbsort="${k}">${label}</button>`).join('');
     const group = (name, body) => `<div class="kx-group"><span class="kx-label">${name}</span>${body}</div>`;
-    return `${updateHtml()}<header class="kx-head"><div class="kx-brand">${markHtml()}<div><b>KOKLEYİCİ SPORTS</b><small>Bahislerim paneli</small></div></div>`
+    const sortTxt = { site: 'Site', start: 'Maç saati', live: 'Canlı önce', goal: 'Gol durumu', manual: 'Elle' }[sbSort] || 'Site';
+    return `${updateHtml()}<header class="kx-head"><div class="kx-brand">${markHtml()}<div><b>KOKLEYİCİ SPORTS</b></div></div>`
       + `<div class="kx-stats">${stat('live', n((x) => x.live), 'canlı')}${stat('won', n((x) => x.goal === 'won'), 'tuttu')}${stat('open', n((x) => x.goal === 'open'), 'devam')}${stat('lost', n((x) => x.goal === 'lost'), 'tutmadı')}</div>`
       + `<div class="kx-sync"><span>${esc(`Canlı skor ${scoreTimes().replace(/^Veri servisi /, '')}`)}</span></div></header>`
-      + `<div class="kx-controls">${group('Özellikler', featHtml())}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Grupla', groupHtml('bets', groupBets))}${group('Satır başı kupon', colsHtml('bets', colsBets))}${group('Görünüm', wideHtml())}</div>`;
+      + `<div class="kx-controls">${ddHtml('b-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}${ddHtml('b-group', 'Grupla', GROUP_TXT[groupBets] || 'Yok', groupHtml('bets', groupBets))}`
+      + `${ddHtml('b-cols', 'Satır başı', colsTxt(colsBets), colsHtml('bets', colsBets), true)}${ddHtml('b-feat', 'Özellikler', featSum(), featHtml())}${wideHtml()}</div>`;
+    void group;
   }
 
   // Bahislerim üstündeki saatler: skor verisinin son geldiği an. Livescore'un "açığım" yazımı sayılmaz.
@@ -3378,14 +3390,19 @@
       .map(([k, label]) => `<button type="button" class="kcs-show-btn kcs-sort-btn${cardShow === k ? ' is-on' : ''}" data-show="${k}">${label}<span class="kcs-count">${counts[k]}</span></button>`).join('');
     const refresh = `<button type="button" class="kcs-refresh${busy ? ' is-busy' : ''}"${busy || !open ? ' disabled' : ''} title="${open ? 'Oranları yenile' : 'Yenilemek için 1xBet ya da Stake sekmesini aç'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6.3"/><path d="M20 5v6h-6"/></svg>${label}</button>`;
     const syncText = [notesAt && `Maç bilgileri ${noteTime(notesAt)}`, times].filter(Boolean).join(' · ');
-    const head = `${updateHtml()}<header class="kx-head"><div class="kx-brand">${markHtml()}<div><b>KOKLEYİCİ SPORTS</b><small>Özel Oranlar paneli</small></div></div>`
-      + `<div class="kx-sources">${sitesHtml()}</div><div class="kx-sync"><span>${esc(syncText)}</span>${features.arb ? refresh : ''}</div></header>`;
+    const warn = warnIcon('Oranlar her an değişebilir. Oynamadan önce maçı ve oranı sitede kontrol et.');
+    const head = `${updateHtml()}<header class="kx-head"><div class="kx-brand">${markHtml()}<div><b>KOKLEYİCİ SPORTS</b></div></div>`
+      + `<div class="kx-sources">${sitesHtml()}</div><div class="kx-sync"><span>${esc(syncText)}</span>${warn}${features.arb ? refresh : ''}</div></header>`;
+    const showTxt = `${{ all: 'Tümü', single: 'Tek maç', multi: 'Çok maç' }[cardShow] || 'Tümü'} <em>${counts[cardShow] ?? counts.all}</em>`;
+    const sortTxt = { site: 'Site', arb: 'Arbitraj', start: 'Saat', both: 'Saat + Arbitraj', manual: 'Elle' }[cardSort] || 'Site';
     const group = (name, body) => `<div class="kx-group"><span class="kx-label">${name}</span>${body}</div>`;
-    if (!features.arb) return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}</div>`;
-    return `${head}<div class="kx-controls">${group('Özellikler', featHtml())}${group('Göster', `<span class="kcs-seg">${shows}</span>`)}${group('Sırala', `<span class="kcs-seg">${sorts}</span>`)}${group('Grupla', groupHtml('special', groupSpecial))}${group('Satır başı kupon', colsHtml('special', colsSpecial))}${group('Görünüm', wideHtml())}`
-      + `<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
+    void group;
+    if (!features.arb) return `${head}<div class="kx-controls">${ddHtml('s-feat', 'Özellikler', featSum(), featHtml())}</div>`;
+    return `${head}<div class="kx-controls">${ddHtml('s-show', 'Göster', showTxt, `<span class="kcs-seg">${shows}</span>`)}${ddHtml('s-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}`
+      + `${ddHtml('s-group', 'Grupla', GROUP_TXT[groupSpecial] || 'Yok', groupHtml('special', groupSpecial))}${ddHtml('s-cols', 'Satır başı', colsTxt(colsSpecial), colsHtml('special', colsSpecial), true)}`
+      + `${ddHtml('s-feat', 'Özellikler', featSum(), featHtml())}${wideHtml()}<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
       + multiChanceHtml()
-      + `<footer class="kx-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Oranlar her an değişebilir. Oynamadan önce maçı ve oranı sitede kontrol et.</footer>`;
+      + `<footer class="kx-warn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Oranlar her an değişebilir. Oynamadan önce maçı ve oranı sitede kontrol et.</footer>`;
   }
 
   function applySpecialCols() {
@@ -4276,6 +4293,7 @@
       if (calcRow === calc) closeCalc(); else showCalc(calc);
       return;
     }
+    if (kxDd && !btn?.classList.contains('kx-dd-btn')) { kxDd = null; setTimeout(() => { renderInfo(); renderStatus(); }, 0); }
     if (!btn || !btn.closest(OWN)) return;
     ev.preventDefault();
     ev.stopPropagation();
@@ -4303,6 +4321,12 @@
     userActAt = Date.now();
     // Eklenti yenilendiyse bu sekmedeki kod kopuktur, düğmeler sessizce ölür: sayfayı yenile.
     if (hasStore && !chrome.runtime?.id) { location.reload(); return; }
+    if (btn.classList.contains('kx-dd-btn')) {
+      kxDd = kxDd === btn.dataset.dd ? null : btn.dataset.dd;
+      renderInfo();
+      renderStatus();
+      return;
+    }
     if (await onArbButton(btn)) return;
     if (btn.classList.contains('kcs-line-save')) {
       const wrap = btn.closest('.kcs-goal');
