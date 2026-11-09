@@ -174,7 +174,7 @@
   // ---------- SofaScore verisi ve elle düzeltmeler (chrome.storage) ----------
 
   const hasStore = typeof chrome !== 'undefined' && !!chrome.storage?.local;
-  const STORE_KEYS = ['skFeed', 'manualOrder', 'groupSpecial', 'groupBets', 'fullWidth', 'colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
+  const STORE_KEYS = ['skFeed', 'manualOrder', 'groupSpecial', 'groupBets', 'fullWidth', 'colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'featPl', 'featLink', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
     ...['xbet', 'stake'].flatMap((k) => [`${k}Events`, `${k}Odds`, `${k}Meta`])];
   let sofaEvents = {};
   // Liste sürümleri: skor ya da oran güncellemesi taramayı yenilemez, sadece maç sayısı değişince artar.
@@ -212,7 +212,7 @@
   let goalLines = {};      // kupon yazısı → { line, side, at } (Özel Oranlar'dan öğrenilen Alt/Üst çizgisi)
   let sofaResolved = {};   // kupon yazısı → { id } (SofaScore aramasıyla bulundu)
   let learnedSides = {};   // kupondaki takım yazısı → SofaScore takım adı (elle düzeltmelerden öğrenildi)
-  let features = { scores: true, arb: true, info: true }; // üst şeritten ve menüden açılıp kapatılır
+  let features = { scores: true, arb: true, info: true, pl: true, link: false }; // üst şeritten ve menüden açılıp kapatılır
   let siteTabs = {};       // { sofa, ls, xbet, stake }: sekme açık mı (background.js)
   let matchDirty = true;   // maç eşleşmeleri yeniden bakılmalı
   let onBetsPage = false;  // sayfada kupon kartı var
@@ -257,7 +257,7 @@
     lsLive = s.lsLive || {};
     scoreSource = s.scoreSource || 'sofa';
     siteTabs = s.siteTabs || {};
-    features = { scores: s.featScores !== false, arb: s.featArb !== false, info: s.featInfo !== false };
+    features = { scores: s.featScores !== false, arb: s.featArb !== false, info: s.featInfo !== false, pl: s.featPl !== false, link: s.featLink === true };
     for (const k in books) {
       books[k] = { events: s[`${k}Events`] || [], odds: s[`${k}Odds`] || {}, meta: s[`${k}Meta`] || {}, index: null };
     }
@@ -307,6 +307,8 @@
       if (changes.featScores) { features.scores = changes.featScores.newValue !== false; redraw = true; }
       if (changes.featArb) { features.arb = changes.featArb.newValue !== false; redraw = true; }
       if (changes.featInfo) { features.info = changes.featInfo.newValue !== false; redraw = true; }
+      if (changes.featPl) { features.pl = changes.featPl.newValue !== false; redraw = true; }
+      if (changes.featLink) { features.link = changes.featLink.newValue === true; redraw = true; }
       for (const k in books) {
         if (changes[`${k}Events`]) {
           const next = changes[`${k}Events`].newValue || [];
@@ -1644,7 +1646,7 @@
     + `<button type="button" class="kx-dd-btn" data-dd="${id}" aria-expanded="${kxDd === id}"><span>${label}</span><b>${current}</b><i class="kcs-ci-chev"></i></button>`
     + `<div class="kx-dd-menu">${body}</div></div>`;
   const warnIcon = (text) => `<span class="kx-warn-ic" title="${esc(text)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg></span>`;
-  const featSum = () => { const on = [features.scores, features.arb, features.info].filter(Boolean).length; return on === 3 ? 'Hepsi açık' : on ? `${on}/3 açık` : 'Kapalı'; };
+  const featSum = (special = false) => { const list = [features.scores, features.arb, features.info, ...(special ? [features.pl, features.link] : [])]; const on = list.filter(Boolean).length; return on === list.length ? 'Hepsi açık' : on ? `${on}/${list.length} açık` : 'Kapalı'; };
   const GROUP_TXT = { none: 'Yok', single: 'Tekli önce', multi: 'Çoklu önce' };
   const colsTxt = (v) => (v ? `${v} kupon` : 'Site');
   function betsPanelHtml() {
@@ -3092,9 +3094,9 @@
   ];
 
   // Canlı skor / Arbitraj anahtarları: özellik kapalıyken de görünür, yoksa geri açılamaz.
-  function featHtml() {
+  function featHtml(special = false) {
     const btn = (key, on, label) => `<button type="button" class="kcs-feat-btn${on ? ' is-on' : ''}" data-feat="${key}" aria-pressed="${on}" title="${label} ${on ? 'açık, kapat' : 'kapalı, aç'}"><i></i>${label}</button>`;
-    return `<span class="kcs-feats">${btn('featScores', features.scores, 'Canlı skor')}${btn('featArb', features.arb, 'Arbitraj')}${btn('featInfo', features.info, 'Bilgiler')}</span>`;
+    return `<span class="kcs-feats">${btn('featScores', features.scores, 'Canlı skor')}${btn('featArb', features.arb, 'Arbitraj')}${btn('featInfo', features.info, 'Bilgiler')}${special ? btn('featPl', features.pl, 'Çok maçlı kuponlar · kâr/zarar') + btn('featLink', features.link, 'Bağlı kuponlar') : ''}</span>`;
   }
 
   function sitesHtml() {
@@ -3355,7 +3357,7 @@
       if (!c.legs.every((x) => x.l > 0) && c.p == null) skipped++; else list.push(c);
     }
     if (!list.length && !skipped) return '';
-    const sig = JSON.stringify([list, skipped, fromOdds.size, fromNote.size, multiStake, plOpen, linkOpen, all]);
+    const sig = JSON.stringify([list, skipped, fromOdds.size, fromNote.size, multiStake, features.pl, features.link, all]);
     if (sig === chanceMemo.sig) return chanceMemo.html;
     const res = multiChance(list);
     const pct = !res ? 'hesaplanamadı' : (res.sure || res.atLeast1 >= 0.999 ? '%99.9 üstü' : `%${(res.atLeast1 * 100).toFixed(1)}`);
@@ -3364,9 +3366,11 @@
       legCards && `${legCards} kupon skor ve çizgiden`, res?.loose - legCards > 0 && `${res.loose - legCards} kupon kendi olasılığıyla`, skipped && `${skipped} kuponun verisi yok, sayılmadı`].filter(Boolean);
     const link = linkInfo(all);
     const tip = 'Tahmindir, garanti değildir. Aynı maç birden çok kuponda varsa birlikte sayıldı; goller Poisson ile 20.000 kez denendi. Başlamış maçlarda oran canlı değişir.';
-    const plBtn = res ? `<button type="button" class="kcs-pl-toggle${plOpen ? '' : ' is-closed'}" aria-expanded="${plOpen}">Kâr/zarar <i class="kcs-ci-chev"></i></button>` : '';
-    const html = `<section class="kcs-bar-chance kx-multi"><div class="kx-multi-head"><div class="kx-multi-title" title="${esc(tip)}"><b>${markHtml()}Çok maçlı kuponlar</b><small>${esc(parts.join(' · '))}</small></div><div class="kx-multi-actions">${plBtn}${link.btn}</div></div>`
-      + `${tilesHtml(res)}${res && plOpen ? plHtml(res) : ''}${linkOpen ? link.body : ''}</section>`;
+    const plBtn = '';
+    const html = `<section class="kcs-bar-chance kx-multi"><div class="kx-multi-head"><div class="kx-multi-title" title="${esc(tip)}"><b>${markHtml()}Çok maçlı kuponlar</b><small>${esc(parts.join(' · '))}</small></div><div class="kx-multi-actions">${plBtn}</div></div>`
+      + `${features.pl ? `${tilesHtml(res)}${res ? plHtml(res) : ''}` : ''}${features.link ? link.body : ''}</section>`;
+    // İkisi de kapalıysa bölüm hiç çizilmez; sadece bağlı kuponlar açıksa başlık ve liste kalır.
+    if (!features.pl && !features.link) { chanceMemo = { sig, html: '', res }; return ''; }
     chanceMemo = { sig, html, res };
     return html;
   }
@@ -3397,10 +3401,10 @@
     const sortTxt = { site: 'Site', arb: 'Arbitraj', start: 'Saat', both: 'Saat + Arbitraj', manual: 'Elle' }[cardSort] || 'Site';
     const group = (name, body) => `<div class="kx-group"><span class="kx-label">${name}</span>${body}</div>`;
     void group;
-    if (!features.arb) return `${head}<div class="kx-controls">${ddHtml('s-feat', 'Özellikler', featSum(), featHtml())}</div>`;
+    if (!features.arb) return `${head}<div class="kx-controls">${ddHtml('s-feat', 'Özellikler', featSum(true), featHtml(true))}</div>`;
     return `${head}<div class="kx-controls">${ddHtml('s-show', 'Göster', showTxt, `<span class="kcs-seg">${shows}</span>`)}${ddHtml('s-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}`
       + `${ddHtml('s-group', 'Grupla', GROUP_TXT[groupSpecial] || 'Yok', groupHtml('special', groupSpecial))}${ddHtml('s-cols', 'Satır başı', colsTxt(colsSpecial), colsHtml('special', colsSpecial), true)}`
-      + `${ddHtml('s-feat', 'Özellikler', featSum(), featHtml())}${wideHtml()}<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
+      + `${ddHtml('s-feat', 'Özellikler', featSum(true), featHtml(true))}${wideHtml()}<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
       + multiChanceHtml()
       + `<footer class="kx-warn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Oranlar her an değişebilir. Oynamadan önce maçı ve oranı sitede kontrol et.</footer>`;
   }
@@ -4001,7 +4005,7 @@
       return true;
     }
     if (btn.classList.contains('kcs-feat-btn')) {
-      const key = { featArb: 'arb', featInfo: 'info', featScores: 'scores' }[btn.dataset.feat];
+      const key = { featArb: 'arb', featInfo: 'info', featScores: 'scores', featPl: 'pl', featLink: 'link' }[btn.dataset.feat];
       features[key] = !features[key];
       if (hasStore) await chrome.storage.local.set({ [btn.dataset.feat]: features[key] });
       render();
