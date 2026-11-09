@@ -213,8 +213,13 @@ async function skPoll() {
     let changed = false;
     const noLogos = Object.keys(events).length && !Object.values(events).some((e) => 'homeLogo' in e);
     if (noLogos || now - (meta.fixturesAt || 0) > 30 * 60 * 1000) {
+      // Kuponlar birkaç gün önce yapılmış olabilir: son 4 günün ve yarının maçları alınır, bitmiş maçlar 7 gün saklanır.
+      // Eski günler (3 ve 2 gün önce) değişmez: günde bir kez yeniden alınması yeter.
       const next = {};
-      for (const d of [-1, 0, 1]) for (const f of await skGet(`fixtures?date=${skDate(now + d * 864e5)}`)) next[f.id] = skConv(f);
+      for (const [k, e] of Object.entries(events)) if (e.start && now / 1000 - e.start < 7 * 86400) next[k] = e;
+      const oldDue = noLogos || now - (meta.oldDaysAt || 0) > 24 * 3600 * 1000;
+      for (const d of oldDue ? [-3, -2, -1, 0, 1] : [-1, 0, 1]) for (const f of await skGet(`fixtures?date=${skDate(now + d * 864e5)}`)) next[f.id] = skConv(f);
+      if (oldDue) meta.oldDaysAt = now;
       events = next;
       meta.fixturesAt = now;
       changed = true;
