@@ -290,7 +290,7 @@
       if (changes.updateInfo) { updateInfo = changes.updateInfo.newValue || {}; redraw = true; }
       if (changes.skEvents) {
         const next = changes.skEvents.newValue || {};
-        if (countOf(next) !== countOf(skEvents)) { listVersion.sk++; matchDirty = true; }
+        if (countOf(next) !== countOf(skEvents)) { listVersion.sk++; matchDirty = true; redraw = true; }
         skEvents = next;
         if (onBetsPage) redraw = true;
       }
@@ -3774,14 +3774,24 @@
     if (legs.some((x) => !x)) return null;
     return { title: legs.map((x) => x.label).join(' | '), legs, odds };
   }
-  const legEvent = (leg) => { const h = findHub(HUBS[2], leg); return h ? skEvents[h.e.id] || null : null; };
+  // Önce gece görevinin not dosyasına yazdığı eşleşme (skId), sonra ad ve saatle arama.
+  const legEvent = (leg) => {
+    const linked = notesMap.get(norm(leg.label))?.skId ?? notesMap.get(rowKey(leg.label))?.skId;
+    if (linked != null && skEvents[linked]) return skEvents[linked];
+    const h = findHub(HUBS[2], leg);
+    return h ? skEvents[h.e.id] || null : null;
+  };
 
   function legsCardHtml(lc) {
     const rows = lc.legs.map((leg) => { const e = legEvent(leg); return { leg, e, p: legProb(leg, e) }; });
     let won = 0; let lost = 0;
     const parts = rows.map(({ leg, e, p }) => {
       const pickTxt = `${leg.line} ${leg.side === 'under' ? 'Alt' : 'Üst'}`;
-      if (!e) return `<div class="kcs-lg"><div class="kcs-lg-head"><b>${esc(leg.label)}</b><span class="kcs-lg-pick">${esc(pickTxt)}</span></div><div class="kcs-ci-note kcs-ci-note--warn">Maç bulunamadı</div></div>`;
+      if (!e) {
+        const bk = leg.line >= 40;
+        const why = bk && skMeta?.bkError ? 'Basketbol verisi alınamadı: eklentiyi güncelleyip uzantılar sayfasından yeniden yükle' : bk && !Object.values(skEvents).some((x) => x.sport === 'basketball') ? 'Basketbol listesi henüz gelmedi, birazdan yenilenir' : bk ? 'Maç bulunamadı · yalnızca NBA ve yakın saatteki maçlar aranır' : 'Maç bulunamadı';
+        return `<div class="kcs-lg"><div class="kcs-lg-head"><b>${esc(leg.label)}</b><span class="kcs-lg-pick">${esc(pickTxt)}</span></div><div class="kcs-ci-note kcs-ci-note--warn">${esc(why)}</div></div>`;
+      }
       const f = fromSk(e);
       const total = (e.hs ?? 0) + (e.as ?? 0);
       const final = SK_DONE.has(e.status);
@@ -3807,7 +3817,9 @@
     let body = parts + infoRow('Kupon', status, lost ? 'warn' : won === n ? 'ok' : '');
     if (pAll != null && !lost && won < n) body += fairRows(Math.max(1e-6, pAll), lc.odds, `${n} maç birlikte`, 'Tahmindir: maçlar bağımsız sayıldı. Basketbolda toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.');
     else if (pAll == null) body += infoRow('Seçim olasılığı', 'bilgisi eksik maç var', 'warn');
-    const prob = pAll != null && !lost && won < n ? (pAll * 100).toFixed(1) : null;
+    const note = cardNote(lc.title);
+    body += commentHtml(note ? note.comment : '', notesHtml(lc.legs));
+    const prob = pAll != null && !lost && won < n ? (pAll * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
     return sectionHtml('info', lc.title, 'SERT SİKİCİ BİLGİLER', infoSum(lc.legs, prob), body);
   }
 
