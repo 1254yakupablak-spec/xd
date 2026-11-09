@@ -940,21 +940,6 @@
       + `<div class="kcs-peek-note">${who ? `Son 15 dakikada baskı: <b>${esc(who)}</b>` : 'Son 15 dakikada baskı dengeli'} · tehlikeli atak sayısı, 5 dakikalık dilimler</div></div>`;
   }
 
-  function peekH2h(d, homeId) {
-    const h = d.h2h;
-    if (!h?.played) return '<div class="kcs-peek-empty">Karşılaşma geçmişi yok.</div>';
-    const swap = h.homeTeamId !== homeId;
-    const hw = swap ? h.awayWins : h.homeWins;
-    const aw = swap ? h.homeWins : h.awayWins;
-    const goals = (h.homeGoals || 0) + (h.awayGoals || 0);
-    const list = (h.fixtures || []).filter((f) => f.status === 'FINISHED').slice(0, 6).map((f) => {
-      const date = f.kickoffAt ? new Date(f.kickoffAt).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
-      const tg = (f.score?.home ?? 0) + (f.score?.away ?? 0);
-      return `<div class="kcs-h2h-row"><em>${esc(date)}</em><span>${esc(f.home?.name || '')}</span><b>${f.score?.home ?? '-'} - ${f.score?.away ?? '-'}</b><span>${esc(f.away?.name || '')}</span><u>${tg} gol</u></div>`;
-    }).join('');
-    return `<div class="kcs-peek-cards"><div><span>Maç</span><b>${h.played}</b></div><div><span>Ev galibiyeti</span><b>${hw}</b></div><div><span>Beraberlik</span><b>${h.drawn}</b></div><div><span>Dep. galibiyeti</span><b>${aw}</b></div><div><span>Maç başı gol</span><b>${(goals / h.played).toFixed(2)}</b></div></div>${list}`;
-  }
-
   function peekTable(d, homeId, awayId) {
     const rows = d.standings || [];
     if (!rows.length) return '<div class="kcs-peek-empty">Puan durumu yok (kupa ya da lig dışı maç olabilir).</div>';
@@ -980,20 +965,72 @@
   };
   const EV_KIND_ICON = { GOAL: 'goal', OWN_GOAL: 'own', PENALTY: 'pen', MISSED_PENALTY: 'miss', YELLOW_CARD: 'yellow', SECOND_YELLOW: 'second', RED_CARD: 'red', SUBSTITUTION: 'sub', VAR: 'var' };
 
+  // Olay ayrıntısının Türkçesi (veri servisi İngilizce veriyor).
+  const DETAIL_TR = {
+    'Foul': 'Faul', 'Right foot shot': 'Sağ ayakla şut', 'Left foot shot': 'Sol ayakla şut', 'Header': 'Kafa vuruşu', 'Argument': 'İtiraz',
+    'Penalty': 'Penaltı', 'Own Goal': 'Kendi kalesine', 'Unsportsmanlike conduct': 'Sportmenlik dışı hareket', 'Holding': 'Tutma',
+    'Off the ball foul': 'Top dışı faul', 'Persistent fouling': 'Sürekli faul', 'Simulation': 'Rol yapma', 'Offside': 'Ofsayt',
+    'Violent conduct': 'Şiddet içeren hareket', 'Free Kick': 'Serbest vuruş', 'Time wasting': 'Zaman geçirme', 'Handball': 'Elle oynama',
+    'Dangerous play': 'Tehlikeli oyun', 'Professional foul': 'Taktik faul', 'Shirt pull': 'Forma çekme', 'Dissent': 'İtiraz',
+  };
+  const KIND_TEXT = {
+    GOAL: 'Gol', OWN_GOAL: 'Kendi kalesine gol', PENALTY: 'Penaltı golü', MISSED_PENALTY: 'Penaltı kaçtı', YELLOW_CARD: 'Sarı kart',
+    SECOND_YELLOW: 'İkinci sarıdan kırmızı', RED_CARD: 'Kırmızı kart', SUBSTITUTION: 'Oyuncu değişikliği', VAR: 'VAR',
+  };
+
+  // Canlı akış: maçın başından itibaren, ortada zaman çizgisi; ev sahibi solda, deplasman sağda.
   function peekFeed(d, homeId, awayId) {
-    const evs = [...(d.detail?.events || [])].sort((a, b) => (b.minute ?? 0) - (a.minute ?? 0) || (b.addedMinute ?? 0) - (a.addedMinute ?? 0) || (b.sortOrder ?? 0) - (a.sortOrder ?? 0));
+    const fx = d.detail?.fixture;
+    const code = (t) => t?.shortCode || (t?.name || '').slice(0, 3).toLocaleUpperCase('tr-TR');
+    const evs = [...(d.detail?.events || [])].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0) || (a.addedMinute ?? 0) - (b.addedMinute ?? 0) || (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     if (!evs.length) return '<div class="kcs-peek-empty">Henüz olay yok.</div>';
-    return `<div class="kcs-feed">${evs.map((e) => {
-      const [name, cls] = EVENT_NAMES[e.kind] || [e.kind, 'sub'];
-      const label = e.kind === 'VAR' ? `VAR · ${VAR_TEXT[e.decision] || 'inceleme'}` : name;
-      const side = e.teamId === homeId ? 'home' : e.teamId === awayId ? 'away' : 'home';
-      const who = e.kind === 'SUBSTITUTION'
-        ? `<b>${esc(e.player || '')}</b> <small>girdi${e.relatedPlayer ? ` · ${esc(e.relatedPlayer)} çıktı` : ''}</small>`
-        : `<b>${esc(e.player || '')}</b>${e.relatedPlayer && /GOAL|PENALTY/.test(e.kind) ? ` <small>asist ${esc(e.relatedPlayer)}</small>` : ''}`;
-      const score = e.score ? `<i class="kcs-feed-score">${e.score.home}-${e.score.away}</i>` : '';
-      return `<div class="kcs-feed-row kcs-feed-row--${side}"><em>${e.minute ?? ''}${e.addedMinute ? `+${e.addedMinute}` : ''}'</em><span class="kcs-feed-ic">${EV_ICON[EV_KIND_ICON[e.kind]] || EV_ICON.sub}</span>`
-        + `<span class="kcs-feed-tag kcs-feed-tag--${cls}">${esc(label)}</span><span class="kcs-feed-who">${who}</span>${score}</div>`;
-    }).join('')}</div>`;
+    const rows = evs.map((e) => {
+      const side = e.teamId === awayId ? 'away' : 'home';
+      const team = side === 'away' ? fx?.away : fx?.home;
+      const kind = e.kind === 'VAR' ? `VAR · ${VAR_TEXT[e.decision] || 'inceleme'}` : KIND_TEXT[e.kind] || e.kind;
+      let sub = kind;
+      if (/GOAL|PENALTY/.test(e.kind) && e.kind !== 'MISSED_PENALTY' && e.relatedPlayer) sub += ` · Asist: ${e.relatedPlayer}`;
+      if (e.kind === 'SUBSTITUTION' && e.relatedPlayer) sub += ` · Çıkan: ${e.relatedPlayer}`;
+      const detail = e.detail && !/^(Penalty|Own Goal)$/.test(e.detail) ? DETAIL_TR[e.detail] || e.detail : '';
+      const score = e.score && /GOAL|PENALTY/.test(e.kind) && e.kind !== 'MISSED_PENALTY' ? `<i class="kcs-tl-score">${e.score.home}-${e.score.away}</i>` : '';
+      const iconKey = e.kind === 'VAR' ? 'var' : EV_KIND_ICON[e.kind] || 'sub';
+      const card = `<div class="kcs-tl-card"><em>${e.minute ?? ''}${e.addedMinute ? `+${e.addedMinute}` : ''}'</em><span class="kcs-tl-ic">${EV_ICON[iconKey]}</span>`
+        + `<div class="kcs-tl-body"><b>${esc(e.player || '')}${score}</b><span>${esc(sub)}</span>${detail ? `<small>${esc(detail)}</small>` : ''}</div><u>${esc(code(team))}</u></div>`;
+      return `<div class="kcs-tl-row kcs-tl-row--${side}">${side === 'home' ? `${card}<i class="kcs-tl-dot"></i><span></span>` : `<span></span><i class="kcs-tl-dot"></i>${card}`}</div>`;
+    }).join('');
+    return `<div class="kcs-tl-head">Maçın başından itibaren · dakikalar maç süresine göre</div><div class="kcs-tl">${rows}</div>`;
+  }
+
+  // Aralarındaki maçlar: bu maçtan önce biten karşılaşmalar (bu maç sayılmaz).
+  function peekH2h(d, homeId) {
+    const fx = d.detail?.fixture;
+    const curId = fx?.id;
+    const list = (d.h2h?.fixtures || []).filter((f) => f.status === 'FINISHED' && f.id !== curId)
+      .sort((a, b) => Date.parse(b.kickoffAt || 0) - Date.parse(a.kickoffAt || 0));
+    if (!list.length) return '<div class="kcs-peek-empty">Bu maçtan önce aralarında biten maç yok.</div>';
+    let hw = 0; let dr = 0; let aw = 0; let gh = 0; let ga = 0;
+    for (const f of list) {
+      const h = f.score?.home ?? 0;
+      const a = f.score?.away ?? 0;
+      const homeIsOurs = f.home?.id === homeId;
+      const our = homeIsOurs ? h : a;
+      const their = homeIsOurs ? a : h;
+      gh += our; ga += their;
+      if (our > their) hw++; else if (our < their) aw++; else dr++;
+    }
+    const homeName = fx?.home?.name || 'Ev sahibi';
+    const awayName = fx?.away?.name || 'Deplasman';
+    const rows = list.map((f) => {
+      const date = f.kickoffAt ? new Date(f.kickoffAt).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      const h = f.score?.home ?? '-';
+      const a = f.score?.away ?? '-';
+      const win = h > a ? 'home' : h < a ? 'away' : '';
+      return `<div class="kcs-h2h-match"><small>${esc(date)}${f.competition?.name ? ` · ${esc(f.competition.name)}` : ''}</small>`
+        + `<div><span class="${win === 'home' ? 'is-win' : ''}">${esc(f.home?.name || '')}</span><b>${h} : ${a}</b><span class="${win === 'away' ? 'is-win' : ''}">${esc(f.away?.name || '')}</span></div></div>`;
+    }).join('');
+    return `<div class="kcs-h2h-title">İkili rekabet</div><div class="kcs-h2h-sub">Bu maçtan önce biten karşılaşmalar</div>`
+      + `<div class="kcs-h2h-big"><div class="is-home"><b>${hw}</b><span>${esc(homeName)}</span></div><div><b>${dr}</b><span>Beraberlik</span></div><div class="is-away"><b>${aw}</b><span>${esc(awayName)}</span></div></div>`
+      + `<div class="kcs-h2h-sum">Toplam ${list.length} karşılaşma · Goller ${gh}–${ga} · maç başı ${((gh + ga) / list.length).toFixed(2)} gol</div>${rows}`;
   }
 
   // Kadro saha üzerinde: yatay saha, ev sahibi solda, deplasman sağda. Diziliş (4-1-4-1 gibi) sıralara bölünür;
