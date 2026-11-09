@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KOKLEYİCİ SPORTS",
-  "version": "3.97.1",
+  "version": "3.97.2",
   "description": "Bahislerim kuponlarında canlı skor ve Özel Oranlar arbitrajı (1xBet, Stake).",
   "permissions": [
     "storage",
