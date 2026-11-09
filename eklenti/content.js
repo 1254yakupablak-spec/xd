@@ -788,6 +788,195 @@
     return Date.now() - cur.at < FLASH_MS ? cur : null;
   }
 
+  // ---------- Göz at / Canlı akış: maçın ayrıntısı (veri servisi) ----------
+  // Panel sadece açılınca istenir (background.js 'skDetail'). Canlı maçta 30 sn'de bir, bitmiş maçta 10 dk'da bir yenilenir.
+  const peekOpen = new Map(); // maç no → açık sekme
+  const peekData = new Map(); // maç no → { d, at, loading, error }
+  const PEEK_TABS = [['genel', 'Genel'], ['akis', 'Canlı akış'], ['ist', 'İstatistik'], ['baski', 'Baskı'], ['h2h', 'Karşılaşmalar'], ['puan', 'Puan durumu'], ['kadro', 'Kadro']];
+  const PEEK_LIVE = new Set(['LIVE', 'HALFTIME', 'EXTRA_TIME', 'BREAK', 'PENALTIES', 'IN_PLAY']);
+  const skIdOf = (f) => { const id = String(f?.id || '').replace(/^k/, ''); return /^\d+$/.test(id) ? id : null; };
+
+  function peekRedraw() {
+    for (const el of queryAll('.kcs-legs, .kcs-arb-wrap')) el.__kcsHtml = null;
+    scheduleRender();
+  }
+
+  function peekRequest(id) {
+    if (!hasStore) return;
+    const cur = peekData.get(id) || {};
+    if (cur.loading) return;
+    peekData.set(id, { ...cur, loading: true });
+    chrome.runtime.sendMessage({ type: 'skDetail', id }).then((res) => {
+      if (res?.ok) peekData.set(id, { d: res.d, at: Date.now() });
+      else peekData.set(id, { ...cur, loading: false, error: res?.error || 'alınamadı', at: Date.now() });
+      peekRedraw();
+    }).catch(() => { peekData.set(id, { ...cur, loading: false, error: 'alınamadı', at: Date.now() }); });
+  }
+
+  const peekBtns = (id) => {
+    if (!id) return '';
+    const tab = peekOpen.get(id);
+    return `<span class="kcs-peek-btns"><button type="button" class="kcs-peek-btn${tab === 'akis' ? ' is-on' : ''}" data-sk="${esc(id)}" data-tab="akis">Canlı akış</button>`
+      + `<button type="button" class="kcs-peek-btn${tab && tab !== 'akis' ? ' is-on' : ''}" data-sk="${esc(id)}" data-tab="genel">${tab ? 'Kapat' : 'Göz at'}</button></span>`;
+  };
+
+  const STAT_LABELS = [
+    ['SHOTS_ON_TARGET', 'İsabetli şut'], ['SHOTS_TOTAL', 'Toplam şut'], ['BIG_CHANCES_CREATED', 'Büyük fırsat'], ['DANGEROUS_ATTACKS', 'Tehlikeli atak'],
+    ['ATTACKS', 'Atak'], ['BALL_POSSESSION', 'Topa sahip olma'], ['CORNERS', 'Korner'], ['SAVES', 'Kurtarış'], ['SHOTS_INSIDEBOX', 'Ceza sahası içi şut'],
+    ['OFFSIDES', 'Ofsayt'], ['FOULS', 'Faul'], ['YELLOW_CARDS', 'Sarı kart'], ['RED_CARDS', 'Kırmızı kart'], ['SUCCESSFUL_PASSES_PERCENTAGE', 'Pas isabeti'],
+  ];
+  const EVENT_NAMES = {
+    GOAL: ['GOL', 'goal'], OWN_GOAL: ['KENDİ KALESİNE', 'goal'], PENALTY: ['PENALTI GOLÜ', 'goal'], MISSED_PENALTY: ['PENALTI KAÇTI', 'pen'],
+    YELLOW_CARD: ['SARI KART', 'yellow'], SECOND_YELLOW: ['2. SARI → KIRMIZI', 'red'], RED_CARD: ['KIRMIZI KART', 'red'], SUBSTITUTION: ['DEĞİŞİKLİK', 'sub'], VAR: ['VAR', 'var'],
+  };
+  const VAR_TEXT = { GOAL_DISALLOWED: 'Gol iptal', GOAL_AWARDED: 'Gol verildi', PENALTY_CANCELLED: 'Penaltı iptal', PENALTY_CONFIRMED: 'Penaltı verildi', CARD_ADJUSTED: 'Kart değişti' };
+
+  function peekHtml(id) {
+    if (!id || !peekOpen.has(id)) return '';
+    const tab = peekOpen.get(id);
+    const p = peekData.get(id);
+    const fx = p?.d?.detail?.fixture;
+    const live = fx && PEEK_LIVE.has(fx.status);
+    if (!p || (!p.loading && Date.now() - (p.at || 0) > (live ? 30 * 1000 : 10 * 60 * 1000))) peekRequest(id);
+    const tabs = `<div class="kcs-peek-tabs">${PEEK_TABS.map(([k, label]) => `<button type="button" class="kcs-peek-tab${k === tab ? ' is-on' : ''}" data-sk="${esc(id)}" data-tab="${k}">${label}</button>`).join('')}</div>`;
+    if (!p?.d) return `<div class="kcs-peek">${tabs}<div class="kcs-peek-empty">${p?.error ? 'Bilgi alınamadı, biraz sonra tekrar dene.' : 'Yükleniyor…'}</div></div>`;
+    const d = p.d;
+    const homeId = fx?.home?.id;
+    const awayId = fx?.away?.id;
+    const homeName = fx?.home?.name || 'Ev';
+    const awayName = fx?.away?.name || 'Deplasman';
+    const head = `<div class="kcs-peek-head"><b>${esc(homeName)}</b><span>${fx?.score ? `${fx.score.home ?? '-'} - ${fx.score.away ?? '-'}` : 'v'}</span><b>${esc(awayName)}</b>`
+      + `<em>${esc(live ? `${fx.minute ?? ''}${fx.addedMinute ? `+${fx.addedMinute}` : ''}' canlı` : (fx?.stateLabel || ''))}</em></div>`;
+    let body = '';
+    if (tab === 'akis') body = peekFeed(d, homeId, awayId);
+    else if (tab === 'ist') body = peekStats(d, homeId, awayId, STAT_LABELS);
+    else if (tab === 'baski') body = peekPressure(d, homeId, awayId, homeName, awayName);
+    else if (tab === 'h2h') body = peekH2h(d, homeId);
+    else if (tab === 'puan') body = peekTable(d, homeId, awayId);
+    else if (tab === 'kadro') body = peekLineups(d, homeId, awayId, homeName, awayName);
+    else body = peekOverview(d, homeId, awayId, homeName, awayName);
+    return `<div class="kcs-peek">${tabs}${head}${body}<div class="kcs-peek-foot">${live ? 'Canlı · 30 sn\'de bir yenilenir' : 'Maç ayrıntısı'}${p.at ? ` · ${esc(new Date(p.at).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' }))}` : ''}</div></div>`;
+  }
+
+  const statOf = (d, code, teamId) => d.detail?.statistics?.find((s) => s.code === code && s.teamId === teamId && !s.period)?.value
+    ?? d.detail?.statistics?.find((s) => s.code === code && s.teamId === teamId)?.value;
+
+  function peekStats(d, homeId, awayId, labels) {
+    const rows = labels.map(([code, label]) => {
+      const a = statOf(d, code, homeId);
+      const b = statOf(d, code, awayId);
+      if (a == null && b == null) return '';
+      const na = parseFloat(a) || 0;
+      const nb = parseFloat(b) || 0;
+      const pct = na + nb ? Math.round((na / (na + nb)) * 100) : 50;
+      const unit = /POSSESSION|PERCENTAGE/.test(code) ? '%' : '';
+      return `<div class="kcs-stat"><b>${esc(String(a ?? 0))}${unit}</b><span>${label}</span><b>${esc(String(b ?? 0))}${unit}</b>`
+        + `<div class="kcs-stat-bar"><i style="width:${pct}%"></i><u style="width:${100 - pct}%"></u></div></div>`;
+    }).join('');
+    return rows || '<div class="kcs-peek-empty">İstatistik henüz yok.</div>';
+  }
+
+  function peekFeed(d, homeId, awayId) {
+    const evs = [...(d.detail?.events || [])].sort((a, b) => (b.minute ?? 0) - (a.minute ?? 0) || (b.addedMinute ?? 0) - (a.addedMinute ?? 0) || (b.sortOrder ?? 0) - (a.sortOrder ?? 0));
+    if (!evs.length) return '<div class="kcs-peek-empty">Henüz olay yok.</div>';
+    return `<div class="kcs-feed">${evs.map((e) => {
+      const [name, cls] = EVENT_NAMES[e.kind] || [e.kind, 'sub'];
+      const label = e.kind === 'VAR' ? `VAR · ${VAR_TEXT[e.decision] || 'inceleme'}` : name;
+      const side = e.teamId === homeId ? 'home' : e.teamId === awayId ? 'away' : 'home';
+      const who = e.kind === 'SUBSTITUTION' ? `${e.player || ''}${e.relatedPlayer ? ` ↔ ${e.relatedPlayer}` : ''}` : `${e.player || ''}${e.relatedPlayer && /GOAL|PENALTY/.test(e.kind) ? ` (asist ${e.relatedPlayer})` : ''}`;
+      const score = e.score ? ` · ${e.score.home}-${e.score.away}` : '';
+      return `<div class="kcs-feed-row kcs-feed-row--${side}"><em>${e.minute ?? ''}${e.addedMinute ? `+${e.addedMinute}` : ''}'</em><span class="kcs-feed-tag kcs-feed-tag--${cls}">${esc(label)}</span><span>${esc(who)}${esc(score)}</span></div>`;
+    }).join('')}</div>`;
+  }
+
+  // Baskı: tehlikeli atakların 5 dakikalık dilimlerdeki artışı; üstte ev sahibi, altta deplasman.
+  function peekPressure(d, homeId, awayId, homeName, awayName) {
+    const tr = (d.detail?.trends || []).filter((t) => t.code === 'DANGEROUS_ATTACKS');
+    if (!tr.length) return '<div class="kcs-peek-empty">Baskı verisi henüz yok.</div>';
+    const buckets = (teamId) => {
+      const pts = tr.filter((t) => t.teamId === teamId).map((t) => [t.minute, parseFloat(t.value) || 0]).sort((a, b) => a[0] - b[0]);
+      const out = new Array(19).fill(0);
+      let prev = 0;
+      for (const [m, v] of pts) { out[Math.min(18, Math.floor(m / 5))] += Math.max(0, v - prev); prev = Math.max(prev, v); }
+      return out;
+    };
+    const h = buckets(homeId);
+    const a = buckets(awayId);
+    const max = Math.max(1, ...h, ...a);
+    const cols = h.map((v, i) => `<div class="kcs-press-col" title="${i * 5}-${i * 5 + 5}. dk · ${esc(homeName)} ${v} · ${esc(awayName)} ${a[i]}"><i style="height:${Math.round((v / max) * 100)}%"></i><u style="height:${Math.round((a[i] / max) * 100)}%"></u></div>`).join('');
+    const last = (arr) => arr.slice(-3).reduce((s, x) => s + x, 0);
+    const lastH = last(h.filter((_, i) => i <= Math.floor((d.detail?.fixture?.minute || 90) / 5)));
+    const lastA = last(a.filter((_, i) => i <= Math.floor((d.detail?.fixture?.minute || 90) / 5)));
+    const who = lastH > lastA * 1.3 ? homeName : lastA > lastH * 1.3 ? awayName : null;
+    return `<div class="kcs-press"><div class="kcs-press-legend"><span class="is-home">${esc(homeName)}</span><span class="is-away">${esc(awayName)}</span></div><div class="kcs-press-chart">${cols}</div>`
+      + `<div class="kcs-press-axis"><span>0'</span><span>45'</span><span>90'</span></div>`
+      + `<div class="kcs-peek-note">${who ? `Son 15 dakikada baskı: <b>${esc(who)}</b>` : 'Son 15 dakikada baskı dengeli'} · tehlikeli atak sayısı, 5 dakikalık dilimler</div></div>`;
+  }
+
+  function peekH2h(d, homeId) {
+    const h = d.h2h;
+    if (!h?.played) return '<div class="kcs-peek-empty">Karşılaşma geçmişi yok.</div>';
+    const swap = h.homeTeamId !== homeId;
+    const hw = swap ? h.awayWins : h.homeWins;
+    const aw = swap ? h.homeWins : h.awayWins;
+    const goals = (h.homeGoals || 0) + (h.awayGoals || 0);
+    const list = (h.fixtures || []).filter((f) => f.status === 'FINISHED').slice(0, 6).map((f) => {
+      const date = f.kickoffAt ? new Date(f.kickoffAt).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+      const tg = (f.score?.home ?? 0) + (f.score?.away ?? 0);
+      return `<div class="kcs-h2h-row"><em>${esc(date)}</em><span>${esc(f.home?.name || '')}</span><b>${f.score?.home ?? '-'} - ${f.score?.away ?? '-'}</b><span>${esc(f.away?.name || '')}</span><u>${tg} gol</u></div>`;
+    }).join('');
+    return `<div class="kcs-peek-cards"><div><span>Maç</span><b>${h.played}</b></div><div><span>Ev galibiyeti</span><b>${hw}</b></div><div><span>Beraberlik</span><b>${h.drawn}</b></div><div><span>Dep. galibiyeti</span><b>${aw}</b></div><div><span>Maç başı gol</span><b>${(goals / h.played).toFixed(2)}</b></div></div>${list}`;
+  }
+
+  function peekTable(d, homeId, awayId) {
+    const rows = d.standings || [];
+    if (!rows.length) return '<div class="kcs-peek-empty">Puan durumu yok (kupa ya da lig dışı maç olabilir).</div>';
+    const mine = rows.filter((r) => r.team?.id === homeId || r.team?.id === awayId);
+    const pick = new Set();
+    for (const r of mine) for (let i = -2; i <= 2; i++) pick.add(r.position + i);
+    const shown = rows.filter((r) => pick.has(r.position) || r.position <= 1).sort((a, b) => a.position - b.position);
+    return `<div class="kcs-table"><div class="kcs-table-row is-head"><span>#</span><span>Takım</span><span>O</span><span>G-B-M</span><span>Gol</span><span>Av</span><span>P</span></div>${shown.map((r) => `<div class="kcs-table-row${r.team?.id === homeId || r.team?.id === awayId ? ' is-mine' : ''}"><span>${r.position}</span><span>${esc(r.team?.name || '')}</span><span>${r.played}</span><span>${r.won}-${r.drawn}-${r.lost}</span><span>${r.goalsFor}:${r.goalsAgainst}</span><span>${r.goalDifference > 0 ? '+' : ''}${r.goalDifference}</span><b>${r.points}</b></div>`).join('')}</div>`
+      + `<div class="kcs-peek-note">${rows.length} takımlık ligde ilgili sıralar · maç başı gol: ${mine.map((r) => `${esc(r.team?.name || '')} ${(r.goalsFor / Math.max(1, r.played)).toFixed(1)} atıyor, ${(r.goalsAgainst / Math.max(1, r.played)).toFixed(1)} yiyor`).join(' · ')}</div>`;
+  }
+
+  function peekLineups(d, homeId, awayId, homeName, awayName) {
+    const lu = d.detail?.lineups || [];
+    if (!lu.length) return '<div class="kcs-peek-empty">Kadro henüz açıklanmadı.</div>';
+    const order = { Goalkeeper: 0, Defender: 1, Midfielder: 2, Attacker: 3 };
+    const form = (tid) => d.detail?.formations?.find((f) => f.teamId === tid)?.formation || '';
+    const col = (tid, name) => {
+      const mine = lu.filter((x) => x.teamId === tid);
+      const st = mine.filter((x) => x.starter).sort((a, b) => (order[a.position] ?? 4) - (order[b.position] ?? 4));
+      const bench = mine.filter((x) => !x.starter);
+      return `<div class="kcs-lineup"><b>${esc(name)} ${form(tid) ? `<em>${esc(form(tid))}</em>` : ''}</b>${st.map((x) => `<div><u>${x.number ?? ''}</u>${esc(x.player)}</div>`).join('')}`
+        + (bench.length ? `<small>Yedekler: ${bench.map((x) => esc(x.player)).join(', ')}</small>` : '') + '</div>';
+    };
+    return `<div class="kcs-peek-note">${d.detail?.lineupConfirmed ? 'İlk 11 açıklandı' : 'Tahmini kadro (henüz kesinleşmedi)'}</div><div class="kcs-lineups">${col(homeId, homeName)}${col(awayId, awayName)}</div>`;
+  }
+
+  function peekOverview(d, homeId, awayId, homeName, awayName) {
+    const c = d.ctx || {};
+    const ref = c.referees?.find((r) => r.role === 'REFEREE')?.person?.name;
+    const coach = (tid) => c.coaches?.find((x) => x.teamId === tid)?.person?.name;
+    const tv = [...new Set((c.broadcasts || []).filter((b) => b.turkey).map((b) => b.name))].slice(0, 3).join(', ');
+    const w = c.weather;
+    const v = c.venue;
+    const st = (tid) => d.standings?.find((r) => r.team?.id === tid);
+    const h = d.h2h;
+    const rows = [
+      ['Sıralama', [st(homeId), st(awayId)].every(Boolean) ? `${esc(homeName)} ${st(homeId).position}. · ${esc(awayName)} ${st(awayId).position}.` : ''],
+      ['Aralarındaki maçlar', h?.played ? `${h.played} maç · maç başı ${(((h.homeGoals || 0) + (h.awayGoals || 0)) / h.played).toFixed(2)} gol` : ''],
+      ['Hakem', ref ? esc(ref) : ''],
+      ['Teknik direktörler', coach(homeId) || coach(awayId) ? `${esc(coach(homeId) || '?')} · ${esc(coach(awayId) || '?')}` : ''],
+      ['Stat', v?.name ? `${esc(v.name)}${v.city ? `, ${esc(v.city)}` : ''}${v.capacity ? ` · ${Number(v.capacity).toLocaleString('tr-TR')} kişilik` : ''}` : ''],
+      ['Hava', w ? `${esc(w.description || '')}${w.temperatureC != null ? ` · ${Math.round(w.temperatureC)}°C` : ''}${w.humidity ? ` · nem ${esc(w.humidity)}` : ''}` : ''],
+      ['TV (Türkiye)', tv ? esc(tv) : ''],
+      ['Kadro', d.detail?.lineups?.length ? (d.detail.lineupConfirmed ? 'İlk 11 açıklandı' : 'Tahmini kadro') : 'Henüz açıklanmadı'],
+    ].filter(([, val]) => val);
+    const key = peekStats(d, homeId, awayId, STAT_LABELS.slice(0, 6).filter(([code]) => code !== 'ATTACKS'));
+    return `<div class="kcs-peek-info">${rows.map(([k, val]) => `<div><span>${k}</span><b>${val}</b></div>`).join('')}</div>${/kcs-stat/.test(key) ? key : ''}`;
+  }
+
   // ---------- önemli maç olayları ----------
   const EV_INFO = (e) => {
     if (e.kind === 'RED_CARD') return { cls: 'red', text: 'Kırmızı kart', icon: 'red' };
@@ -858,7 +1047,7 @@
       + (state ? `<div class="sb-mb-leg-sub"><span class="sb-mb-leg-market">${state}</span></div>` : '')
       + `<div class="sb-mb-leg-teams"><div class="sb-mb-leg-names">${team(f.home, f.homeLogo)}${team(f.away, f.awayLogo)}</div>`
       + `<div class="sb-mb-score${f.isLive ? ' is-live' : ''}"><span class="sb-score-digit${flash?.home ? ' is-new' : ''}">${g(f.hs)}</span><span class="sb-score-digit${flash?.away ? ' is-new' : ''}">${g(f.as)}</span></div></div>${evLines(ev)}`
-      + `</${close}><div class="kcs-sb-foot"><span>${esc(label)}</span>${fixBtn}</div></div>${edit}`;
+      + `</${close}><div class="kcs-sb-foot"><span>${esc(label)}</span>${peekBtns(skIdOf(f))}</div>${peekHtml(skIdOf(f))}</div>${edit}`;
   }
 
   // ---------- gol durumu: Alt/Üst tuttu mu ----------
@@ -1022,7 +1211,9 @@
     const reds = '' && ev && (ev.reds.home || ev.reds.away) ? `<div class="kcs-evs"><span class="kcs-ev kcs-ev--red">Kırmızı kart: ${esc(teams[0])} ${ev.reds.home} · ${esc(teams[1])} ${ev.reds.away}</span></div>` : '';
     const legStartMs = parseLegDate(leg?.querySelector('.sb-mb-leg-date')?.textContent || '');
     const countdown = !leg?.matches('.is-live') && !hasGoal && legStartMs ? countdownHtml(legStartMs / 1000) : '';
-    const html = poweredHtml() + (sbSort === 'manual' ? moveHtml('bets') : '') + (countdown ? `<div class="kcs-sb-status kcs-sb-left">Maça ${countdown}</div>` : '') + evAlert + goalAlert + reds + evLines(ev) + status + aiSection(key, ai);
+    const singleSk = skItem?.raw?.sk != null ? String(skItem.raw.sk) : null;
+    const peek = singleSk ? `<div class="kcs-sb-status kcs-peek-line"><span>${esc(teams.join(' - '))}</span>${peekBtns(singleSk)}</div>${peekHtml(singleSk)}` : '';
+    const html = poweredHtml() + (sbSort === 'manual' ? moveHtml('bets') : '') + peek + (countdown ? `<div class="kcs-sb-status kcs-sb-left">Maça ${countdown}</div>` : '') + evAlert + goalAlert + reds + evLines(ev) + status + aiSection(key, ai);
     let box = card.querySelector(':scope > .kcs-legs');
     if (!box) {
       box = document.createElement('div');
@@ -2065,14 +2256,17 @@
     const rows = legs.length > 1
       ? [...found, ...lost].map((x) => {
         const cls = !x.t ? 'warn' : (x === first ? (hot ? 'hot' : 'first') : '');
-        return infoRow(esc(x.sp.label), x.t ? `${esc(whenText(x.t))}${countdownHtml(x.t)}` : 'saat yok', `leg${cls ? ` kcs-ci--${cls}` : ''}`) + legNote(x);
+        const sk = skIdOf({ id: findHub(HUBS[2], x.sp)?.e?.id });
+        return infoRow(esc(x.sp.label), x.t ? `${esc(whenText(x.t))}${countdownHtml(x.t)}` : 'saat yok', `leg${cls ? ` kcs-ci--${cls}` : ''}`) + legNote(x)
+          + (sk ? `<div class="kcs-peek-line">${peekBtns(sk)}</div>${peekHtml(sk)}` : '');
       }).join('')
       : infoRow('En erken maç', esc(whenText(first.t)), hot ? 'hot' : (left > 0 ? '' : 'warn'));
     if (!first) return rows;
     const note = left > 0 ? `${legs.length > 1 ? 'En erken maçtan' : 'Bu saatten'} önce oynanmalı · ${leftText(left)}` : 'Maç başlamış görünüyor';
     const partial = lost.length ? '<br>Saati bulunmayan maç daha erken olabilir.' : '';
     const cls = hot ? ' kcs-ci-note--hot' : (left > 0 && !lost.length ? '' : ' kcs-ci-note--warn');
-    return `${rows}<div class="kcs-ci-note kcs-ci-countdown${cls}">${esc(note)}${partial}</div>`;
+    const oneSk = legs.length === 1 ? skIdOf({ id: findHub(HUBS[2], legs[0])?.e?.id }) : null;
+    return `${rows}<div class="kcs-ci-note kcs-ci-countdown${cls}">${esc(note)}${partial}</div>${oneSk ? `<div class="kcs-peek-line">${peekBtns(oneSk)}</div>${peekHtml(oneSk)}` : ''}`;
   }
 
   // Oranlardan kurala bağlı üretilen kısa yorum (yapay zekâ değil, ek istek atmaz).
@@ -3165,6 +3359,16 @@
     }
     if (btn.classList.contains('kcs-update-btn')) {
       chrome.runtime.sendMessage({ type: 'openUpdate' });
+      return true;
+    }
+    if (btn.classList.contains('kcs-peek-btn') || btn.classList.contains('kcs-peek-tab')) {
+      const id = btn.dataset.sk;
+      const tab = btn.dataset.tab;
+      // "Göz at" açıkken tekrar basınca ya da aynı sekmenin düğmesine basınca kapanır.
+      if (btn.classList.contains('kcs-peek-btn') && peekOpen.has(id) && (tab === 'genel' || peekOpen.get(id) === tab)) peekOpen.delete(id);
+      else peekOpen.set(id, tab);
+      peekRedraw();
+      render();
       return true;
     }
     if (btn.classList.contains('kcs-group-btn')) {
