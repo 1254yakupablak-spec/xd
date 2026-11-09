@@ -351,7 +351,8 @@
       hasScore: e.hs != null && e.as != null && (live || ended),
       start: e.start ? new Date(e.start * 1000) : null,
       url: null,
-      clock,
+      clock: e.sport === 'basketball' && live ? (e.label || 'Canlı') : clock,
+      sport: e.sport || 'football',
       src: 'Veri servisi',
     };
   }
@@ -723,7 +724,7 @@
     const tag = f.url ? `a class="bet__multi-leg-fixture" href="${esc(f.url)}" target="_blank" rel="noopener"` : 'div class="bet__multi-leg-fixture"';
     const close = f.url ? 'a' : 'div';
     const g = (n) => (f.hasScore ? n : '–');
-    const flash = f.hasScore ? scoreFlash(f.id, f.hs, f.as, f.isLive) : null;
+    const flash = f.hasScore && f.sport !== 'basketball' ? scoreFlash(f.id, f.hs, f.as, f.isLive) : null;
     return `<div class="bet__multi-leg-card kcs-leg${f.isLive ? ' kcs-leg--live' : ''}${flash ? ' kcs-flash' : ''}">`
       + `<${tag}>`
       + `<div class="bet__multi-leg-meta">${f.start ? `<span>${esc(dayText(f.start))}</span><span>${esc(timeText(f.start))}</span>` : ''}${clockHtml(f)}</div>`
@@ -795,9 +796,10 @@
   const peekOpen = new Map(); // maç no → açık sekme
   const peekData = new Map(); // maç no → { d, at, loading, error }
   const PEEK_ICON = {"genel":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 11v5M12 7.5v.5\"/></svg>","akis":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12h4l2.5-6 4 12 2.5-6H21\"/></svg>","ist":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 20V11M12 20V5M19 20v-6\"/></svg>","baski":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3c1 3.5 5 5.5 5 10a5 5 0 01-10 0c0-2.2 1-3.7 2.3-5 .2 1.8 1 2.8 2.2 3.2C11.3 8.6 11 6 12 3z\"/></svg>","h2h":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 4l-3 3 3 3M4 7h11M17 14l3 3-3 3M20 17H9\"/></svg>","puan":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 4h8v5a4 4 0 01-8 0V4zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8.5 20h7M10 17h4\"/></svg>","kadro":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3z\"/></svg>","sira":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 20V14h4v6M10 20V9h4v11M16 20v-8h4v8M3 20h18\"/></svg>","ref":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 10h9a4 4 0 11-3.9 5H6a2 2 0 01-2-2v-3zM13 10V7h6\"/><circle cx=\"13\" cy=\"14\" r=\"1\"/></svg>","coach":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"5\" y=\"4\" width=\"14\" height=\"17\" rx=\"2\"/><path d=\"M9 4V3h6v1M9 10h6M9 14h6M9 18h3\"/></svg>","stad":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 21s-6-5.5-6-10.5a6 6 0 0112 0C18 15.5 12 21 12 21z\"/><circle cx=\"12\" cy=\"10.5\" r=\"2.2\"/></svg>","hava":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 18h10a4 4 0 00.6-7.95A5.5 5.5 0 006.2 11.2 3.4 3.4 0 007 18z\"/></svg>","tv":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 21h8M9 2.5l3 3.5 3-3.5\"/></svg>"};
+  PEEK_ICON.fark = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h18"/><path d="M3 15l4-6 4 5 3-8 3 10 4-4"/></svg>';
   const PEEK_TABS = [['genel', 'Genel'], ['akis', 'Canlı akış'], ['ist', 'İstatistik'], ['baski', 'Baskı'], ['h2h', 'Karşılaşmalar'], ['puan', 'Puan durumu'], ['kadro', 'Kadro']];
   const PEEK_LIVE = new Set(['LIVE', 'HALFTIME', 'EXTRA_TIME', 'BREAK', 'PENALTIES', 'IN_PLAY']);
-  const skIdOf = (f) => { const id = String(f?.id || '').replace(/^k/, ''); return /^\d+$/.test(id) ? id : null; };
+  const skIdOf = (f) => { const id = String(f?.id || '').replace(/^k/, ''); return /^b?\d+$/.test(id) ? id : null; };
 
   function peekRedraw() {
     renderPeekModal();
@@ -887,7 +889,7 @@
     }
     put(to);
     if (changed) {
-      const order = PEEK_TABS.map(([k]) => k);
+      const order = [...strip.querySelectorAll('.kcs-peek-tab')].map((b) => b.dataset.tab);
       pane.classList.add(order.indexOf(pane.dataset.tab) > order.indexOf(prevTab) ? 'is-from-r' : 'is-from-l');
       // seçili sekme şeritte görünür olsun (sayfa dikey kaymadan)
       const r = to.l + to.w - strip.clientWidth + 24;
@@ -921,14 +923,20 @@
 
   function peekHtml(id) {
     if (!id || !peekOpen.has(id)) return '';
-    const tab = peekOpen.get(id);
     const p = peekData.get(id);
+    const isBk = p?.d?.sport === 'basketball' || /^b/.test(id);
+    const tabList = isBk ? PEEK_TABS_BK : PEEK_TABS;
+    const tab = tabList.some(([k]) => k === peekOpen.get(id)) ? peekOpen.get(id) : 'genel';
     const fx = p?.d?.detail?.fixture;
     const live = fx && PEEK_LIVE.has(fx.status);
     if (!p || (!p.loading && Date.now() - (p.at || 0) > (live ? 15 * 1000 : 10 * 60 * 1000))) peekRequest(id);
-    const tabs = `<div class="kcs-peek-tabs">${PEEK_TABS.map(([k, label]) => `<button type="button" class="kcs-peek-tab${k === tab ? ' is-on' : ''}" data-sk="${esc(id)}" data-tab="${k}">${PEEK_ICON[k] || ''}<span>${label}</span></button>`).join('')}<i class="kcs-peek-ind"></i></div>`;
+    const tabs = `<div class="kcs-peek-tabs">${tabList.map(([k, label]) => `<button type="button" class="kcs-peek-tab${k === tab ? ' is-on' : ''}" data-sk="${esc(id)}" data-tab="${k}">${PEEK_ICON[k] || ''}<span>${label}</span></button>`).join('')}<i class="kcs-peek-ind"></i></div>`;
     if (!p?.d) return `<div class="kcs-peek">${tabs}<div class="kcs-peek-empty kcs-peek-pane" data-tab="${tab}">${p?.error ? 'Bilgi alınamadı, biraz sonra tekrar dene.' : 'Yükleniyor…'}</div></div>`;
     const d = p.d;
+    if (d.sport === 'basketball') {
+      return `<div class="kcs-peek">${tabs}<div class="kcs-peek-pane" data-tab="${tab}">${bkHead(d.detail.fixture)}${bkBody(d, tab)}</div>`
+        + `<div class="kcs-peek-foot">${live ? 'Canlı · 10 sn\'de bir yenilenir' : 'Maç ayrıntısı'}${p.at ? ` · ${esc(new Date(p.at).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' }))}` : ''}</div></div>`;
+    }
     const homeId = fx?.home?.id;
     const awayId = fx?.away?.id;
     const homeName = fx?.home?.name || 'Ev';
@@ -1304,7 +1312,7 @@
     const open = f.url ? `a href="${esc(f.url)}" target="_blank" rel="noopener"` : 'div';
     const close = f.url ? 'a' : 'div';
     const date = f.start ? `${esc(dayText(f.start))} - ${esc(timeText(f.start))}` : '';
-    const flash = f.hasScore ? scoreFlash(f.id, f.hs, f.as, f.isLive) : null;
+    const flash = f.hasScore && f.sport !== 'basketball' ? scoreFlash(f.id, f.hs, f.as, f.isLive) : null;
     const ev = matchEvents(f);
     // Yeni önemli olay varsa onun etiketi, yoksa skor değişimi (GOL / GOL İPTAL).
     const goalTag = ev?.fresh ? `<span class="kcs-goal-tag kcs-goal-tag--${ev.fresh.cls}">${esc(ev.fresh.text.toLocaleUpperCase('tr-TR'))}</span>`
@@ -1319,7 +1327,7 @@
       + `<div class="sb-mb-leg-top"><span class="sb-mb-leg-pick"><span class="sb-mb-leg-date">${date}</span></span></div>`
       + (state ? `<div class="sb-mb-leg-sub"><span class="sb-mb-leg-market">${state}</span></div>` : '')
       + `<div class="sb-mb-leg-teams"><div class="sb-mb-leg-names">${team(f.home, f.homeLogo)}${team(f.away, f.awayLogo)}</div>`
-      + `<div class="sb-mb-score${f.isLive ? ' is-live' : ''}"><span class="sb-score-digit${flash?.home ? ' is-new' : ''}">${g(f.hs)}</span><span class="sb-score-digit${flash?.away ? ' is-new' : ''}">${g(f.as)}</span></div></div>${evLines(ev)}`
+      + `<div class="sb-mb-score${f.isLive ? ' is-live' : ''}"><span class="sb-score-digit${flash?.home ? ' is-new' : ''}">${g(f.hs)}</span><span class="sb-score-digit${flash?.away ? ' is-new' : ''}">${g(f.as)}</span></div></div>${evLines(ev)}${f.sport === 'basketball' && f.hasScore ? `<div class="kcs-evs"><span class="kcs-ev kcs-ev--bk">Toplam ${f.hs + f.as} sayı</span></div>` : ''}`
       + `</${close}><div class="kcs-sb-foot"><span>${esc(label)}</span>${peekBtns(skIdOf(f))}</div></div>${edit}`;
   }
 
@@ -1447,11 +1455,12 @@
     const { line, side } = goal;
     const v = forced === 'won' || forced === 'lost' ? forced : goalVerdict(total, line, side, final);
     const left = Math.ceil(line) - total;
-    const note = forced === 'won' || forced === 'lost' ? 'sitede sonuçlandı' : (v !== 'open' ? '' : (side === 'alt' ? `${left} gol daha gelirse yatar` : `${left} gol daha lazım`));
+    const unit = line >= 40 ? 'sayı' : 'gol';
+    const note = forced === 'won' || forced === 'lost' ? 'sitede sonuçlandı' : (v !== 'open' ? '' : (side === 'alt' ? `${left} ${unit} daha gelirse yatar` : `${left} ${unit} daha lazım`));
     const badge = { won: 'Tuttu', lost: 'Tutmadı', open: 'Devam ediyor' }[v];
     const pct = Math.min(100, Math.round(total / Math.ceil(line) * 100));
     const undo = goal.manual ? '<button type="button" class="kcs-line-del" title="Elle girilen çizgiyi sil">Sil</button>' : '';
-    return `<div class="kcs-goal kcs-goal--${v}" data-title="${esc(title)}"><div class="kcs-goal-text"><span><b>${total}</b> gol / ${line} ${side === 'alt' ? 'Alt' : 'Üst'}${note ? ` · ${note}` : ''}${undo}</span>`
+    return `<div class="kcs-goal kcs-goal--${v}" data-title="${esc(title)}"><div class="kcs-goal-text"><span><b>${total}</b> ${unit} / ${line} ${side === 'alt' ? 'Alt' : 'Üst'}${note ? ` · ${note}` : ''}${undo}</span>`
       + `<span class="kcs-goal-badge">${badge}</span></div><div class="kcs-goal-track"><i style="width:${pct}%"></i></div></div>`;
   }
 
@@ -1461,7 +1470,8 @@
     const pick = /^\s*(\d+(?:\.\d+)?)\s*(Alt|Üst)\s*$/i.exec(leg?.querySelector('.sb-mb-leg-pick-name')?.textContent || '');
     const digits = [...(leg?.querySelectorAll('.sb-mb-score .sb-score-digit') || [])].map((e) => e.textContent.trim());
     const hasGoal = pick && digits.length === 2 && digits.every((d) => /^\d+$/.test(d));
-    const flash = hasGoal ? scoreFlash(`tek|${sbKeyOf(card)}`, Number(digits[0]), Number(digits[1]), !!leg?.matches('.is-live')) : null;
+    const isBk = !!pick && Number(pick[1]) >= 40;
+    const flash = hasGoal && !isBk ? scoreFlash(`tek|${sbKeyOf(card)}`, Number(digits[0]), Number(digits[1]), !!leg?.matches('.is-live')) : null;
     leg?.classList.toggle('kcs-flash', !!flash);
     const teams = [...(leg?.querySelectorAll('.sb-mb-team') || [])].map((e) => e.textContent.trim());
     const key = teams.join(' - ');
@@ -2960,10 +2970,13 @@
   let sortMoved = false;
   // Gruplama: tekli ve çoklu kuponlar ayrı bloklarda. Sıra numarasına grubun payı eklenir (1. grup 0, 2. grup 1000);
   // grup başlığı her grubun en başında (pay - 1).
-  const isMultiCard = (card) => !!card.querySelector?.(card.matches?.(SB_BET) ? '.sb-mb-textbet' : '.sb-cbt-textblock');
+  const isMultiCard = (card) => (card.matches?.(SB_BET) ? !!card.querySelector?.('.sb-mb-textbet') : specialIsMulti(card));
   const groupModeOf = (card) => (card.matches?.(SB_BET) ? groupBets : groupSpecial);
   const groupRank = (mode, multi) => (mode === 'none' ? 0 : (mode === 'single') === !multi ? 0 : 1);
-  const specialKey = (card) => `${card.querySelector('.sb-cbt-team')?.textContent}|${card.querySelector('.sb-cbt-pick')?.textContent}`;
+  const specialKey = (card) => (card.querySelector('.sb-cbt-team') || !card.querySelector('.sb-cbt-leg')
+    ? `${card.querySelector('.sb-cbt-team')?.textContent}|${card.querySelector('.sb-cbt-pick')?.textContent}`
+    : `legs|${[...card.querySelectorAll('.sb-cbt-leg')].map((e) => e.textContent.trim()).join('/')}`);
+  const specialIsMulti = (card) => !!card.querySelector?.('.sb-cbt-textblock') || (card.querySelectorAll?.('.sb-cbt-leg')?.length || 0) > 1;
   const setOrder = (card, base) => {
     const mode = groupModeOf(card);
     const order = base === '' || mode === 'none' ? base : String(Number(base) + groupRank(mode, isMultiCard(card)) * 1000);
@@ -3273,10 +3286,10 @@
     const shared = [...byMatch.values()].filter((g) => g.cs.length > 1).sort((a, b) => b.cs.length - a.cs.length);
     const linked = new Set(shared.flatMap((g) => g.cs));
     const btn = all.length > 1 ? `<button type="button" class="kcs-pl-toggle kcs-link-toggle${linkOpen ? '' : ' is-closed'}" aria-expanded="${linkOpen}">Bağlı kuponlar <span class="kcs-count">${linked.size}</span><i class="kcs-ci-chev"></i></button>` : '';
-    const side = (c) => `${c.line} ${c.side === 'alt' ? 'Alt' : 'Üst'}`;
+    const side = (c) => c.sideText || `${c.line} ${c.side === 'alt' ? 'Alt' : 'Üst'}`;
     const rows = shared.map((g) => {
       const opposite = g.cs.some((c) => c.side === 'alt') && g.cs.some((c) => c.side !== 'alt');
-      const cps = g.cs.map((c) => `<span class="kcs-link-cp"><span>${esc(c.title)}</span><b class="kcs-link-side--${c.side === 'alt' ? 'alt' : 'ust'}">${esc(side(c))}</b></span>`).join('');
+      const cps = g.cs.map((c) => `<span class="kcs-link-cp"><span>${esc(c.title)}</span><b class="kcs-link-side--${c.sideText ? 'mix' : c.side === 'alt' ? 'alt' : 'ust'}">${esc(side(c))}</b></span>`).join('');
       return `<div class="kcs-link-row"><div class="kcs-link-head"><b>${esc(g.label)}</b><span>${g.cs.length} kuponda</span>${opposite ? '<em>Ters yön: aynı maç hem Alt hem Üst kuponda</em>' : ''}</div><div class="kcs-link-cps">${cps}</div></div>`;
     }).join('');
     const head = shared.length
@@ -3292,10 +3305,20 @@
     const fromOdds = new Set();
     const fromNote = new Set();
     const all = []; // bağlı kupon bilgisi için: verisi olmayan kuponlar da
+    let legCards = 0;
     for (const card of queryAll(SPECIAL_CARD)) {
       if (/KAPANDI/i.test(card.querySelector('.sb-cbt-action')?.textContent || '')) continue;
       const multi = readMulti(card);
-      if (!multi) continue;
+      if (!multi) {
+        const lc = readLegsCard(card);
+        if (!lc || lc.legs.length < 2) continue;
+        const ps = lc.legs.map((leg) => legProb(leg, legEvent(leg)));
+        const p = ps.every((x) => x != null) ? ps.reduce((t, x) => t * x, 1) : null;
+        all.push({ title: lc.title, sideText: lc.legs.map((l) => `${l.line} ${l.side === 'under' ? 'Alt' : 'Üst'}`).join(' / '), legs: lc.legs.map((leg) => ({ k: norm(leg.label), label: leg.label })) });
+        if (p == null) skipped++;
+        else { legCards++; list.push({ legs: [{ k: `kart|${lc.title}`, l: null }], line: 0, side: '', odds: lc.odds, p: Math.min(0.9999, Math.max(0.0001, p)) }); }
+        continue;
+      }
       const legs = multi.legs.map((leg) => {
         const k = norm(leg.label);
         const odd = legInfo(leg).l;
@@ -3316,7 +3339,7 @@
     const pct = !res ? 'hesaplanamadı' : (res.sure || res.atLeast1 >= 0.999 ? '%99.9 üstü' : `%${(res.atLeast1 * 100).toFixed(1)}`);
     const mean = res ? `<span class="kcs-chance-mean">ortalama <b>${res.mean.toFixed(1)}</b> / ${res.count} kupon tutar</span>` : '';
     const parts = [`${list.length + skipped} kupon`, `${fromOdds.size} maç oranlardan`, fromNote.size && `${fromNote.size} maç analizden`,
-      res?.loose && `${res.loose} kupon kendi olasılığıyla`, skipped && `${skipped} kuponun verisi yok, sayılmadı`].filter(Boolean);
+      legCards && `${legCards} kupon skor ve çizgiden`, res?.loose - legCards > 0 && `${res.loose - legCards} kupon kendi olasılığıyla`, skipped && `${skipped} kuponun verisi yok, sayılmadı`].filter(Boolean);
     const link = linkInfo(all);
     const tip = 'Tahmindir, garanti değildir. Aynı maç birden çok kuponda varsa birlikte sayıldı; goller Poisson ile 20.000 kez denendi. Başlamış maçlarda oran canlı değişir.';
     const plBtn = res ? `<button type="button" class="kcs-pl-toggle${plOpen ? '' : ' is-closed'}" aria-expanded="${plOpen}">Kâr/zarar <i class="kcs-ci-chev"></i></button>` : '';
@@ -3339,7 +3362,7 @@
       .map(([k, label]) => `<button type="button" class="kcs-sort-btn${cardSort === k ? ' is-on' : ''}" data-sort="${k}">${label}</button>`).join('');
     // Filtre düğmelerinde kaç kart olduğu: sayfadaki tüm kartlar sayılır, gizliler de.
     const cards = queryAll(SPECIAL_CARD);
-    const multiN = cards.filter((c) => c.querySelector('.sb-cbt-textblock')).length;
+    const multiN = cards.filter(specialIsMulti).length;
     const counts = { all: cards.length, single: cards.length - multiN, multi: multiN };
     const shows = [['all', 'Tümü'], ['single', 'Tek maç'], ['multi', 'Çok maç']]
       .map(([k, label]) => `<button type="button" class="kcs-show-btn kcs-sort-btn${cardShow === k ? ' is-on' : ''}" data-show="${k}">${label}<span class="kcs-count">${counts[k]}</span></button>`).join('');
@@ -3449,7 +3472,7 @@
     if ((sbSort !== 'site' || colsBets) && queryOne('.sb-mb-grid')) applySbSort();
     for (const card of queryAll(SPECIAL_CARD)) {
       if (card.querySelector(':scope > .kcs-arb-wrap')) continue;
-      const key = `${card.querySelector('.sb-cbt-team')?.textContent}|${card.querySelector('.sb-cbt-pick')?.textContent}`;
+      const key = specialKey(card);
       const c = boxCache.get(key);
       if (!c) continue;
       const box = document.createElement('div');
@@ -3477,6 +3500,317 @@
     return restored;
   }
 
+
+  // ---------- basketbol: Göz at penceresi ----------
+  const PEEK_TABS_BK = [['genel', 'Genel'], ['akis', 'Canlı akış'], ['ist', 'İstatistik'], ['fark', 'Skor farkı'], ['h2h', 'Karşılaşmalar'], ['puan', 'Puan durumu'], ['kadro', 'Oyuncular']];
+  const bkLogo = (url, cls = '') => (logoSrc(url) ? `<img${cls ? ` class="${cls}"` : ''} src="${esc(logoSrc(url))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '');
+  const bkTeamLogo = (abbr) => (abbr ? `https://a.espncdn.com/i/teamlogos/nba/500/${abbr.toLowerCase()}.png` : '');
+  const bkPeriod = (p) => (p <= 4 ? `${p}. çeyrek` : `Uzatma${p > 5 ? ` ${p - 4}` : ''}`);
+  const bkPeriodShort = (p) => (p <= 4 ? `Ç${p}` : `U${p - 4}`);
+  // Saat "6:48" ya da son dakikada "45.3" (saniye)
+  const bkLeft = (clock) => {
+    const s = String(clock || '');
+    if (s.includes(':')) { const [m, sec] = s.split(':').map(Number); return (m || 0) + (sec || 0) / 60; }
+    return (parseFloat(s) || 0) / 60;
+  };
+  const bkElapsed = (period, clock) => (period <= 4 ? (period - 1) * 12 + (12 - bkLeft(clock)) : 48 + (period - 5) * 5 + (5 - bkLeft(clock)));
+
+  // Oyun yazısının Türkçesi: "X makes 24-foot three point jumper (Y assists)" → oyuncu, atış türü, asist.
+  function bkShot(desc) {
+    const d = desc.toLowerCase();
+    const ft = /free throw (?:- )?(\d) of (\d)/.exec(d);
+    if (ft) return `serbest atış ${ft[1]}/${ft[2]}`;
+    if (/free throw/.test(d)) return /technical/.test(d) ? 'teknik serbest atış' : 'serbest atış';
+    const kind = /three point/.test(d) ? 'üçlük' : /dunk/.test(d) ? 'smaç' : /layup|finger roll/.test(d) ? 'turnike' : /hook/.test(d) ? 'kanca' : /tip/.test(d) ? 'tip-in' : /alley oop/.test(d) ? 'alley-oop' : 'şut';
+    const ft2 = /(\d+)-foot/.exec(d);
+    return ft2 ? `${kind} (${Math.max(1, Math.round(Number(ft2[1]) * 0.3048))} m)` : kind;
+  }
+  function bkPlayText(p) {
+    const m = /^(.+?) (makes|misses) (.+?)(?: \((.+?) assists\))?$/.exec(p.text);
+    if (m) return { who: m[1], what: `${m[2] === 'makes' ? '' : 'Kaçtı · '}${bkShot(m[3])[0].toLocaleUpperCase('tr-TR')}${bkShot(m[3]).slice(1)}`, assist: m[4] || '' };
+    if (/End Period|End Game/i.test(p.type)) return { who: '', what: /End Game/i.test(p.type) ? 'Maç bitti' : `${bkPeriod(p.period)} bitti`, assist: '' };
+    if (/Technical/i.test(p.type)) return { who: p.text.replace(/ technical foul.*$/i, ''), what: 'Teknik faul', assist: '' };
+    if (/Flagrant/i.test(p.type)) return { who: p.text.replace(/ flagrant foul.*$/i, ''), what: 'Sert faul (flagrant)', assist: '' };
+    if (/Challenge/i.test(p.type)) return { who: '', what: /Overturned/i.test(p.type) ? 'Koç itirazı · karar değişti' : 'Koç itirazı · karar aynı', assist: '' };
+    if (/Ejection/i.test(p.type)) return { who: p.text.replace(/ ejected.*$/i, ''), what: 'Oyundan atıldı', assist: '' };
+    return null;
+  }
+
+  function bkHead(fx) {
+    const sc = fx.score ? `${fx.score.home} - ${fx.score.away}` : 'v';
+    const live = PEEK_LIVE.has(fx.status);
+    const when = fx.kickoffAt ? new Date(fx.kickoffAt).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    const sub = live ? `${fx.stateLabel || 'Canlı'} · canlı` : fx.status === 'NOT_STARTED' ? `${when}${fx.kickoffAt ? countdownHtml(Date.parse(fx.kickoffAt) / 1000) : ''}` : esc(fx.stateLabel || '');
+    return `<div class="kcs-peek-head"><b>${esc(fx.home?.name || '')}${bkLogo(fx.home?.logoUrl)}</b><span>${sc}</span><b>${bkLogo(fx.away?.logoUrl)}${esc(fx.away?.name || '')}</b>`
+      + `<em>${live ? esc(sub) : sub}${fx.home?.record || fx.away?.record ? ` · ${esc(fx.home?.record || '?')} / ${esc(fx.away?.record || '?')}` : ''}</em></div>`;
+  }
+
+  function bkGenel(d) {
+    const fx = d.detail.fixture;
+    const q = fx.quarters || [];
+    let quarters = '';
+    if (q.length) {
+      const heads = q.map((_, i) => `<span>${bkPeriodShort(i + 1)}</span>`).join('');
+      const row = (t, k) => `<div class="kcs-bkq-row"><span class="kcs-bkq-team">${bkLogo(t.logoUrl)}<b>${esc(t.shortCode || t.name)}</b></span>${q.map((x) => `<span>${x[k] ?? '-'}</span>`).join('')}<strong>${fx.score ? fx.score[k ? 'away' : 'home'] : '-'}</strong></div>`;
+      quarters = `<div class="kcs-bkq" style="--n:${q.length}"><div class="kcs-bkq-row is-head"><span></span>${heads}<strong>T</strong></div>${row(fx.home, 0)}${row(fx.away, 1)}</div>`;
+    }
+    const total = fx.score ? fx.score.home + fx.score.away : null;
+    const inf = d.info || {};
+    const rows = [
+      ['sira', 'Toplam sayı', total != null ? `${total}${inf.line?.ou ? ` · çizgi ${inf.line.ou}` : ''}` : ''],
+      ['h2h', 'Bahis çizgisi', inf.line && (inf.line.ou || inf.line.details) ? [inf.line.ou && `Toplam ${inf.line.ou}`, inf.line.details && `Handikap ${inf.line.details}`].filter(Boolean).join(' · ') : ''],
+      ['ist', 'Kazanma olasılığı', inf.homeWin != null ? `${esc(fx.home.name)} %${inf.homeWin} · ${esc(fx.away.name)} %${100 - inf.homeWin}` : ''],
+      ['stad', 'Salon', inf.venue ? `${esc(inf.venue)}${inf.attendance ? ` · ${Number(inf.attendance).toLocaleString('tr-TR')} seyirci` : ''}` : ''],
+      ['ref', 'Hakemler', inf.officials?.length ? esc(inf.officials.join(', ')) : ''],
+      ['tv', 'Yayın', inf.tv?.length ? esc(inf.tv.join(', ')) : ''],
+      ['coach', 'Sezon serisi', d.series?.summary ? esc(bkSeriesText(d.series, fx)) : ''],
+    ].filter(([, , v]) => v);
+    const info = `<div class="kcs-peek-info kcs-peek-info--ic">${rows.map(([icon, k, v]) => `<div><i class="kcs-info-ic">${PEEK_ICON[icon] || ''}</i><span>${k}</span><b>${v}</b></div>`).join('')}</div>`;
+    const CAT = { points: 'Sayı', rebounds: 'Ribaund', assists: 'Asist', Points: 'Sayı', Rebounds: 'Ribaund', Assists: 'Asist' };
+    const lead = (d.leaders || []).map((t) => {
+      const team = String(t.teamId) === String(fx.home.id) ? fx.home : fx.away;
+      return `<div class="kcs-bkl${team === fx.away ? ' is-away' : ''}"><div class="kcs-bkl-team">${bkLogo(team.logoUrl)}<b>${esc(team.name)}</b></div>`
+        + t.list.filter((x) => x.name).map((x) => `<div class="kcs-bkl-row">${x.photo ? `<img src="${esc(logoSrc(x.photo))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<i></i>'}<span>${esc(x.name)}<small>${CAT[x.cat] || esc(x.cat)}</small></span><strong>${esc(x.value)}</strong></div>`).join('') + '</div>';
+    }).join('');
+    return `${quarters}${lead ? `<div class="kcs-bkl-wrap">${lead}</div>` : ''}${info}`;
+  }
+  function bkSeriesText(s, fx) {
+    const done = s.events.filter((e) => e.done);
+    let h = 0; let a = 0;
+    for (const e of done) { const w = e.teams.find((t) => t.winner); if (!w) continue; if (String(w.id) === String(fx.home.id)) h++; else a++; }
+    return done.length ? `${fx.home.name} ${h} - ${a} ${fx.away.name} (${s.events.length} maçlık seri)` : `Bu sezon ilk karşılaşma (${s.events.length} maçlık seri)`;
+  }
+
+  function bkFeed(d) {
+    const fx = d.detail.fixture;
+    const homeId = String(fx.home.id);
+    const plays = d.plays.filter((p) => p.scoring || /End Period|End Game|Technical|Flagrant|Challenge|Ejection/i.test(p.type));
+    if (!plays.length) return '<div class="kcs-peek-empty">Henüz sayı yok.</div>';
+    let lastPeriod = 0;
+    const out = [];
+    for (const p of plays) {
+      const t = bkPlayText(p);
+      if (!t) continue;
+      if (p.period !== lastPeriod) { lastPeriod = p.period; out.push(`<div class="kcs-tl-sep"><span>${bkPeriod(p.period)}</span></div>`); }
+      if (/End Period|End Game/i.test(p.type)) { out.push(`<div class="kcs-tl-sep kcs-tl-sep--end"><span>${esc(t.what)} · ${p.hs}-${p.as}</span></div>`); continue; }
+      const side = p.teamId != null && String(p.teamId) !== homeId ? 'away' : 'home';
+      const team = side === 'away' ? fx.away : fx.home;
+      const pts = p.scoring ? `<span class="kcs-bk-pts kcs-bk-pts--${p.value}">+${p.value}</span>` : `<span class="kcs-bk-pts kcs-bk-pts--x">!</span>`;
+      const score = p.scoring ? `<i class="kcs-tl-score">${p.hs}-${p.as}</i>` : '';
+      const card = `<div class="kcs-tl-card"><em>${esc(p.clock)}</em><span class="kcs-tl-ic">${pts}</span><div class="kcs-tl-body"><b>${esc(t.who || team.name)}${score}</b>`
+        + `<span>${esc(t.what)}${t.assist ? ` · Asist: ${esc(t.assist)}` : ''}</span></div><u>${esc(team.shortCode || '')}</u></div>`;
+      out.push(`<div class="kcs-tl-row kcs-tl-row--${side}">${side === 'home' ? `${card}<i class="kcs-tl-dot"></i><span></span>` : `<span></span><i class="kcs-tl-dot"></i>${card}`}</div>`);
+    }
+    return `<div class="kcs-tl-head">Sayılar ve önemli anlar · saat çeyrekte kalan süre</div><div class="kcs-tl-scroll"><div class="kcs-tl">${out.join('')}</div></div>`;
+  }
+
+  const BK_STATS = [
+    ['fieldGoalsMade-fieldGoalsAttempted', 'Saha içi (isabet-deneme)'], ['fieldGoalPct', 'Saha içi %'],
+    ['threePointFieldGoalsMade-threePointFieldGoalsAttempted', 'Üçlük'], ['threePointFieldGoalPct', 'Üçlük %'],
+    ['freeThrowsMade-freeThrowsAttempted', 'Serbest atış'], ['freeThrowPct', 'Serbest atış %'],
+    ['totalRebounds', 'Ribaund'], ['offensiveRebounds', 'Hücum ribaundu'], ['assists', 'Asist'], ['steals', 'Top çalma'], ['blocks', 'Blok'],
+    ['totalTurnovers', 'Top kaybı'], ['pointsInPaint', 'Boyalı alan sayısı'], ['fastBreakPoints', 'Hızlı hücum sayısı'], ['turnoverPoints', 'Top kaybından sayı'],
+    ['largestLead', 'En büyük fark'], ['leadChanges', 'Önde olan değişimi'], ['fouls', 'Faul'],
+  ];
+  function bkStats(d) {
+    const fx = d.detail.fixture;
+    const H = d.teamStats?.[fx.home.id] || {};
+    const A = d.teamStats?.[fx.away.id] || {};
+    const rows = BK_STATS.map(([k, label]) => {
+      if (H[k] == null && A[k] == null) return '';
+      const pct = /Pct$/.test(k);
+      const na = parseFloat(H[k]) || 0;
+      const nb = parseFloat(A[k]) || 0;
+      const w = na + nb ? Math.round((na / (na + nb)) * 100) : 50;
+      return `<div class="kcs-stat"><b>${esc(String(H[k] ?? 0))}${pct ? '%' : ''}</b><span>${label}</span><b>${esc(String(A[k] ?? 0))}${pct ? '%' : ''}</b>`
+        + `<div class="kcs-stat-bar"><i style="width:${w}%"></i><u style="width:${100 - w}%"></u></div></div>`;
+    }).join('');
+    return rows ? `<div class="kcs-pitch-legend"><span class="is-home">${esc(fx.home.name)}</span><span class="is-away">${esc(fx.away.name)}</span></div>${rows}` : '<div class="kcs-peek-empty">İstatistik maç başlayınca gelir.</div>';
+  }
+
+  // Skor farkı: maç boyunca ev sahibinin farkı (üst yarı ev sahibi önde, alt yarı deplasman önde). Çizgi soldan sağa çizilir.
+  function bkFark(d) {
+    const fx = d.detail.fixture;
+    const pts = d.plays.filter((p) => p.scoring && p.hs != null).map((p) => ({ t: bkElapsed(p.period, p.clock), m: p.hs - p.as, p }));
+    if (!pts.length) return '<div class="kcs-peek-empty">Maç başlayınca skor farkı çizilir.</div>';
+    const maxP = Math.max(4, fx.period || 4, ...pts.map((x) => x.p.period));
+    const T = maxP <= 4 ? 48 : 48 + (maxP - 4) * 5;
+    const M = Math.max(8, ...pts.map((x) => Math.abs(x.m)));
+    const W = 600;
+    const H = 200;
+    const X = (t) => ((t / T) * W).toFixed(1);
+    const Y = (m) => (H / 2 - (m / M) * (H / 2 - 12)).toFixed(1);
+    const line = `M0,${H / 2} ${pts.map((x) => `L${X(x.t)},${Y(x.m)}`).join(' ')}`;
+    const area = `${line} L${X(pts[pts.length - 1].t)},${H / 2} Z`;
+    const grid = [12, 24, 36, ...Array.from({ length: Math.max(0, maxP - 4) }, (_, i) => 48 + i * 5)].map((t) => `<line x1="${X(t)}" y1="0" x2="${X(t)}" y2="${H}" class="kcs-fark-q"/>`).join('');
+    const labels = Array.from({ length: maxP }, (_, i) => { const s = i < 4 ? i * 12 : 48 + (i - 4) * 5; const e = i < 4 ? s + 12 : s + 5; return `<span style="left:${((s + e) / 2 / T) * 100}%">${bkPeriodShort(i + 1)}</span>`; }).join('');
+    const hiH = Math.max(0, ...pts.map((x) => x.m));
+    const hiA = Math.max(0, ...pts.map((x) => -x.m));
+    let changes = 0;
+    let prev = 0;
+    for (const x of pts) { const s = Math.sign(x.m); if (s && prev && s !== prev) changes++; if (s) prev = s; }
+    const last = pts[pts.length - 1];
+    return `<div class="kcs-pitch-legend"><span class="is-home">${esc(fx.home.name)} önde ↑</span><span class="is-away">↓ ${esc(fx.away.name)} önde</span></div>`
+      + `<div class="kcs-fark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="kcsFarkG" x1="0" y1="0" x2="0" y2="${H}" gradientUnits="userSpaceOnUse">`
+      + `<stop offset="0" stop-color="#7aa5ff" stop-opacity=".7"/><stop offset=".5" stop-color="#7aa5ff" stop-opacity=".08"/><stop offset=".5" stop-color="#e46b8f" stop-opacity=".08"/><stop offset="1" stop-color="#e46b8f" stop-opacity=".7"/></linearGradient></defs>`
+      + `${grid}<line x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}" class="kcs-fark-zero"/><path d="${area}" fill="url(#kcsFarkG)" class="kcs-fark-area"/>`
+      + `<path d="${line}" class="kcs-fark-line" pathLength="1"/><circle cx="${X(last.t)}" cy="${Y(last.m)}" r="4.5" class="kcs-fark-dot"/></svg><div class="kcs-fark-labels">${labels}</div></div>`
+      + `<div class="kcs-fark-sum"><div class="is-home"><b>+${hiH}</b><span>${esc(fx.home.shortCode || fx.home.name)} en büyük fark</span></div><div><b>${changes}</b><span>önde olan değişti</span></div><div class="is-away"><b>+${hiA}</b><span>${esc(fx.away.shortCode || fx.away.name)} en büyük fark</span></div></div>`;
+  }
+
+  function bkTable(d) {
+    const fx = d.detail.fixture;
+    const groups = (d.standings || []).filter((g) => g.rows.length);
+    if (!groups.length) return '<div class="kcs-peek-empty">Puan durumu yok.</div>';
+    const mine = (id) => (String(id) === String(fx.home.id) ? ' is-home' : String(id) === String(fx.away.id) ? ' is-away' : '');
+    const TR = (t) => t.replace('Atlantic', 'Atlantik').replace('Central', 'Merkez').replace('Southeast', 'Güneydoğu').replace('Northwest', 'Kuzeybatı').replace('Pacific', 'Pasifik').replace('Southwest', 'Güneybatı')
+      .replace('Eastern Conference', 'Doğu Konferansı').replace('Western Conference', 'Batı Konferansı');
+    return groups.map((g) => `<div class="kcs-st-title">${esc(TR(g.title))}</div><div class="kcs-st kcs-st--bk"><div class="kcs-st-row is-head"><span>#</span><span>Takım</span><span>G</span><span>M</span><span>%</span><span>Fark</span><span>Seri</span></div>`
+      + g.rows.map((r, i) => `<div class="kcs-st-row${mine(r.id)}${i === 0 ? ' z-lead' : ''}"><span class="kcs-st-pos">${i + 1}</span><span class="kcs-st-name">${bkLogo(bkTeamLogo(r.abbr)) || '<i></i>'}<span>${esc(r.team || '')}</span></span>`
+        + `<span>${esc(r.w ?? '')}</span><span>${esc(r.l ?? '')}</span><span>${esc(r.pct ?? '')}</span><span>${esc(r.gb ?? '')}</span><b class="${/^W/.test(r.strk || '') ? 'is-pos' : /^L/.test(r.strk || '') ? 'is-neg' : ''}">${esc((r.strk || '').replace(/^W/, 'G').replace(/^L/, 'M'))}</b></div>`).join('')
+      + '</div>').join('') + '<div class="kcs-st-legend"><span class="is-home">Ev sahibi</span><span class="is-away">Deplasman</span><span>G galibiyet · M mağlubiyet · Seri: üst üste</span></div>';
+  }
+
+  function bkH2h(d) {
+    const fx = d.detail.fixture;
+    const s = d.series;
+    const evs = (s?.events || []).filter((e) => e.done && !String(fx.id).endsWith(String(e.id || '')));
+    if (!s || !s.events.length) return '<div class="kcs-peek-empty">Bu sezon aralarında maç yok.</div>';
+    let h = 0; let a = 0;
+    for (const e of s.events.filter((x) => x.done)) { const w = e.teams.find((t) => t.winner); if (!w) continue; if (String(w.id) === String(fx.home.id)) h++; else a++; }
+    const rows = s.events.map((e) => {
+      const home = e.teams.find((t) => t.homeAway === 'home') || {};
+      const away = e.teams.find((t) => t.homeAway === 'away') || {};
+      const date = e.date ? new Date(e.date).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      return `<div class="kcs-h2h-match"><small>${esc(date)} · NBA${e.done ? '' : ' · oynanmadı'}</small><div><span class="${home.winner ? 'is-win' : ''}">${esc(home.name || '')}</span><b>${e.done ? `${esc(home.score)} : ${esc(away.score)}` : '–'}</b><span class="${away.winner ? 'is-win' : ''}">${esc(away.name || '')}</span></div></div>`;
+    }).join('');
+    void evs;
+    return `<div class="kcs-h2h-title">Sezon serisi</div><div class="kcs-h2h-sub">Bu sezon aralarındaki maçlar</div>`
+      + `<div class="kcs-h2h-big kcs-h2h-big--2"><div class="is-home"><b>${h}</b><span>${esc(fx.home.name)}</span></div><div class="is-away"><b>${a}</b><span>${esc(fx.away.name)}</span></div></div>`
+      + `<div class="kcs-h2h-sum">${s.events.length} maçlık seri · ${s.events.filter((x) => x.done).length} maç oynandı</div>${rows}`;
+  }
+
+  function bkPlayers(d) {
+    const fx = d.detail.fixture;
+    if (!d.players?.length) return '<div class="kcs-peek-empty">Oyuncu bilgisi maç başlayınca gelir.</div>';
+    const COLS = [['MIN', 'Dk'], ['PTS', 'Sayı'], ['REB', 'Rib'], ['AST', 'Ast'], ['FG', 'Saha'], ['3PT', '3lük'], ['+/-', '+/-']];
+    return d.players.map((t) => {
+      const team = String(t.teamId) === String(fx.home.id) ? fx.home : fx.away;
+      const idx = COLS.map(([k]) => t.labels.indexOf(k));
+      const head = `<div class="kcs-box-row is-head"><span>Oyuncu</span>${COLS.map(([, l]) => `<span>${l}</span>`).join('')}</div>`;
+      const rows = t.athletes.map((x) => (x.dnp || !x.stats.length
+        ? `<div class="kcs-box-row is-dnp"><span class="kcs-box-name">${esc(x.short || x.name)}<small>${esc(x.pos)}</small></span><span class="kcs-box-dnp">Oynamadı</span></div>`
+        : `<div class="kcs-box-row${x.starter ? ' is-starter' : ''}"><span class="kcs-box-name">${esc(x.short || x.name)}<small>${esc(x.pos)}${x.starter ? ' · ilk 5' : ''}</small></span>${idx.map((i, n) => `<span${n === 1 ? ' class="kcs-box-pts"' : ''}>${i >= 0 ? esc(x.stats[i] ?? '') : ''}</span>`).join('')}</div>`)).join('');
+      return `<div class="kcs-box${team === fx.away ? ' is-away' : ''}"><div class="kcs-box-team">${bkLogo(team.logoUrl)}<b>${esc(team.name)}</b></div>${head}${rows}</div>`;
+    }).join('');
+  }
+
+  function bkBody(d, tab) {
+    if (tab === 'akis') return bkFeed(d);
+    if (tab === 'ist') return bkStats(d);
+    if (tab === 'fark') return bkFark(d);
+    if (tab === 'h2h') return bkH2h(d);
+    if (tab === 'puan') return bkTable(d);
+    if (tab === 'kadro') return bkPlayers(d);
+    return bkGenel(d);
+  }
+
+  // ---------- olasılık: toplam sayı / gol çizgisi ----------
+  const normCdf = (z) => {
+    const t = 1 / (1 + 0.2316419 * Math.abs(z));
+    const p = 0.3989423 * Math.exp(-z * z / 2) * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return z > 0 ? 1 - p : p;
+  };
+  // NBA toplam sayı: maç öncesi çizgi (yoksa 225) ortalama, sapma ~18 sayı. Canlıda kalan süre, şimdiki tempoyla
+  // maç öncesi tempo harmanlanarak (ilk 12 dakika ağırlıklı çizgiden) tahmin edilir; sapma kalan süreyle küçülür. Uzatma hesaba katılmaz.
+  function bkOverProb(e, line) {
+    const total = (e.hs ?? 0) + (e.as ?? 0);
+    const ou = Number(e.ou) || 225;
+    const live = !SK_WAIT.has(e.status) && !SK_DONE.has(e.status);
+    let elapsed = 0;
+    if (live) {
+      const p = e.period || 1;
+      elapsed = e.status === 'HALFTIME' ? 24 : e.status === 'BREAK' ? (p <= 4 ? p * 12 : 48 + (p - 4) * 5) : bkElapsed(p, e.clock);
+    }
+    const end = (e.period || 0) > 4 ? 48 + (e.period - 4) * 5 : 48;
+    const rem = Math.max(0, end - elapsed);
+    const rate = ((ou / 48) * 12 + total) / (12 + elapsed);
+    const mean = total + rate * rem;
+    const sd = Math.max(2.5, 18 * Math.sqrt(rem / 48));
+    return 1 - normCdf((line - mean) / sd);
+  }
+  // Bir maçın (kartın bir bacağı) tutma olasılığı. Biten maç kesin; çizgi aşıldıysa Üst tuttu / Alt yattı.
+  function legProb(leg, e) {
+    if (!e) return null;
+    const over = leg.side === 'over';
+    const total = (e.hs ?? 0) + (e.as ?? 0);
+    if (SK_DONE.has(e.status)) return (over ? total > leg.line : total < leg.line) ? 1 : 0;
+    if (total > leg.line) return over ? 1 : 0;
+    if (e.sport === 'basketball') { const po = bkOverProb(e, leg.line); return over ? po : 1 - po; }
+    const l = legInfo(leg).l ?? (Number(notesMap.get(norm(leg.label))?.lambda) || null);
+    if (!l) return null;
+    const lam = !SK_WAIT.has(e.status) && e.minute != null ? l * Math.max(0, 90 - e.minute) / 90 : l;
+    const po = overProb(lam, leg.line - total);
+    return over ? po : 1 - po;
+  }
+
+  // ---------- Özel Oranlar: her maçın kendi çizgisi olan kart ("A - B · Toplam … 227.5 Alt" satırları) ----------
+  function readLegsCard(card) {
+    const els = [...card.querySelectorAll('.sb-cbt-leg')];
+    if (!els.length) return null;
+    const odds = num(card.querySelector('.sb-cbt-odds-num')?.textContent);
+    const legs = els.map((el) => {
+      const label = el.querySelector('.sb-cbt-leg-event')?.textContent.trim() || '';
+      const pickText = el.querySelector('.sb-cbt-leg-pick')?.textContent.trim() || '';
+      const [market = '', pick = ''] = pickText.split('·').map((x) => x.trim());
+      const m = /([\d.,]+)\s*(Alt|Üst|Ust)/i.exec(pick) || /(Alt|Üst|Ust)\s*([\d.,]+)/i.exec(pick);
+      if (!label || !m) return null;
+      const line = num(/\d/.test(m[1]) ? m[1] : m[2]);
+      const alt = /alt/i.test(/\d/.test(m[1]) ? m[2] : m[1]);
+      const pair = label.split(/\s+-\s+/);
+      if (/korner|kart|yarı|yari|devre|çeyrek|ceyrek/i.test(market)) return null;
+      return { label, key: `leg|${norm(pair.join(' '))}`, match: pair.join(' '), pair: pair.length === 2 ? pair : null, time: '', odds, market, line, side: alt ? 'under' : 'over' };
+    });
+    if (legs.some((x) => !x)) return null;
+    return { title: legs.map((x) => x.label).join(' | '), legs, odds };
+  }
+  const legEvent = (leg) => { const h = findHub(HUBS[2], leg); return h ? skEvents[h.e.id] || null : null; };
+
+  function legsCardHtml(lc) {
+    const rows = lc.legs.map((leg) => { const e = legEvent(leg); return { leg, e, p: legProb(leg, e) }; });
+    let won = 0; let lost = 0;
+    const parts = rows.map(({ leg, e, p }) => {
+      const pickTxt = `${leg.line} ${leg.side === 'under' ? 'Alt' : 'Üst'}`;
+      if (!e) return `<div class="kcs-lg"><div class="kcs-lg-head"><b>${esc(leg.label)}</b><span class="kcs-lg-pick">${esc(pickTxt)}</span></div><div class="kcs-ci-note kcs-ci-note--warn">Maç bulunamadı</div></div>`;
+      const f = fromSk(e);
+      const total = (e.hs ?? 0) + (e.as ?? 0);
+      const final = SK_DONE.has(e.status);
+      const v = f.hasScore ? goalVerdict(total, leg.line, leg.side === 'under' ? 'alt' : 'ust', final) : 'open';
+      if (v === 'won') won++;
+      if (v === 'lost') lost++;
+      const state = f.isLive ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(f.clock || 'Canlı')}</span>`
+        : f.ended ? `<span class="kcs-done-badge">${esc(f.clock || 'MS')}</span>`
+        : `${e.start ? esc(whenText(e.start)) : ''}${e.start ? countdownHtml(e.start) : ''}`;
+      const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
+      const score = `<div class="kcs-lg-score${f.isLive ? ' is-live' : ''}">${team(e.home, e.homeLogo)}<b>${f.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${team(e.away, e.awayLogo)}</div>`;
+      const bar = f.hasScore ? goalHtml(total, { line: leg.line, side: leg.side === 'under' ? 'alt' : 'ust' }, final) : '';
+      const pre = !f.hasScore && e.sport === 'basketball' && e.ou ? `<div class="kcs-ci-note">Maç öncesi çizgi: toplam ${e.ou}${e.spread ? ` · ${esc(e.spread)}` : ''}</div>` : '';
+      const prob = p != null && !final ? `<div class="kcs-lg-prob"><span>Tutma olasılığı</span><b>${pctText(p * 100)}</b></div>` : '';
+      const peek = skIdOf({ id: e.id });
+      return `<div class="kcs-lg${v === 'won' ? ' is-won' : v === 'lost' ? ' is-lost' : ''}"><div class="kcs-lg-head"><b>${esc(leg.market || 'Toplam')} · ${esc(pickTxt)}</b><span>${state}</span></div>${score}${bar}${pre}${prob}`
+        + (peek ? `<div class="kcs-peek-line">${peekBtns(peek)}</div>` : '') + '</div>';
+    }).join('');
+    const known = rows.every((x) => x.p != null);
+    const pAll = known ? rows.reduce((t, x) => t * x.p, 1) : null;
+    const n = rows.length;
+    const status = lost ? `${lost} maç tutmadı · kupon yattı` : won === n ? 'Bütün maçlar tuttu' : `${won}/${n} maç tuttu`;
+    let body = parts + infoRow('Kupon', status, lost ? 'warn' : won === n ? 'ok' : '');
+    if (pAll != null && !lost && won < n) body += fairRows(Math.max(1e-6, pAll), lc.odds, `${n} maç birlikte`, 'Tahmindir: maçlar bağımsız sayıldı. Basketbolda toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.');
+    else if (pAll == null) body += infoRow('Seçim olasılığı', 'bilgisi eksik maç var', 'warn');
+    const prob = pAll != null && !lost && won < n ? (pAll * 100).toFixed(1) : null;
+    return sectionHtml('info', lc.title, 'SERT SİKİCİ BİLGİLER', infoSum(lc.legs, prob), body);
+  }
+
   function renderSpecials() {
     // Maç penceresi zamanla kayar: en geç on dakikada bir yeniden bakılır.
     if (matchDirty || Date.now() - memoAt > 10 * 60 * 1000) {
@@ -3488,7 +3822,7 @@
     const sortItems = [];
     for (const root of roots()) watchRoot(root);
     const one = (card) => {
-      const isMulti = !!card.querySelector('.sb-cbt-textblock');
+      const isMulti = specialIsMulti(card);
       const shown = cardShow === 'all' || (cardShow === 'multi') === isMulti;
       const display = shown ? '' : 'none';
       if (card.style.display !== display) card.style.display = display;
@@ -3499,19 +3833,20 @@
       const active = features.arb || features.info;
       const sp = active ? readSpecial(card) : null;
       const multi = active && !sp ? readMulti(card) : null;
+      const lc = active && !sp && !multi ? readLegsCard(card) : null;
       const closed = /KAPANDI/i.test(card.querySelector('.sb-cbt-action')?.textContent || '');
-      const sortItem = { card, key: `${card.querySelector('.sb-cbt-team')?.textContent}|${card.querySelector('.sb-cbt-pick')?.textContent}`, at: sortItems.length, arb: null, start: null, closed };
+      const sortItem = { card, key: specialKey(card), at: sortItems.length, arb: null, start: null, closed };
       sortItems.push(sortItem);
-      if (!sp && !multi) { box?.remove(); card.classList.remove('kcs-ticket'); return; }
+      if (!sp && !multi && !lc) { box?.remove(); card.classList.remove('kcs-ticket'); return; }
       if ((cardSort === 'arb' || cardSort === 'both') && sp) sortItem.arb = bestProfit(sp);
       if (cardSort === 'start' || cardSort === 'both') {
-        const times = (multi ? multi.legs : [sp]).map(legStart).filter(Boolean);
+        const times = (multi ? multi.legs : lc ? lc.legs : [sp]).map(legStart).filter(Boolean);
         sortItem.start = times.length ? Math.min(...times) : null;
       }
       // Bir karttaki hata diğer kartların satırlarını silmesin: o kartta hatayı göster, devam et.
       let html;
       try {
-        html = (multi || !features.arb ? '' : sectionHtml('arb', sp.key, 'SERT OSURTAN ORAN', arbSum(sp), `<div class="kcs-arb-list">${arbHtml(sp)}</div>`))
+        html = lc ? (features.info ? legsCardHtml(lc) : '') : (multi || !features.arb ? '' : sectionHtml('arb', sp.key, 'SERT OSURTAN ORAN', arbSum(sp), `<div class="kcs-arb-list">${arbHtml(sp)}</div>`))
           + (features.info ? cardInfoHtml(sp, multi) : '');
       } catch (err) {
         console.error('[kupon-skor] arbitraj satırı', sp?.match, err);
@@ -3527,7 +3862,7 @@
         }
         if (ticket) card.classList.add('kcs-ticket');
         box.__kcsSp = sp;
-        box.__kcsKey = multi ? multi.title : sp.key;
+        box.__kcsKey = multi ? multi.title : lc ? lc.title : sp.key;
         if (box.__kcsHtml !== html) { box.innerHTML = html; box.__kcsHtml = html; }
         boxCache.set(sortItem.key, { html, cls: box.className, kcsKey: box.__kcsKey, sp, ticket, isMulti });
       } else {
@@ -3536,7 +3871,7 @@
         boxCache.delete(sortItem.key);
       }
       // Çok maçlı kartta her maç ayrı aranır (ve "bu maç hangi özel oran?" çubuğunda seçilebilir).
-      for (const item of multi ? multi.legs : (sp.unsupported ? [] : [sp])) {
+      for (const item of multi ? multi.legs : lc ? [] : (sp.unsupported ? [] : [sp])) {
         for (const k in want) {
           try { want[k].push(wantItem(k, item)); } catch (err) { console.error('[kupon-skor] arama listesi', item.match, err); }
         }
