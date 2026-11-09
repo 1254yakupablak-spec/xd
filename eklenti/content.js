@@ -723,7 +723,7 @@
     const tag = f.url ? `a class="bet__multi-leg-fixture" href="${esc(f.url)}" target="_blank" rel="noopener"` : 'div class="bet__multi-leg-fixture"';
     const close = f.url ? 'a' : 'div';
     const g = (n) => (f.hasScore ? n : '–');
-    const flash = f.hasScore ? scoreFlash(f.id, f.hs, f.as) : null;
+    const flash = f.hasScore ? scoreFlash(f.id, f.hs, f.as, f.isLive) : null;
     return `<div class="bet__multi-leg-card kcs-leg${f.isLive ? ' kcs-leg--live' : ''}${flash ? ' kcs-flash' : ''}">`
       + `<${tag}>`
       + `<div class="bet__multi-leg-meta">${f.start ? `<span>${esc(dayText(f.start))}</span><span>${esc(timeText(f.start))}</span>` : ''}${clockHtml(f)}</div>`
@@ -776,10 +776,12 @@
   // sayısı vurgulanır. Sayfa açıldığında gelen ilk skor değişiklik sayılmaz.
   const FLASH_MS = 45 * 1000;
   const scoreSeen = new Map();
-  function scoreFlash(id, hs, as) {
+  function scoreFlash(id, hs, as, live = true) {
     if (id == null || hs == null || as == null) return null;
     const prev = scoreSeen.get(id);
     if (!prev) { scoreSeen.set(id, { hs, as, at: 0, home: false, away: false }); return null; }
+    // Canlı olmayan maçta skor düzeltmesi (veri kaynağının son skoru) işaretlenmez.
+    if (!live) { if (prev.hs !== hs || prev.as !== as) scoreSeen.set(id, { hs, as, at: 0, home: false, away: false }); return null; }
     if (prev.hs !== hs || prev.as !== as) {
       // Skor düştüyse gol iptal edilmiştir (VAR): GOL değil "GOL İPTAL" gösterilir.
       scoreSeen.set(id, { hs, as, at: Date.now(), home: hs !== prev.hs, away: as !== prev.as, cancel: hs + as < prev.hs + prev.as });
@@ -797,6 +799,7 @@
   const skIdOf = (f) => { const id = String(f?.id || '').replace(/^k/, ''); return /^\d+$/.test(id) ? id : null; };
 
   function peekRedraw() {
+    renderPeekModal();
     for (const el of queryAll('.kcs-legs, .kcs-arb-wrap')) el.__kcsHtml = null;
     scheduleRender();
   }
@@ -811,6 +814,43 @@
       else peekData.set(id, { ...cur, loading: false, error: res?.error || 'alınamadı', at: Date.now() });
       peekRedraw();
     }).catch(() => { peekData.set(id, { ...cur, loading: false, error: 'alınamadı', at: Date.now() }); });
+  }
+
+  // Pencere: açık maçın bilgisi sayfanın üstünde. Kapatma: ×, dışarıya tıklama ya da Esc.
+  function renderPeekModal() {
+    const [id] = peekOpen.keys();
+    const host = queryOne('.kcs-legs, .kcs-arb-wrap, .kcs-status, .kcs-info');
+    const root = host?.getRootNode();
+    let modal = queryOne('.kcs-modal');
+    if (!id || !root) { modal?.remove(); return; }
+    if (!modal || modal.getRootNode() !== root) {
+      modal?.remove();
+      modal = document.createElement('div');
+      modal.className = 'kcs-modal';
+      styleRoot(root);
+      (root === document ? document.body : root).append(modal);
+    }
+    const fx = peekData.get(id)?.d?.detail?.fixture;
+    const title = fx ? `${fx.home?.name || ''} - ${fx.away?.name || ''}` : 'Maç ayrıntısı';
+    const html = `<div class="kcs-modal-box" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="kcs-modal-top"><b>${markHtml()}${esc(title)}</b>`
+      + `<button type="button" class="kcs-modal-close" aria-label="Kapat">×</button></div>${peekHtml(id)}</div>`;
+    if (modal.__kcsHtml !== html) {
+      const keep = modal.querySelector('.kcs-modal-box')?.scrollTop || 0;
+      const feed = modal.querySelector('.kcs-feed')?.scrollTop || 0;
+      modal.innerHTML = html;
+      modal.__kcsHtml = html;
+      // Yenilenince kaydırma yeri korunsun.
+      const box = modal.querySelector('.kcs-modal-box');
+      if (box) box.scrollTop = keep;
+      const f = modal.querySelector('.kcs-feed');
+      if (f) f.scrollTop = feed;
+    }
+  }
+  function closePeek() {
+    peekOpen.clear();
+    renderPeekModal();
+    for (const el of queryAll('.kcs-legs, .kcs-arb-wrap')) el.__kcsHtml = null;
+    scheduleRender();
   }
 
   const peekBtns = (id) => {
@@ -995,6 +1035,7 @@
   };
   const evSeen = new Map(); // olay no → ilk görüldüğü an (sayfa açılınca gelenler eski sayılır)
   let evPrimed = false;
+  const evFeedSeen = new Set(); // olayları en az bir kez görülmüş maçlar
 
   // Maçın önemli olayları: kırmızı kart sayısı (takım başına), son olaylar ve yeni (45 sn) olay.
   function matchEvents(f) {
@@ -1004,11 +1045,13 @@
     if (!feed) return null;
     const list = feed.events.map((e) => ({ e, info: EV_INFO(e) })).filter((x) => x.info);
     const now = Date.now();
-    for (const { e } of list) if (!evSeen.has(e.id)) evSeen.set(e.id, evPrimed ? now : 0);
+    const firstSight = !evFeedSeen.has(id);
+    evFeedSeen.add(id);
+    for (const { e } of list) if (!evSeen.has(e.id)) evSeen.set(e.id, evPrimed && !firstSight && f.isLive ? now : 0);
     const reds = { home: 0, away: 0 };
     for (const { e, info } of list) if (info.icon === 'red') reds[e.teamId === f.homeTid ? 'home' : e.teamId === f.awayTid ? 'away' : 'home']++;
     const side = (e) => (e.teamId === f.homeTid ? f.home : e.teamId === f.awayTid ? f.away : '');
-    const fresh = list.filter(({ e }) => now - evSeen.get(e.id) < FLASH_MS).pop() || null;
+    const fresh = f.isLive ? list.filter(({ e }) => now - evSeen.get(e.id) < FLASH_MS).pop() || null : null;
     const last = list.slice(-2).map(({ e, info }) => ({ ...info, text: `${e.minute ?? ''}${e.added ? `+${e.added}` : ''}' ${info.text}${e.player ? ` · ${e.player}` : ''}${side(e) ? ` (${side(e)})` : ''}` }));
     const freshLine = fresh ? last.find((x) => x.text.includes(fresh.info.text)) || { ...fresh.info } : null;
     return { reds, last, fresh: fresh ? { ...fresh.info } : null, freshLine };
@@ -1031,7 +1074,7 @@
     const open = f.url ? `a href="${esc(f.url)}" target="_blank" rel="noopener"` : 'div';
     const close = f.url ? 'a' : 'div';
     const date = f.start ? `${esc(dayText(f.start))} - ${esc(timeText(f.start))}` : '';
-    const flash = f.hasScore ? scoreFlash(f.id, f.hs, f.as) : null;
+    const flash = f.hasScore ? scoreFlash(f.id, f.hs, f.as, f.isLive) : null;
     const ev = matchEvents(f);
     // Yeni önemli olay varsa onun etiketi, yoksa skor değişimi (GOL / GOL İPTAL).
     const goalTag = ev?.fresh ? `<span class="kcs-goal-tag kcs-goal-tag--${ev.fresh.cls}">${esc(ev.fresh.text.toLocaleUpperCase('tr-TR'))}</span>`
@@ -1047,7 +1090,7 @@
       + (state ? `<div class="sb-mb-leg-sub"><span class="sb-mb-leg-market">${state}</span></div>` : '')
       + `<div class="sb-mb-leg-teams"><div class="sb-mb-leg-names">${team(f.home, f.homeLogo)}${team(f.away, f.awayLogo)}</div>`
       + `<div class="sb-mb-score${f.isLive ? ' is-live' : ''}"><span class="sb-score-digit${flash?.home ? ' is-new' : ''}">${g(f.hs)}</span><span class="sb-score-digit${flash?.away ? ' is-new' : ''}">${g(f.as)}</span></div></div>${evLines(ev)}`
-      + `</${close}><div class="kcs-sb-foot"><span>${esc(label)}</span>${peekBtns(skIdOf(f))}</div>${peekHtml(skIdOf(f))}</div>${edit}`;
+      + `</${close}><div class="kcs-sb-foot"><span>${esc(label)}</span>${peekBtns(skIdOf(f))}</div></div>${edit}`;
   }
 
   // ---------- gol durumu: Alt/Üst tuttu mu ----------
@@ -1188,7 +1231,7 @@
     const pick = /^\s*(\d+(?:\.\d+)?)\s*(Alt|Üst)\s*$/i.exec(leg?.querySelector('.sb-mb-leg-pick-name')?.textContent || '');
     const digits = [...(leg?.querySelectorAll('.sb-mb-score .sb-score-digit') || [])].map((e) => e.textContent.trim());
     const hasGoal = pick && digits.length === 2 && digits.every((d) => /^\d+$/.test(d));
-    const flash = hasGoal ? scoreFlash(`tek|${sbKeyOf(card)}`, Number(digits[0]), Number(digits[1])) : null;
+    const flash = hasGoal ? scoreFlash(`tek|${sbKeyOf(card)}`, Number(digits[0]), Number(digits[1]), !!leg?.matches('.is-live')) : null;
     leg?.classList.toggle('kcs-flash', !!flash);
     const teams = [...(leg?.querySelectorAll('.sb-mb-team') || [])].map((e) => e.textContent.trim());
     const key = teams.join(' - ');
@@ -1212,7 +1255,7 @@
     const legStartMs = parseLegDate(leg?.querySelector('.sb-mb-leg-date')?.textContent || '');
     const countdown = !leg?.matches('.is-live') && !hasGoal && legStartMs ? countdownHtml(legStartMs / 1000) : '';
     const singleSk = skItem?.raw?.sk != null ? String(skItem.raw.sk) : null;
-    const peek = singleSk ? `<div class="kcs-sb-status kcs-peek-line"><span>${esc(teams.join(' - '))}</span>${peekBtns(singleSk)}</div>${peekHtml(singleSk)}` : '';
+    const peek = singleSk ? `<div class="kcs-sb-status kcs-peek-line"><span>${esc(teams.join(' - '))}</span>${peekBtns(singleSk)}</div>` : '';
     const html = poweredHtml() + (sbSort === 'manual' ? moveHtml('bets') : '') + peek + (countdown ? `<div class="kcs-sb-status kcs-sb-left">Maça ${countdown}</div>` : '') + evAlert + goalAlert + reds + evLines(ev) + status + aiSection(key, ai);
     let box = card.querySelector(':scope > .kcs-legs');
     if (!box) {
@@ -2258,7 +2301,7 @@
         const cls = !x.t ? 'warn' : (x === first ? (hot ? 'hot' : 'first') : '');
         const sk = skIdOf({ id: findHub(HUBS[2], x.sp)?.e?.id });
         return infoRow(esc(x.sp.label), x.t ? `${esc(whenText(x.t))}${countdownHtml(x.t)}` : 'saat yok', `leg${cls ? ` kcs-ci--${cls}` : ''}`) + legNote(x)
-          + (sk ? `<div class="kcs-peek-line">${peekBtns(sk)}</div>${peekHtml(sk)}` : '');
+          + (sk ? `<div class="kcs-peek-line">${peekBtns(sk)}</div>` : '');
       }).join('')
       : infoRow('En erken maç', esc(whenText(first.t)), hot ? 'hot' : (left > 0 ? '' : 'warn'));
     if (!first) return rows;
@@ -2266,7 +2309,7 @@
     const partial = lost.length ? '<br>Saati bulunmayan maç daha erken olabilir.' : '';
     const cls = hot ? ' kcs-ci-note--hot' : (left > 0 && !lost.length ? '' : ' kcs-ci-note--warn');
     const oneSk = legs.length === 1 ? skIdOf({ id: findHub(HUBS[2], legs[0])?.e?.id }) : null;
-    return `${rows}<div class="kcs-ci-note kcs-ci-countdown${cls}">${esc(note)}${partial}</div>${oneSk ? `<div class="kcs-peek-line">${peekBtns(oneSk)}</div>${peekHtml(oneSk)}` : ''}`;
+    return `${rows}<div class="kcs-ci-note kcs-ci-countdown${cls}">${esc(note)}${partial}</div>${oneSk ? `<div class="kcs-peek-line">${peekBtns(oneSk)}</div>` : ''}`;
   }
 
   // Oranlardan kurala bağlı üretilen kısa yorum (yapay zekâ değil, ek istek atmaz).
@@ -2939,6 +2982,7 @@
   function onStakeKey(ev) {
     const input = targetOf(ev);
     if (ev.key === 'Enter' && input.matches?.('.kcs-stake-input')) { ev.preventDefault(); input.blur(); }
+    if (ev.key === 'Escape' && peekOpen.size) closePeek();
   }
   function onStakeOut(ev) {
     const input = targetOf(ev);
@@ -3365,12 +3409,13 @@
       const id = btn.dataset.sk;
       const tab = btn.dataset.tab;
       // "Göz at" açıkken tekrar basınca ya da aynı sekmenin düğmesine basınca kapanır.
-      if (btn.classList.contains('kcs-peek-btn') && peekOpen.has(id) && (tab === 'genel' || peekOpen.get(id) === tab)) peekOpen.delete(id);
-      else peekOpen.set(id, tab);
+      if (btn.classList.contains('kcs-peek-btn') && peekOpen.has(id) && (tab === 'genel' || peekOpen.get(id) === tab)) { closePeek(); return true; }
+      if (!peekOpen.has(id)) peekOpen.clear();
+      peekOpen.set(id, tab);
       peekRedraw();
-      render();
       return true;
     }
+    if (btn.classList.contains('kcs-modal-close')) { closePeek(); return true; }
     if (btn.classList.contains('kcs-group-btn')) {
       if (btn.dataset.page === 'bets') {
         groupBets = btn.dataset.group;
@@ -3546,6 +3591,7 @@
     holdRecent();
     learnLines();
     renderSpecials();
+    renderPeekModal();
     // Canlı skor kapalıysa eklenen bölümleri kaldır ve skor tarafını hiç çalıştırma.
     renderStatus();
     if (!features.scores) {
@@ -3611,7 +3657,7 @@
     if (hasStore) await chrome.storage.local.set({ overrides: next });
   }
 
-  const OWN = '.kcs-legs, .kcs-status, .kcs-arb-wrap, .kcs-pop, .kcs-info';
+  const OWN = '.kcs-legs, .kcs-status, .kcs-arb-wrap, .kcs-pop, .kcs-info, .kcs-modal';
 
   // Düğmeler basıldığı anda (pointerdown) çalışır: Özel Oranlar kartları basınca yeniden çiziliyor,
   // bırakınca düğme artık aynı öğe olmadığından tarayıcı "click" üretmiyor. Klavyeyle (Enter/Boşluk)
@@ -3640,6 +3686,8 @@
   // Yakalama aşamasında dinlenir: kartın kendi tıklaması (bahis detayı açma) tetiklenmesin.
   function onClick(ev) {
     const t = targetOf(ev);
+    // Pencerenin dışına (karartılmış alana) tıklayınca kapanır.
+    if (t.classList?.contains('kcs-modal')) { ev.stopPropagation(); closePeek(); return; }
     const inOwn = t.closest?.(OWN);
     if (!inOwn) return;
     const btn = t.closest('button');
