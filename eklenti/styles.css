@@ -906,3 +906,5 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-a); }
 .kcs-left.is-soon { border-color: color-mix(in srgb, var(--kcs-warn) 60%, transparent); background: color-mix(in srgb, var(--kcs-warn) 16%, transparent); color: var(--kcs-warn); }
 .kcs-sb-left { display: flex; align-items: center; gap: 4px; color: var(--kcs-muted); font-size: 12.5px; font-weight: 600; }
 .kcs-sb-left .kcs-left { margin-left: 2px; }
+/* Izgara açıkken sitenin boş liste kutusu satırın tamamını kaplasın */
+.sb-mb-grid > :not(.sb-mb-col):not(.kcs-group-head):not(style) { grid-column: 1 / -1; }
