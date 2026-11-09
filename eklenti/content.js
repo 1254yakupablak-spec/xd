@@ -1662,7 +1662,7 @@
       + `<div class="kx-stats">${stat('live', n((x) => x.live), 'canlı')}${stat('won', n((x) => x.goal === 'won'), 'tuttu')}${stat('open', n((x) => x.goal === 'open'), 'devam')}${stat('lost', n((x) => x.goal === 'lost'), 'tutmadı')}</div>`
       + `<div class="kx-sync"><span>${esc(`Canlı skor ${scoreTimes().replace(/^Veri servisi /, '')}`)}</span></div></header>`
       + `<div class="kx-controls">${ddHtml('b-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}${ddHtml('b-group', 'Grupla', GROUP_TXT[groupBets] || 'Yok', groupHtml('bets', groupBets))}`
-      + `${ddHtml('b-cols', 'Satır başı', colsTxt(colsBets), colsHtml('bets', colsBets), true)}${ddHtml('b-feat', 'Özellikler', featSum(), featHtml())}${wideHtml()}</div>`;
+      + `${ddHtml('b-cols', 'Satır başı', colsTxt(colsBets), colsHtml('bets', colsBets), true)}${ddHtml('b-feat', 'Özellikler', featSum(), featHtml())}${wideHtml()}<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`;
     void group;
   }
 
@@ -4000,8 +4000,10 @@
     if (btn.classList.contains('kcs-fold-all')) {
       foldAll = !foldAll;
       cardFolds = {};
-      for (const el of queryAll('.kcs-arb-wrap')) el.__kcsHtml = null;
-      renderSpecials();
+      // İki sayfada da: Özel Oranlar kartları ve Bahislerim kuponları birlikte küçülür/açılır.
+      for (const el of queryAll('.kcs-arb-wrap, .kcs-legs')) el.__kcsHtml = null;
+      sbCache.clear();
+      render();
       return true;
     }
     if (btn.classList.contains('kcs-feat-btn')) {
