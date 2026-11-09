@@ -837,6 +837,10 @@
     if (modal.__kcsHtml !== html) {
       const keep = modal.querySelector('.kcs-modal-box')?.scrollTop || 0;
       const feed = modal.querySelector('.kcs-feed')?.scrollTop || 0;
+      const tl = modal.querySelector('.kcs-tl-scroll');
+      const tlTop = tl ? tl.scrollTop : 0;
+      const tlEnd = tl ? tl.scrollHeight - tl.scrollTop - tl.clientHeight < 48 : true;
+      const tlCount = tl ? tl.querySelectorAll('.kcs-tl-row').length : 0;
       modal.innerHTML = html;
       modal.__kcsHtml = html;
       // Yenilenince kaydırma yeri korunsun.
@@ -844,6 +848,16 @@
       if (box) box.scrollTop = keep;
       const f = modal.querySelector('.kcs-feed');
       if (f) f.scrollTop = feed;
+      // Canlı akış: ilk açılışta en sona gider; yeni olay gelince (kullanıcı yukarıda okumuyorsa) yumuşakça kayar.
+      const t2 = modal.querySelector('.kcs-tl-scroll');
+      if (t2) {
+        t2.scrollTop = tl ? tlTop : t2.scrollHeight;
+        const rowsNow = t2.querySelectorAll('.kcs-tl-row');
+        if (tl && rowsNow.length > tlCount) {
+          for (let i = tlCount; i < rowsNow.length; i++) rowsNow[i].classList.add('is-new');
+          if (tlEnd) requestAnimationFrame(() => t2.scrollTo({ top: t2.scrollHeight, behavior: 'smooth' }));
+        }
+      }
     }
   }
   function closePeek() {
@@ -941,14 +955,37 @@
   }
 
   function peekTable(d, homeId, awayId) {
-    const rows = d.standings || [];
+    let rows = d.standings || [];
     if (!rows.length) return '<div class="kcs-peek-empty">Puan durumu yok (kupa ya da lig dışı maç olabilir).</div>';
-    const mine = rows.filter((r) => r.team?.id === homeId || r.team?.id === awayId);
-    const pick = new Set();
-    for (const r of mine) for (let i = -2; i <= 2; i++) pick.add(r.position + i);
-    const shown = rows.filter((r) => pick.has(r.position) || r.position <= 1).sort((a, b) => a.position - b.position);
-    return `<div class="kcs-table"><div class="kcs-table-row is-head"><span>#</span><span>Takım</span><span>O</span><span>G-B-M</span><span>Gol</span><span>Av</span><span>P</span></div>${shown.map((r) => `<div class="kcs-table-row${r.team?.id === homeId || r.team?.id === awayId ? ' is-mine' : ''}"><span>${r.position}</span><span>${esc(r.team?.name || '')}</span><span>${r.played}</span><span>${r.won}-${r.drawn}-${r.lost}</span><span>${r.goalsFor}:${r.goalsAgainst}</span><span>${r.goalDifference > 0 ? '+' : ''}${r.goalDifference}</span><b>${r.points}</b></div>`).join('')}</div>`
-      + `<div class="kcs-peek-note">${rows.length} takımlık ligde ilgili sıralar · maç başı gol: ${mine.map((r) => `${esc(r.team?.name || '')} ${(r.goalsFor / Math.max(1, r.played)).toFixed(1)} atıyor, ${(r.goalsAgainst / Math.max(1, r.played)).toFixed(1)} yiyor`).join(' · ')}</div>`;
+    const side = (r) => (r.team?.id === homeId ? 'home' : r.team?.id === awayId ? 'away' : '');
+    // Gruplu liglerde yalnız bu maçın takımlarının grubu
+    const g = rows.find((r) => side(r));
+    if (g) rows = rows.filter((r) => (r.group ?? null) === (g.group ?? null) && (r.stage ?? null) === (g.stage ?? null));
+    rows = [...rows].sort((x, y) => x.position - y.position);
+    const n = rows.length;
+    const logo = (t) => (t?.logoUrl ? `<img src="${esc(t.logoUrl)}" alt="" loading="lazy">` : '<i></i>');
+    const zone = (p) => (p === 1 ? ' z-lead' : p <= 4 ? ' z-top' : n >= 10 && p > n - 3 ? ' z-low' : '');
+    const per = (x, r) => (x / Math.max(1, r.played)).toFixed(1);
+    const pair = ['home', 'away'].map((k) => rows.find((r) => side(r) === k)).filter(Boolean);
+    let cmp = '';
+    if (pair.length) {
+      cmp = `<div class="kcs-st-cmp">${pair.map((r) => `<div class="kcs-st-team is-${side(r)}">${logo(r.team)}<div><b>${esc(r.team?.name || '')}</b>`
+        + `<span><em>${r.position}.</em> sıra · <em>${r.points}</em> puan</span><small>Maç başı ${per(r.goalsFor, r)} atıyor · ${per(r.goalsAgainst, r)} yiyor</small></div></div>`).join('')}</div>`;
+      if (pair.length === 2) {
+        const dp = Math.abs(pair[0].points - pair[1].points);
+        const lead = pair[0].points === pair[1].points ? '' : esc((pair[0].points > pair[1].points ? pair[0] : pair[1]).team?.name || '');
+        cmp += `<div class="kcs-st-gap">${lead ? `${lead} <b>${dp} puan</b> önde` : 'Puanlar <b>eşit</b>'} · aralarında <b>${Math.abs(pair[0].position - pair[1].position)}</b> sıra var</div>`;
+      }
+    }
+    const head = '<div class="kcs-st-row is-head"><span>#</span><span>Takım</span><span>O</span><span>G</span><span>B</span><span>M</span><span>Gol</span><span>Av</span><span>P</span></div>';
+    const body = rows.map((r) => {
+      const gd = r.goalDifference ?? 0;
+      return `<div class="kcs-st-row${side(r) ? ` is-${side(r)}` : ''}${zone(r.position)}"><span class="kcs-st-pos">${r.position}</span>`
+        + `<span class="kcs-st-name">${logo(r.team)}<span>${esc(r.team?.name || '')}</span></span><span>${r.played}</span><span>${r.won}</span><span>${r.drawn}</span><span>${r.lost}</span>`
+        + `<span>${r.goalsFor}:${r.goalsAgainst}</span><span class="${gd > 0 ? 'is-pos' : gd < 0 ? 'is-neg' : ''}">${gd > 0 ? '+' : ''}${gd}</span><b>${r.points}</b></div>`;
+    }).join('');
+    const legend = `<div class="kcs-st-legend"><span class="z-lead">Lider</span><span class="z-top">İlk 4</span>${n >= 10 ? '<span class="z-low">Son 3</span>' : ''}<span class="is-home">Ev sahibi</span><span class="is-away">Deplasman</span></div>`;
+    return `${cmp}<div class="kcs-st">${head}${body}</div>${legend}`;
   }
 
   // Olay simgeleri (küçük SVG): gol topu, sarı/kırmızı kart, değişiklik okları, VAR ekranı, penaltı.
@@ -998,7 +1035,7 @@
         + `<div class="kcs-tl-body"><b>${esc(e.player || '')}${score}</b><span>${esc(sub)}</span>${detail ? `<small>${esc(detail)}</small>` : ''}</div><u>${esc(code(team))}</u></div>`;
       return `<div class="kcs-tl-row kcs-tl-row--${side}">${side === 'home' ? `${card}<i class="kcs-tl-dot"></i><span></span>` : `<span></span><i class="kcs-tl-dot"></i>${card}`}</div>`;
     }).join('');
-    return `<div class="kcs-tl-head">Maçın başından itibaren · dakikalar maç süresine göre</div><div class="kcs-tl">${rows}</div>`;
+    return `<div class="kcs-tl-head">Maçın başından itibaren · dakikalar maç süresine göre</div><div class="kcs-tl-scroll"><div class="kcs-tl">${rows}</div></div>`;
   }
 
   // Aralarındaki maçlar: bu maçtan önce biten karşılaşmalar (bu maç sayılmaz).
