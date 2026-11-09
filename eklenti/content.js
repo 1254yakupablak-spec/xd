@@ -836,7 +836,7 @@
     const html = `<div class="kcs-modal-box" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="kcs-modal-top"><b>${markHtml()}${esc(title)}</b>`
       + `<button type="button" class="kcs-modal-close" aria-label="Kapat">×</button></div>${peekHtml(id)}</div>`;
     if (modal.__kcsHtml !== html) {
-      const keep = modal.querySelector('.kcs-modal-box')?.scrollTop || 0;
+      const keep = modal.querySelector('.kcs-modal-box > .kcs-peek')?.scrollTop || 0;
       const feed = modal.querySelector('.kcs-feed')?.scrollTop || 0;
       const prevTab = modal.querySelector('.kcs-peek-pane')?.dataset.tab;
       const prevInd = modal.querySelector('.kcs-peek-ind');
@@ -849,8 +849,9 @@
       modal.innerHTML = html;
       modal.__kcsHtml = html;
       // Yenilenince kaydırma yeri korunsun.
-      const box = modal.querySelector('.kcs-modal-box');
-      if (box) box.scrollTop = keep;
+      const box = modal.querySelector('.kcs-modal-box > .kcs-peek');
+      // aynı sekmede yenilenince kaydırma yeri korunur; sekme değişince baştan
+      if (box && modal.querySelector('.kcs-peek-pane')?.dataset.tab === prevTab) box.scrollTop = keep;
       const f = modal.querySelector('.kcs-feed');
       if (f) f.scrollTop = feed;
       pzApply(true);
