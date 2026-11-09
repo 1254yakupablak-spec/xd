@@ -1170,3 +1170,13 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 .kcs-peek-info--ic b { margin-left: auto; }
 .kcs-info-ic { display: inline-grid; flex: none; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: rgba(30, 63, 143, 0.3); color: var(--kcs-text); }
 .kcs-info-ic svg { width: 16px; height: 16px; }
+/* Modal sekmeden sekmeye aynı boyda kalsın: sabit genişlik ve yükseklik, içerik içeride kayar */
+.kcs-modal-box { display: flex; flex-direction: column; width: min(760px, 100%); height: min(780px, 90vh); max-height: none; overflow: hidden; }
+.kcs-modal-box > .kcs-modal-top { flex: none; position: static; }
+.kcs-modal-box > .kcs-peek { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(122, 165, 255, 0.28) transparent; }
+.kcs-modal-box > .kcs-peek::-webkit-scrollbar { width: 6px; }
+.kcs-modal-box > .kcs-peek::-webkit-scrollbar-thumb { border-radius: 6px; background: rgba(122, 165, 255, 0.28); }
+.kcs-modal .kcs-peek-tabs { top: 0; margin-top: -14px; }
+.kcs-modal .kcs-peek-foot { margin-top: 12px; }
+.kcs-modal .kcs-pz-pitch { height: 300px; }
+.kcs-modal .kcs-pitch { height: 380px; }
