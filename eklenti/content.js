@@ -1533,7 +1533,7 @@
       goal: res === 'won' || res === 'lost' ? res : (data.goal ? goalVerdict(goals, data.goal.line, data.goal.side, final) : null),
     });
     const key = data.title;
-    const html = `${poweredHtml()}${sbSort === 'manual' ? moveHtml('bets') : ''}<div class="kcs-sb-status">${status}</div>${sectionHtml('legs', key, 'Maç takibi', esc(summary), data.rows.map(sbLegHtml).join(''))}${aiSection(key, aiCalls[norm(key)])}`;
+    const html = `${poweredHtml()}${sbSort === 'manual' ? moveHtml('bets') : ''}<div class="kcs-sb-status">${status}</div>${sectionHtml('legs', key, 'Maç takibi', esc(summary), data.rows.map(sbLegHtml).join(''))}${aiSection(key, aiCalls[norm(key)] || legsAi(data.rows))}`;
     box.__kcsKey = key;
     const active = card.getRootNode().activeElement;
     if (box.contains(active) && active.matches('.kcs-input')) return;
@@ -2676,8 +2676,9 @@
     for (const [k, v] of Object.entries(skLinks)) if (Date.now() - (v.at || 0) < AI_KEEP_MS) next[k] = v;
     let changed = Object.keys(next).length !== Object.keys(skLinks).length;
     for (const [k, note] of notesMap) {
-      const id = Number(note.skId);
-      if (!(id > 0) || next[k]?.id === id) continue;
+      // Futbol: sayı; basketbol: "b" önekli kod (b401909952).
+      const id = /^b\d+$/.test(String(note.skId)) ? String(note.skId) : Number(note.skId);
+      if (!(typeof id === 'string' || id > 0) || next[k]?.id === id) continue;
       next[k] = { id, at: Date.now() };
       changed = true;
     }
@@ -2697,6 +2698,15 @@
     // Çok maçlı başlıkta başka maçlar da var: sadece tek maçlık kayıtlar aranır.
     const hit = Object.keys(aiCalls).find((k) => !/\si\s/.test(k) && k.includes(a) && k.includes(b));
     return hit ? aiCalls[hit] : null;
+  }
+
+  // Kuponun kendi kaydı yoksa maçların tek tek tahminleri birleştirilir (basketbol kuponları gibi).
+  function legsAi(rows) {
+    const list = rows.map((r) => (r.f ? { r, ai: aiForTeams(r.f.home, r.f.away) } : null)).filter((x) => x?.ai);
+    if (!list.length) return null;
+    const probs = list.map((x) => Number(x.ai.prob)).filter((p) => p > 0 && p < 100);
+    const prob = list.length === rows.length && probs.length === rows.length ? Math.round(probs.reduce((t, p) => t * p / 100, 1) * 100) : null;
+    return { comment: list.map((x) => `${x.r.f.home} - ${x.r.f.away}: ${x.ai.comment}`).join(' '), prob, at: list.map((x) => x.ai.at).sort().pop() };
   }
 
   function aiSection(key, ai) {
