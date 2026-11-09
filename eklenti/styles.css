@@ -1180,3 +1180,88 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 .kcs-modal .kcs-peek-foot { margin-top: 12px; }
 .kcs-modal .kcs-pz-pitch { height: 300px; }
 .kcs-modal .kcs-pitch { height: 380px; }
+/* Özel Oranlar: her maçın kendi çizgisi olan kart */
+.kcs-lg { margin: 0 0 8px; padding: 10px 12px; border: 1px solid var(--kcs-line); border-left: 3px solid var(--kcs-line); border-radius: 10px; background: var(--kcs-panel); }
+.kcs-lg.is-won { border-left-color: var(--kcs-ok); }
+.kcs-lg.is-lost { border-left-color: #ff6b7a; }
+.kcs-lg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: var(--kcs-muted); font-size: 11.5px; }
+.kcs-lg-head b { color: var(--kcs-text); font-weight: 800; }
+.kcs-lg-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+.kcs-lg-score > b { padding: 2px 10px; border-radius: 6px; background: var(--kcs-bg); color: var(--kcs-fg); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kcs-lg-score.is-live > b { box-shadow: inset 0 0 0 1px var(--kcs-text); }
+.kcs-lg-team { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--kcs-fg); font-weight: 700; }
+.kcs-lg-team:last-child { flex-direction: row-reverse; text-align: right; }
+.kcs-lg-team img { flex: none; width: 22px; height: 22px; object-fit: contain; }
+.kcs-lg-team span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.kcs-lg-prob { display: flex; justify-content: space-between; margin-top: 6px; color: var(--kcs-muted); font-size: 12px; }
+.kcs-lg-prob b { color: var(--kcs-fg); }
+.kcs-lg .kcs-goal { margin: 4px 0 0; }
+.kcs-lg .kcs-peek-line { margin-top: 6px; }
+.kcs-ev--bk { border-color: rgba(122, 165, 255, 0.4); color: var(--kcs-text); }
+/* Basketbol: çeyrek skorları */
+.kcs-bkq { margin-bottom: 12px; overflow: hidden; border: 1px solid var(--kcs-line); border-radius: 10px; }
+.kcs-bkq-row { display: grid; grid-template-columns: minmax(90px, 1.6fr) repeat(var(--n), minmax(30px, 1fr)) 48px; align-items: center; min-height: 36px; padding: 0 10px; border-top: 1px solid rgba(255, 255, 255, 0.04); text-align: center; font-variant-numeric: tabular-nums; }
+.kcs-bkq-row.is-head { min-height: 28px; border-top: 0; background: var(--kcs-panel); color: var(--kcs-muted); font-size: 11px; font-weight: 700; }
+.kcs-bkq-row > span { color: var(--kcs-muted); }
+.kcs-bkq-row > strong { color: var(--kcs-fg); font-size: 15px; font-weight: 800; }
+.kcs-bkq-team { display: flex; align-items: center; gap: 8px; text-align: left; }
+.kcs-bkq-team img { width: 22px; height: 22px; object-fit: contain; }
+.kcs-bkq-team b { color: var(--kcs-fg); }
+/* Basketbol: öne çıkan oyuncular */
+.kcs-bkl-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.kcs-bkl { padding: 10px; border: 1px solid var(--kcs-line); border-top: 3px solid var(--kcs-text); border-radius: 10px; background: var(--kcs-panel); }
+.kcs-bkl.is-away { border-top-color: #e46b8f; }
+.kcs-bkl-team { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+.kcs-bkl-team img { width: 22px; height: 22px; object-fit: contain; }
+.kcs-bkl-row { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 8px; padding: 4px 0; }
+.kcs-bkl-row img, .kcs-bkl-row i { width: 30px; height: 30px; border-radius: 50%; background: var(--kcs-bg); object-fit: cover; }
+.kcs-bkl-row span { display: flex; flex-direction: column; min-width: 0; overflow: hidden; color: var(--kcs-fg); font-size: 12.5px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+.kcs-bkl-row small { color: var(--kcs-muted); font-size: 11px; font-weight: 500; }
+.kcs-bkl-row strong { color: var(--kcs-fg); font-size: 18px; font-weight: 800; }
+/* Basketbol: akış */
+.kcs-tl-sep { position: relative; z-index: 1; display: flex; justify-content: center; margin: 6px 0; }
+.kcs-tl-sep span { padding: 3px 12px; border: 1px solid var(--kcs-line); border-radius: 999px; background: var(--kcs-bg); color: var(--kcs-text); font-size: 11.5px; font-weight: 800; }
+.kcs-tl-sep--end span { color: var(--kcs-muted); font-weight: 700; }
+.kcs-bk-pts { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #e8833a; color: #111; font-size: 10.5px; font-style: normal; font-weight: 900; }
+.kcs-bk-pts--1 { background: #9aa6b2; }
+.kcs-bk-pts--3 { background: #f8c14d; }
+.kcs-bk-pts--x { background: #b18cff; }
+/* Basketbol: skor farkı */
+.kcs-fark { position: relative; height: 220px; margin-top: 6px; border: 1px solid var(--kcs-line); border-radius: 10px; background: var(--kcs-panel); overflow: hidden; }
+.kcs-fark svg { display: block; width: 100%; height: 200px; }
+.kcs-fark-q { stroke: rgba(255, 255, 255, 0.08); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.kcs-fark-zero { stroke: rgba(255, 255, 255, 0.3); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.kcs-fark-line { fill: none; stroke: #fff; stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; animation: kcs-fark-draw 2.2s ease-out forwards; }
+.kcs-fark-area { opacity: 0; animation: kcs-fark-fade 0.8s ease-out 1.4s forwards; }
+.kcs-fark-dot { fill: #fff; opacity: 0; animation: kcs-fark-fade 0.3s ease-out 2.1s forwards; }
+@keyframes kcs-fark-draw { to { stroke-dashoffset: 0; } }
+@keyframes kcs-fark-fade { to { opacity: 1; } }
+.kcs-fark-labels { position: relative; height: 20px; }
+.kcs-fark-labels span { position: absolute; top: 2px; transform: translateX(-50%); color: var(--kcs-muted); font-size: 11px; font-weight: 700; }
+.kcs-fark-sum { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 10px; text-align: center; }
+.kcs-fark-sum b { display: block; font-size: 22px; font-weight: 800; }
+.kcs-fark-sum span { color: var(--kcs-muted); font-size: 11.5px; }
+.kcs-fark-sum .is-home b { color: var(--kcs-text); }
+.kcs-fark-sum .is-away b { color: #e46b8f; }
+/* Basketbol: puan durumu, seri, oyuncular */
+.kcs-st-title { margin: 10px 0 6px; color: var(--kcs-fg); font-size: 13.5px; font-weight: 800; }
+.kcs-st-title:first-child { margin-top: 0; }
+.kcs-st--bk .kcs-st-row { grid-template-columns: 30px minmax(0, 1fr) 34px 34px 50px 44px 44px; }
+.kcs-h2h-big--2 { grid-template-columns: 1fr 1fr; }
+.kcs-box { margin-bottom: 12px; overflow: hidden; border: 1px solid var(--kcs-line); border-top: 3px solid var(--kcs-text); border-radius: 10px; }
+.kcs-box.is-away { border-top-color: #e46b8f; }
+.kcs-box-team { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--kcs-panel); font-size: 13.5px; }
+.kcs-box-team img { width: 24px; height: 24px; object-fit: contain; }
+.kcs-box-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px 38px 32px 32px 46px 42px 38px; align-items: center; gap: 2px; min-height: 34px; padding: 0 10px; border-top: 1px solid rgba(255, 255, 255, 0.04); color: var(--kcs-muted); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.kcs-box-row.is-head { min-height: 28px; background: rgba(255, 255, 255, 0.02); font-size: 11px; font-weight: 700; }
+.kcs-box-row.is-head span:first-child { text-align: left; }
+.kcs-box-name { display: flex; flex-direction: column; min-width: 0; overflow: hidden; color: var(--kcs-fg); font-weight: 600; text-align: left; white-space: nowrap; text-overflow: ellipsis; }
+.kcs-box-name small { color: var(--kcs-muted); font-size: 10.5px; font-weight: 500; }
+.kcs-box-row.is-starter .kcs-box-name { font-weight: 800; }
+.kcs-box-pts { color: var(--kcs-fg); font-weight: 800; }
+.kcs-box-row.is-dnp { opacity: 0.55; }
+.kcs-box-dnp { grid-column: 2 / -1; text-align: left; font-size: 11.5px; }
+@media (max-width: 520px) { .kcs-bkl-wrap { grid-template-columns: 1fr; } .kcs-box-row { grid-template-columns: minmax(0, 1fr) 28px 32px 28px 28px 40px 36px 32px; padding: 0 6px; font-size: 11px; } }
+.kcs-ci-body > .kcs-lg { grid-column: 1 / -1; width: 100%; box-sizing: border-box; }
+.kcs-lg-head b { min-width: 0; }
+.kcs-lg-head > span { flex: none; display: inline-flex; align-items: center; gap: 6px; }
