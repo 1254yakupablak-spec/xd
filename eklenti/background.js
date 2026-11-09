@@ -371,7 +371,8 @@ async function skDetail(id) {
 // ---------- basketbol (NBA): maç listesi, canlı skor ve maç ayrıntısı ----------
 // Anahtar gerekmez. Maçlar skEvents içinde "b" önekiyle tutulur (ör. b401909952); kuponlardaki eşleştirme,
 // skor, geri sayım ve "Göz at" futbolla aynı yoldan çalışır. Liste 30 dakikada bir, canlı skor maç varken 10 sn'de bir.
-const BK_API = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/';
+// site.api adresi tarayıcıdan gelen istekleri reddediyor (Access Denied); site.web.api aynı veriyi veriyor.
+const BK_API = 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/';
 const bkDate = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms)).replace(/-/g, '');
 
 function bkStatus(st) {
