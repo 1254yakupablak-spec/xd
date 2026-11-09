@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KOKLEYİCİ SPORTS",
-  "version": "3.106.1",
+  "version": "3.106.3",
   "description": "Bahislerim kuponlarında canlı skor ve Özel Oranlar arbitrajı (1xBet, Stake).",
   "permissions": [
     "storage",
@@ -17,7 +17,7 @@
     "https://raw.githubusercontent.com/*",
     "https://gist.githubusercontent.com/*",
     "https://skorcum.com/*",
-    "https://site.api.espn.com/*"
+    "https://site.web.api.espn.com/*"
   ],
   "background": {
     "service_worker": "background.js"
