@@ -166,8 +166,8 @@ chrome.runtime.onInstalled.addListener(refreshSiteTabs);
 chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.xbetHost) refreshSiteTabs(); });
 
 // ---------- veri servisi: dün, bugün ve yarının maçları + canlı skorlar ----------
-// Sekme gerekmez: 6q açıkken içerik betiği 15 saniyede bir "skPoll" ister. Maç listesi 30 dakikada bir (3 istek),
-// canlı skorlar en sık 12 saniyede bir (1 istek) alınır (kullanıcı 15 sn istedi); birden çok 6q sekmesi açık olsa da sıklık artmaz. Canlı listeden düşen maç (bitti) için bugünün listesi yenilenir.
+// Sekme gerekmez: 6q açıkken içerik betiği 8 saniyede bir "skPoll" ister. Maç listesi 30 dakikada bir (3 istek),
+// canlı skorlar en sık 7 saniyede bir (1 istek) alınır (sunucu veriyi 5-7 sn'de bir tazeliyor); birden çok 6q sekmesi açık olsa da sıklık artmaz. Canlı listeden düşen maç (bitti) için bugünün listesi yenilenir.
 const SK_API = 'https://skorcum.com/api/football/';
 let skBusy = false;
 
@@ -224,7 +224,7 @@ async function skPoll() {
       meta.fixturesAt = now;
       changed = true;
     }
-    if (now - (meta.liveAt || 0) > 12 * 1000) {
+    if (now - (meta.liveAt || 0) > 7 * 1000) {
       const live = await skGet('live');
       const ids = new Set(live.map((f) => f.id));
       for (const f of live) events[f.id] = { ...events[f.id], ...skConv(f) };
@@ -309,7 +309,7 @@ async function skFeedPoll(ids) {
   try {
     const { skFeed = {} } = await chrome.storage.local.get('skFeed');
     const now = Date.now();
-    const due = [...new Set(ids.map(String))].filter((id) => /^\d+$/.test(id) && now - (skFeed[id]?.at || 0) > 25 * 1000).slice(0, 10);
+    const due = [...new Set(ids.map(String))].filter((id) => /^\d+$/.test(id) && now - (skFeed[id]?.at || 0) > 15 * 1000).slice(0, 10);
     let changed = false;
     for (const id of due) {
       try {
@@ -346,7 +346,7 @@ async function skDetail(id) {
   const now = Date.now();
   const c = skDetailCache.get(id) || {};
   const live = SK_LIVE.has(c.detail?.fixture?.status);
-  if (!c.detail || now - c.detailAt > (live ? 30 * 1000 : 10 * 60 * 1000)) {
+  if (!c.detail || now - c.detailAt > (live ? 12 * 1000 : 10 * 60 * 1000)) {
     const d = await skJson('fixtures/' + id);
     c.detail = { fixture: d?.fixture, events: d?.events || [], statistics: d?.statistics || [], lineups: d?.lineups || [], formations: d?.formations || [], trends: d?.trends || [], lineupConfirmed: !!d?.lineupConfirmed };
     c.detailAt = now;
