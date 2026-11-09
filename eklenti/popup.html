@@ -14,16 +14,6 @@
   <button id="open-update" class="btn btn--wide update-btn">Güncellemeleri denetle</button>
 
   <section>
-    <h2>Hızlı aç</h2>
-    <div class="quick">
-      <button class="quick-btn" data-url="https://6q.net/sportsbook/bahislerim"><b>Bahislerim</b><small>6q</small></button>
-      <button class="quick-btn" data-url="https://6q.net/sportsbook/ozel-oranlar"><b>Özel Oranlar</b><small>6q</small></button>
-      <button class="quick-btn" data-open="openXbet"><img src="icons/1xbet.png" alt=""><b>1xBet</b><small id="xbet-host-label">1xbet.com</small></button>
-      <button class="quick-btn" data-open="openStake"><img src="icons/stake.ico" alt=""><b>Stake</b><small>stake.com</small></button>
-    </div>
-  </section>
-
-  <section>
     <h2>Durum</h2>
     <div class="stat"><i id="st-foot-dot" class="dot"></i><span>Futbol maçları</span><b id="st-foot">…</b></div>
     <div class="stat"><i id="st-bk-dot" class="dot"></i><span>NBA maçları</span><b id="st-bk">…</b></div>
@@ -36,19 +26,6 @@
     <p id="refresh-note" class="note"></p>
   </section>
 
-  <details id="learned-box">
-    <summary>Öğrenilen maçlar ve takım adları <span id="learn-count" class="count"></span></summary>
-    <p class="note note--top">Elle ya da gece notlarıyla bağlanan maçlar ve sitelerdeki farklı yazılışlardan öğrenilen takım adları. Yanlışsa × ile sil.</p>
-    <input id="learn-search" class="input input--full" type="search" placeholder="Ara: takım ya da kupon yazısı" spellcheck="false">
-    <div id="learn-list" class="learn-list"></div>
-    <div class="line">
-      <button id="learn-export" class="btn btn--wide">Dışa aktar</button>
-      <button id="learn-import" class="btn btn--wide">İçe aktar</button>
-      <input id="learn-file" type="file" accept=".json,application/json" hidden>
-    </div>
-    <p id="learn-meta" class="note"></p>
-  </details>
-
   <details>
     <summary>Ayarlar</summary>
 
@@ -59,16 +36,9 @@
     </div>
     <p id="xbet-host-note" class="note"></p>
 
-    <label class="field-label" for="notes-url">Ortak yorum adresi</label>
-    <div class="line">
-      <input id="notes-url" class="input" type="text" placeholder="https://raw.githubusercontent.com/..." spellcheck="false">
-      <button id="notes-url-save" class="btn">Kaydet</button>
-    </div>
-    <p id="notes-url-note" class="note"></p>
     <p class="note">Özellikleri (canlı skor, arbitraj, bilgiler, kâr/zarar) 6q sayfasındaki panelin "Özellikler" listesinden açıp kapat.</p>
   </details>
 
-  <script src="learned.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
