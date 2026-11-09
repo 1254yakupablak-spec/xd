@@ -794,6 +794,7 @@
   // Panel sadece açılınca istenir (background.js 'skDetail'). Canlı maçta 30 sn'de bir, bitmiş maçta 10 dk'da bir yenilenir.
   const peekOpen = new Map(); // maç no → açık sekme
   const peekData = new Map(); // maç no → { d, at, loading, error }
+  const PEEK_ICON = {"genel":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 11v5M12 7.5v.5\"/></svg>","akis":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12h4l2.5-6 4 12 2.5-6H21\"/></svg>","ist":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 20V11M12 20V5M19 20v-6\"/></svg>","baski":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3c1 3.5 5 5.5 5 10a5 5 0 01-10 0c0-2.2 1-3.7 2.3-5 .2 1.8 1 2.8 2.2 3.2C11.3 8.6 11 6 12 3z\"/></svg>","h2h":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 4l-3 3 3 3M4 7h11M17 14l3 3-3 3M20 17H9\"/></svg>","puan":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 4h8v5a4 4 0 01-8 0V4zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8.5 20h7M10 17h4\"/></svg>","kadro":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3z\"/></svg>","sira":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 20V14h4v6M10 20V9h4v11M16 20v-8h4v8M3 20h18\"/></svg>","ref":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 10h9a4 4 0 11-3.9 5H6a2 2 0 01-2-2v-3zM13 10V7h6\"/><circle cx=\"13\" cy=\"14\" r=\"1\"/></svg>","coach":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"5\" y=\"4\" width=\"14\" height=\"17\" rx=\"2\"/><path d=\"M9 4V3h6v1M9 10h6M9 14h6M9 18h3\"/></svg>","stad":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 21s-6-5.5-6-10.5a6 6 0 0112 0C18 15.5 12 21 12 21z\"/><circle cx=\"12\" cy=\"10.5\" r=\"2.2\"/></svg>","hava":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 18h10a4 4 0 00.6-7.95A5.5 5.5 0 006.2 11.2 3.4 3.4 0 007 18z\"/></svg>","tv":"<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 21h8M9 2.5l3 3.5 3-3.5\"/></svg>"};
   const PEEK_TABS = [['genel', 'Genel'], ['akis', 'Canlı akış'], ['ist', 'İstatistik'], ['baski', 'Baskı'], ['h2h', 'Karşılaşmalar'], ['puan', 'Puan durumu'], ['kadro', 'Kadro']];
   const PEEK_LIVE = new Set(['LIVE', 'HALFTIME', 'EXTRA_TIME', 'BREAK', 'PENALTIES', 'IN_PLAY']);
   const skIdOf = (f) => { const id = String(f?.id || '').replace(/^k/, ''); return /^\d+$/.test(id) ? id : null; };
@@ -837,6 +838,10 @@
     if (modal.__kcsHtml !== html) {
       const keep = modal.querySelector('.kcs-modal-box')?.scrollTop || 0;
       const feed = modal.querySelector('.kcs-feed')?.scrollTop || 0;
+      const prevTab = modal.querySelector('.kcs-peek-pane')?.dataset.tab;
+      const prevInd = modal.querySelector('.kcs-peek-ind');
+      const indFrom = prevInd ? { l: prevInd.offsetLeft, w: prevInd.offsetWidth } : null;
+      const stripX = modal.querySelector('.kcs-peek-tabs')?.scrollLeft || 0;
       const tl = modal.querySelector('.kcs-tl-scroll');
       const tlTop = tl ? tl.scrollTop : 0;
       const tlEnd = tl ? tl.scrollHeight - tl.scrollTop - tl.clientHeight < 48 : true;
@@ -848,6 +853,8 @@
       if (box) box.scrollTop = keep;
       const f = modal.querySelector('.kcs-feed');
       if (f) f.scrollTop = feed;
+      pzApply(true);
+      peekTabFx(modal, prevTab, indFrom, stripX);
       // Canlı akış: ilk açılışta en sona gider; yeni olay gelince (kullanıcı yukarıda okumuyorsa) yumuşakça kayar.
       const t2 = modal.querySelector('.kcs-tl-scroll');
       if (t2) {
@@ -858,6 +865,33 @@
           if (tlEnd) requestAnimationFrame(() => t2.scrollTo({ top: t2.scrollHeight, behavior: 'smooth' }));
         }
       }
+    }
+  }
+  // Sekme geçişi: içerik yeni sekmenin yönünden kayarak gelir, alttaki gösterge eski sekmeden yenisine kayar.
+  function peekTabFx(modal, prevTab, indFrom, stripX) {
+    const strip = modal.querySelector('.kcs-peek-tabs');
+    const on = strip?.querySelector('.kcs-peek-tab.is-on');
+    const ind = strip?.querySelector('.kcs-peek-ind');
+    const pane = modal.querySelector('.kcs-peek-pane');
+    if (!strip || !on || !ind) return;
+    strip.scrollLeft = stripX;
+    const to = { l: on.offsetLeft, w: on.offsetWidth };
+    const put = (p) => { ind.style.transform = `translateX(${p.l}px)`; ind.style.width = `${p.w}px`; };
+    const changed = prevTab && pane && prevTab !== pane.dataset.tab;
+    if (changed && indFrom) {
+      ind.style.transition = 'none';
+      put(indFrom);
+      void ind.offsetWidth;
+      ind.style.transition = '';
+    }
+    put(to);
+    if (changed) {
+      const order = PEEK_TABS.map(([k]) => k);
+      pane.classList.add(order.indexOf(pane.dataset.tab) > order.indexOf(prevTab) ? 'is-from-r' : 'is-from-l');
+      // seçili sekme şeritte görünür olsun (sayfa dikey kaymadan)
+      const r = to.l + to.w - strip.clientWidth + 24;
+      if (to.l - 24 < strip.scrollLeft) strip.scrollTo({ left: Math.max(0, to.l - 24), behavior: 'smooth' });
+      else if (r > strip.scrollLeft) strip.scrollTo({ left: r, behavior: 'smooth' });
     }
   }
   function closePeek() {
@@ -891,8 +925,8 @@
     const fx = p?.d?.detail?.fixture;
     const live = fx && PEEK_LIVE.has(fx.status);
     if (!p || (!p.loading && Date.now() - (p.at || 0) > (live ? 15 * 1000 : 10 * 60 * 1000))) peekRequest(id);
-    const tabs = `<div class="kcs-peek-tabs">${PEEK_TABS.map(([k, label]) => `<button type="button" class="kcs-peek-tab${k === tab ? ' is-on' : ''}" data-sk="${esc(id)}" data-tab="${k}">${label}</button>`).join('')}</div>`;
-    if (!p?.d) return `<div class="kcs-peek">${tabs}<div class="kcs-peek-empty">${p?.error ? 'Bilgi alınamadı, biraz sonra tekrar dene.' : 'Yükleniyor…'}</div></div>`;
+    const tabs = `<div class="kcs-peek-tabs">${PEEK_TABS.map(([k, label]) => `<button type="button" class="kcs-peek-tab${k === tab ? ' is-on' : ''}" data-sk="${esc(id)}" data-tab="${k}">${PEEK_ICON[k] || ''}<span>${label}</span></button>`).join('')}<i class="kcs-peek-ind"></i></div>`;
+    if (!p?.d) return `<div class="kcs-peek">${tabs}<div class="kcs-peek-empty kcs-peek-pane" data-tab="${tab}">${p?.error ? 'Bilgi alınamadı, biraz sonra tekrar dene.' : 'Yükleniyor…'}</div></div>`;
     const d = p.d;
     const homeId = fx?.home?.id;
     const awayId = fx?.away?.id;
@@ -909,7 +943,7 @@
     else if (tab === 'puan') body = peekTable(d, homeId, awayId);
     else if (tab === 'kadro') body = peekLineups(d, homeId, awayId, homeName, awayName);
     else body = peekOverview(d, homeId, awayId, homeName, awayName);
-    return `<div class="kcs-peek">${tabs}${head}${body}<div class="kcs-peek-foot">${live ? 'Canlı · 30 sn\'de bir yenilenir' : 'Maç ayrıntısı'}${p.at ? ` · ${esc(new Date(p.at).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' }))}` : ''}</div></div>`;
+    return `<div class="kcs-peek">${tabs}<div class="kcs-peek-pane" data-tab="${tab}">${head}${body}</div><div class="kcs-peek-foot">${live ? 'Canlı · 30 sn\'de bir yenilenir' : 'Maç ayrıntısı'}${p.at ? ` · ${esc(new Date(p.at).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' }))}` : ''}</div></div>`;
   }
 
   const statOf = (d, code, teamId) => d.detail?.statistics?.find((s) => s.code === code && s.teamId === teamId && !s.period)?.value
@@ -931,27 +965,107 @@
   }
 
   // Baskı: tehlikeli atakların 5 dakikalık dilimlerdeki artışı; üstte ev sahibi, altta deplasman.
+  // Baskı: saha üzerinde 5 dakikalık dilimlerle oynayan animasyon. Ev sahibi sağa, deplasman sola hücum eder.
+  // Baskı puanı = atak + 2.5 × tehlikeli atak + 4 × şut + 6 × isabetli şut + 3 × korner (o dilimde yapılanlar).
+  const PZ_W = { ATTACKS: 1, DANGEROUS_ATTACKS: 2.5, SHOTS_TOTAL: 4, SHOTS_ON_TARGET: 6, CORNERS: 3 };
+  const pzState = new Map();
   function peekPressure(d, homeId, awayId, homeName, awayName) {
-    const tr = (d.detail?.trends || []).filter((t) => t.code === 'DANGEROUS_ATTACKS');
+    const fx = d.detail?.fixture;
+    const tr = (d.detail?.trends || []).filter((t) => PZ_W[t.code]);
     if (!tr.length) return '<div class="kcs-peek-empty">Baskı verisi henüz yok.</div>';
-    const buckets = (teamId) => {
-      const pts = tr.filter((t) => t.teamId === teamId).map((t) => [t.minute, parseFloat(t.value) || 0]).sort((a, b) => a[0] - b[0]);
-      const out = new Array(19).fill(0);
-      let prev = 0;
-      for (const [m, v] of pts) { out[Math.min(18, Math.floor(m / 5))] += Math.max(0, v - prev); prev = Math.max(prev, v); }
+    const lastMin = Math.max(...tr.map((t) => t.minute || 0));
+    const live = fx && PEEK_LIVE.has(fx.status);
+    const endMin = Math.max(lastMin, live ? fx.minute || 0 : 90);
+    const n = Math.min(26, Math.max(1, Math.ceil(endMin / 5)));
+    const score = (teamId) => {
+      const out = new Array(n).fill(0);
+      for (const code of Object.keys(PZ_W)) {
+        const pts = tr.filter((t) => t.code === code && t.teamId === teamId).map((t) => [t.minute || 0, parseFloat(t.value) || 0]).sort((x, y) => x[0] - y[0]);
+        let prev = 0;
+        for (const [m, v] of pts) { out[Math.min(n - 1, Math.floor(m / 5))] += Math.max(0, v - prev) * PZ_W[code]; prev = Math.max(prev, v); }
+      }
       return out;
     };
-    const h = buckets(homeId);
-    const a = buckets(awayId);
-    const max = Math.max(1, ...h, ...a);
-    const cols = h.map((v, i) => `<div class="kcs-press-col" title="${i * 5}-${i * 5 + 5}. dk · ${esc(homeName)} ${v} · ${esc(awayName)} ${a[i]}"><i style="height:${Math.round((v / max) * 100)}%"></i><u style="height:${Math.round((a[i] / max) * 100)}%"></u></div>`).join('');
-    const last = (arr) => arr.slice(-3).reduce((s, x) => s + x, 0);
-    const lastH = last(h.filter((_, i) => i <= Math.floor((d.detail?.fixture?.minute || 90) / 5)));
-    const lastA = last(a.filter((_, i) => i <= Math.floor((d.detail?.fixture?.minute || 90) / 5)));
-    const who = lastH > lastA * 1.3 ? homeName : lastA > lastH * 1.3 ? awayName : null;
-    return `<div class="kcs-press"><div class="kcs-press-legend"><span class="is-home">${esc(homeName)}</span><span class="is-away">${esc(awayName)}</span></div><div class="kcs-press-chart">${cols}</div>`
-      + `<div class="kcs-press-axis"><span>0'</span><span>45'</span><span>90'</span></div>`
-      + `<div class="kcs-peek-note">${who ? `Son 15 dakikada baskı: <b>${esc(who)}</b>` : 'Son 15 dakikada baskı dengeli'} · tehlikeli atak sayısı, 5 dakikalık dilimler</div></div>`;
+    const h = score(homeId);
+    const aw = score(awayId);
+    const max = Math.max(1, ...h, ...aw);
+    const evs = (d.detail?.events || []).filter((e) => /GOAL|PENALTY|RED_CARD|SECOND_YELLOW/.test(e.kind) && e.kind !== 'MISSED_PENALTY');
+    const frames = h.map((hv, i) => {
+      const av = aw[i];
+      const m0 = i * 5;
+      const m1 = i === n - 1 && endMin > m0 + 5 ? endMin : m0 + 5;
+      const ev = evs.filter((e) => (e.minute ?? 0) > m0 && (e.minute ?? 0) <= m1 || (i === 0 && (e.minute ?? 0) === 0))
+        .map((e) => `<span class="is-${e.teamId === awayId ? 'away' : 'home'}">${EV_ICON[EV_KIND_ICON[e.kind] || 'goal']}${e.minute ?? ''}' ${esc(e.player || '')}${e.score && /GOAL|PENALTY/.test(e.kind) ? ` · ${e.score.home}-${e.score.away}` : ''}</span>`).join('');
+      return { m0, m1, h: Math.round(hv), a: Math.round(av), p: hv + av ? +((hv - av) / (hv + av)).toFixed(3) : 0, hn: +(hv / max).toFixed(3), an: +(av / max).toFixed(3), ev };
+    });
+    // Alt şerit: baskı dalgası (üst yarı ev sahibi, alt yarı deplasman)
+    const W = n * 10;
+    const pts = frames.map((f, i) => `${i * 10 + 5},${(20 - f.p * 17).toFixed(1)}`).join(' L');
+    const goals = evs.filter((e) => /GOAL|PENALTY/.test(e.kind)).map((e) => `<circle cx="${Math.min(W, ((e.minute ?? 0) / (n * 5)) * W).toFixed(1)}" cy="${e.teamId === awayId ? 36 : 4}" r="2.4" class="is-${e.teamId === awayId ? 'away' : 'home'}"/>`).join('');
+    const wave = `<svg class="kcs-pz-wave" viewBox="0 0 ${W} 40" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="kcsPzG" x1="0" y1="0" x2="0" y2="40" gradientUnits="userSpaceOnUse">`
+      + `<stop offset="0" stop-color="#7aa5ff" stop-opacity=".75"/><stop offset=".5" stop-color="#7aa5ff" stop-opacity=".12"/><stop offset=".5" stop-color="#e46b8f" stop-opacity=".12"/><stop offset="1" stop-color="#e46b8f" stop-opacity=".75"/></linearGradient></defs>`
+      + `<path d="M0,20 L${pts} L${W},20 Z" fill="url(#kcsPzG)"/><path d="M${pts}" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".8" vector-effect="non-scaling-stroke"/>`
+      + `<line x1="0" y1="20" x2="${W}" y2="20" stroke="rgba(255,255,255,.18)" stroke-width="1" vector-effect="non-scaling-stroke"/>${goals}</svg>`;
+    const data = esc(JSON.stringify({ frames, home: homeName, away: awayName }));
+    const id = String(fx?.id ?? '');
+    return `<div class="kcs-pz" data-sk="${esc(id)}" data-pz="${data}">`
+      + `<div class="kcs-pitch-legend"><span class="is-home">${esc(homeName)} →</span><span class="is-away">← ${esc(awayName)}</span></div>`
+      + `<div class="kcs-pitch kcs-pz-pitch"><b class="kcs-pz-fill kcs-pz-fill--h"></b><b class="kcs-pz-fill kcs-pz-fill--a"></b><b class="kcs-pz-glow kcs-pz-glow--h"></b><b class="kcs-pz-glow kcs-pz-glow--a"></b>`
+      + `<i class="kcs-pitch-mid"></i><i class="kcs-pitch-circle"></i><i class="kcs-pitch-box kcs-pitch-box--l"></i><i class="kcs-pitch-box kcs-pitch-box--r"></i>`
+      + `<span class="kcs-pz-front"><em></em></span>`
+      + `<div class="kcs-pz-hud"><span class="kcs-pz-h"></span><strong class="kcs-pz-min"></strong><span class="kcs-pz-a"></span></div>`
+      + `<div class="kcs-pz-who"></div><div class="kcs-pz-flash"></div></div>`
+      + `<div class="kcs-pz-track">${wave}<span class="kcs-pz-head"></span></div>`
+      + `<div class="kcs-pz-ctrl"><button type="button" class="kcs-pz-play">▶ Oynat</button><input type="range" class="kcs-pz-range" min="0" max="${n - 1}" step="1" value="0" aria-label="Dakika"></div>`
+      + `<div class="kcs-press-axis"><span>0'</span><span>${Math.round(endMin / 2)}'</span><span>${endMin}'</span></div>`
+      + `<div class="kcs-peek-note">Çizgi baskının dengesini gösterir: ev sahibi bastıkça sağa, deplasman bastıkça sola kayar. Parlama o dilimdeki baskının gücü. Atak, tehlikeli atak, şut ve kornerlerden hesaplanır.</div></div>`;
+  }
+  function pzApply(still) {
+    const el = queryOne('.kcs-pz');
+    if (!el) return;
+    if (!el.__f) { try { el.__f = JSON.parse(el.dataset.pz); } catch { return; } }
+    const F = el.__f;
+    const n = F.frames.length;
+    const id = el.dataset.sk;
+    let st = pzState.get(id);
+    if (!st) { st = { i: 0, playing: true, n }; pzState.set(id, st); }
+    if (st.n !== n) { if (!st.playing && st.i >= st.n - 1) st.i = n - 1; st.n = n; }
+    st.i = Math.max(0, Math.min(n - 1, st.i));
+    const f = F.frames[st.i];
+    if (still) el.classList.add('is-still');
+    el.style.setProperty('--front', `${(50 + f.p * 38).toFixed(1)}%`);
+    el.style.setProperty('--hi', f.hn);
+    el.style.setProperty('--ai', f.an);
+    el.style.setProperty('--x', `${(((st.i + 0.5) / n) * 100).toFixed(2)}%`);
+    const set = (sel, txt) => { const x = el.querySelector(sel); if (x && x.textContent !== txt) x.textContent = txt; };
+    set('.kcs-pz-min', `${f.m0}'–${f.m1}'`);
+    set('.kcs-pz-h', `${F.home} ${f.h}`);
+    set('.kcs-pz-a', `${f.a} ${F.away}`);
+    set('.kcs-pz-who', f.h + f.a === 0 ? 'Bu dilimde atak yok' : f.p > 0.25 ? `${F.home} bastırıyor` : f.p < -0.25 ? `${F.away} bastırıyor` : 'Dengeli');
+    const fl = el.querySelector('.kcs-pz-flash');
+    if (fl && fl.__ev !== f.ev) { fl.__ev = f.ev; fl.innerHTML = f.ev; fl.classList.toggle('is-on', !!f.ev); }
+    const r = el.querySelector('.kcs-pz-range');
+    if (r && +r.value !== st.i) r.value = st.i;
+    set('.kcs-pz-play', st.playing ? '❚❚ Durdur' : st.i >= n - 1 ? '↺ Baştan oynat' : '▶ Oynat');
+    if (still) { void el.offsetWidth; el.classList.remove('is-still'); }
+  }
+  function pzTick() {
+    const el = queryOne('.kcs-pz');
+    if (!el) return;
+    const st = pzState.get(el.dataset.sk);
+    if (!st?.playing) return;
+    if (st.i >= st.n - 1) st.playing = false; else st.i++;
+    pzApply();
+  }
+  function onPzInput(ev) {
+    const t = targetOf(ev);
+    if (!t.matches?.('.kcs-pz-range')) return;
+    const el = t.closest('.kcs-pz');
+    const st = el && pzState.get(el.dataset.sk);
+    if (!st) return;
+    st.i = +t.value;
+    st.playing = false;
+    pzApply();
   }
 
   function peekTable(d, homeId, awayId) {
@@ -1119,17 +1233,17 @@
     const st = (tid) => d.standings?.find((r) => r.team?.id === tid);
     const h = d.h2h;
     const rows = [
-      ['Sıralama', [st(homeId), st(awayId)].every(Boolean) ? `${esc(homeName)} ${st(homeId).position}. · ${esc(awayName)} ${st(awayId).position}.` : ''],
-      ['Aralarındaki maçlar', h?.played ? `${h.played} maç · maç başı ${(((h.homeGoals || 0) + (h.awayGoals || 0)) / h.played).toFixed(2)} gol` : ''],
-      ['Hakem', ref ? esc(ref) : ''],
-      ['Teknik direktörler', coach(homeId) || coach(awayId) ? `${esc(coach(homeId) || '?')} · ${esc(coach(awayId) || '?')}` : ''],
-      ['Stat', v?.name ? `${esc(v.name)}${v.city ? `, ${esc(v.city)}` : ''}${v.capacity ? ` · ${Number(v.capacity).toLocaleString('tr-TR')} kişilik` : ''}` : ''],
-      ['Hava', w ? `${esc(w.description || '')}${w.temperatureC != null ? ` · ${Math.round(w.temperatureC)}°C` : ''}${w.humidity ? ` · nem ${esc(w.humidity)}` : ''}` : ''],
-      ['TV (Türkiye)', tv ? esc(tv) : ''],
-      ['Kadro', d.detail?.lineups?.length ? (d.detail.lineupConfirmed ? 'İlk 11 açıklandı' : 'Tahmini kadro') : 'Henüz açıklanmadı'],
-    ].filter(([, val]) => val);
+      ['sira', 'Sıralama', [st(homeId), st(awayId)].every(Boolean) ? `${esc(homeName)} ${st(homeId).position}. · ${esc(awayName)} ${st(awayId).position}.` : ''],
+      ['h2h', 'Aralarındaki maçlar', h?.played ? `${h.played} maç · maç başı ${(((h.homeGoals || 0) + (h.awayGoals || 0)) / h.played).toFixed(2)} gol` : ''],
+      ['ref', 'Hakem', ref ? esc(ref) : ''],
+      ['coach', 'Teknik direktörler', coach(homeId) || coach(awayId) ? `${esc(coach(homeId) || '?')} · ${esc(coach(awayId) || '?')}` : ''],
+      ['stad', 'Stat', v?.name ? `${esc(v.name)}${v.city ? `, ${esc(v.city)}` : ''}${v.capacity ? ` · ${Number(v.capacity).toLocaleString('tr-TR')} kişilik` : ''}` : ''],
+      ['hava', 'Hava', w ? `${esc(w.description || '')}${w.temperatureC != null ? ` · ${Math.round(w.temperatureC)}°C` : ''}${w.humidity ? ` · nem ${esc(w.humidity)}` : ''}` : ''],
+      ['tv', 'TV (Türkiye)', tv ? esc(tv) : ''],
+      ['kadro', 'Kadro', d.detail?.lineups?.length ? (d.detail.lineupConfirmed ? 'İlk 11 açıklandı' : 'Tahmini kadro') : 'Henüz açıklanmadı'],
+    ].filter(([, , val]) => val);
     const key = peekStats(d, homeId, awayId, STAT_LABELS.slice(0, 6).filter(([code]) => code !== 'ATTACKS'));
-    return `<div class="kcs-peek-info">${rows.map(([k, val]) => `<div><span>${k}</span><b>${val}</b></div>`).join('')}</div>${/kcs-stat/.test(key) ? key : ''}`;
+    return `<div class="kcs-peek-info kcs-peek-info--ic">${rows.map(([icon, k, val]) => `<div><i class="kcs-info-ic">${PEEK_ICON[icon] || ''}</i><span>${k}</span><b>${val}</b></div>`).join('')}</div>${/kcs-stat/.test(key) ? key : ''}`;
   }
 
   // ---------- önemli maç olayları ----------
@@ -3528,11 +3642,22 @@
       // "Göz at" açıkken tekrar basınca ya da aynı sekmenin düğmesine basınca kapanır.
       if (btn.classList.contains('kcs-peek-btn') && peekOpen.has(id) && (tab === 'genel' || peekOpen.get(id) === tab)) { closePeek(); return true; }
       if (!peekOpen.has(id)) peekOpen.clear();
+      if (tab === 'baski') pzState.clear();
       peekOpen.set(id, tab);
       peekRedraw();
       return true;
     }
     if (btn.classList.contains('kcs-modal-close')) { closePeek(); return true; }
+    if (btn.classList.contains('kcs-pz-play')) {
+      const el = btn.closest('.kcs-pz');
+      const st = el && pzState.get(el.dataset.sk);
+      if (st) {
+        if (st.playing) st.playing = false;
+        else { if (st.i >= st.n - 1) st.i = 0; st.playing = true; }
+        pzApply();
+      }
+      return true;
+    }
     if (btn.classList.contains('kcs-group-btn')) {
       if (btn.dataset.page === 'bets') {
         groupBets = btn.dataset.group;
@@ -3932,6 +4057,8 @@
     window.addEventListener('keydown', onStakeKey, true);
     window.addEventListener('input', onStakeInput, true);
     window.addEventListener('input', onPickInput, true);
+    window.addEventListener('input', onPzInput, true);
+    setInterval(pzTick, 1000);
     window.addEventListener('focusout', onStakeOut, true);
     document.documentElement.addEventListener('mouseleave', hideTip);
     window.addEventListener('scroll', onTipScroll, { capture: true, passive: true });
