@@ -2803,7 +2803,7 @@
       body += probRow(note) + commentHtml(note ? note.comment : singleComment(sp), notesHtml(one));
     }
     const legs = multi ? multi.legs : [sp];
-    return sectionHtml('info', multi ? multi.title : sp.key, 'SERT SİKİCİ BİLGİLER', infoSum(legs, prob), body);
+    return sectionHtml('info', multi ? multi.title : sp.key, 'MAÇ BİLGİLERİ', infoSum(legs, prob), body);
   }
 
   // Ters oranı bilinen satır: kâr yüzdesi, tıklayınca tutar hesabı. note: oranın yanında küçük not.
@@ -3820,7 +3820,7 @@
     const note = cardNote(lc.title);
     body += commentHtml(note ? note.comment : '', notesHtml(lc.legs));
     const prob = pAll != null && !lost && won < n ? (pAll * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
-    return sectionHtml('info', lc.title, 'SERT SİKİCİ BİLGİLER', infoSum(lc.legs, prob), body);
+    return sectionHtml('info', lc.title, 'MAÇ BİLGİLERİ', infoSum(lc.legs, prob), body);
   }
 
   function renderSpecials() {
@@ -3858,7 +3858,7 @@
       // Bir karttaki hata diğer kartların satırlarını silmesin: o kartta hatayı göster, devam et.
       let html;
       try {
-        html = lc ? (features.info ? legsCardHtml(lc) : '') : (multi || !features.arb ? '' : sectionHtml('arb', sp.key, 'SERT OSURTAN ORAN', arbSum(sp), `<div class="kcs-arb-list">${arbHtml(sp)}</div>`))
+        html = lc ? (features.info ? legsCardHtml(lc) : '') : (multi || !features.arb ? '' : sectionHtml('arb', sp.key, 'ORANLAR', arbSum(sp), `<div class="kcs-arb-list">${arbHtml(sp)}</div>`))
           + (features.info ? cardInfoHtml(sp, multi) : '');
       } catch (err) {
         console.error('[kupon-skor] arbitraj satırı', sp?.match, err);
