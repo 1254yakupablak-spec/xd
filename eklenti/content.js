@@ -2929,6 +2929,8 @@
     const grid = queryOne('.sb-custom-bets-grid');
     let box = queryOne('.kcs-info');
     if (!grid) { box?.remove(); return; }
+    // Stil dosyası kartlara kutu eklenince bağlanıyordu; futbol dışı kartlar (kutu yok) varken panel stilsiz kalıyordu.
+    styleRoot(grid.getRootNode());
     if (!box) {
       box = document.createElement('div');
       box.className = 'kcs-info kx';
