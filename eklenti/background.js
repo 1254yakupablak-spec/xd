@@ -249,8 +249,12 @@ async function skPoll() {
   }
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg?.type === 'skPoll') { skPoll(); if (Array.isArray(msg.ids) && msg.ids.length) skFeedPoll(msg.ids); }
+  if (msg?.type === 'skDetail' && /^\d+$/.test(String(msg.id))) {
+    skDetail(String(msg.id)).then((d) => reply({ ok: true, d })).catch((err) => reply({ ok: false, error: String(err?.message || err) }));
+    return true;
+  }
 });
 
 // ---------- güncelleme: GitHub'daki sürüm ----------
@@ -327,4 +331,37 @@ async function skFeedPoll(ids) {
   } finally {
     skFeedBusy = false;
   }
+}
+
+// ---------- maç ayrıntısı (Göz at / Canlı akış paneli) ----------
+// Sadece kullanıcı paneli açınca. Maç (olaylar, istatistik, kadro, baskı): canlıda 30 sn, değilse 10 dk saklanır.
+// Karşılaşma geçmişi, hakem, hava, TV, stat ve puan durumu: 1 saat.
+const skDetailCache = new Map();
+async function skJson(path) {
+  const res = await fetch(SK_API + path, { cache: 'no-store', credentials: 'omit' });
+  if (!res.ok) throw new Error(`veri servisi ${res.status}`);
+  return (await res.json())?.data ?? null;
+}
+async function skDetail(id) {
+  const now = Date.now();
+  const c = skDetailCache.get(id) || {};
+  const live = SK_LIVE.has(c.detail?.fixture?.status);
+  if (!c.detail || now - c.detailAt > (live ? 30 * 1000 : 10 * 60 * 1000)) {
+    const d = await skJson('fixtures/' + id);
+    c.detail = { fixture: d?.fixture, events: d?.events || [], statistics: d?.statistics || [], lineups: d?.lineups || [], formations: d?.formations || [], trends: d?.trends || [], lineupConfirmed: !!d?.lineupConfirmed };
+    c.detailAt = now;
+  }
+  if (!c.extraAt || now - c.extraAt > 3600 * 1000) {
+    const safe = (p) => skJson(p).catch(() => null);
+    const [h2h, ref, coach, weather, tv, venue] = await Promise.all([safe(`fixtures/${id}/h2h`), safe(`fixtures/${id}/context/REFEREES`), safe(`fixtures/${id}/context/COACHES`),
+      safe(`fixtures/${id}/context/WEATHER`), safe(`fixtures/${id}/context/BROADCASTS`), safe(`fixtures/${id}/context/VENUE`)]);
+    c.h2h = h2h;
+    c.ctx = { referees: ref?.referees || [], coaches: coach?.coaches || [], weather: weather?.weather || null, broadcasts: tv?.broadcasts || [], venue: venue?.venue || null };
+    const cid = c.detail.fixture?.competition?.id;
+    c.standings = cid ? ((await safe(`competitions/${cid}/standings`))?.rows || []) : [];
+    c.extraAt = now;
+  }
+  skDetailCache.set(id, c);
+  if (skDetailCache.size > 60) skDetailCache.delete(skDetailCache.keys().next().value);
+  return { detail: c.detail, h2h: c.h2h, ctx: c.ctx, standings: c.standings };
 }
