@@ -1467,8 +1467,79 @@
       + `<span class="kcs-goal-badge">${badge}</span></div><div class="kcs-goal-track"><i style="width:${pct}%"></i></div></div>`;
   }
 
+  // Bahislerim kombine kartı (her maçın kendi seçimi var): maçlar tek tek okunur, Özel Oranlar'daki maç maç görünümle çizilir.
+  function readSbLegs(card, els) {
+    const res = siteResult(card);
+    const legs = els.map((el) => {
+      const pair = [...el.querySelectorAll('.sb-mb-team-name')].map((x) => x.textContent.trim()).filter(Boolean);
+      if (pair.length !== 2) return null;
+      const pickText = el.querySelector('.sb-mb-leg-pick-name')?.textContent.trim() || '';
+      const mk = el.querySelector('.sb-mb-leg-market');
+      const market = mk ? [...mk.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(' ').trim() : '';
+      const m = /^([\d.,]+)\s*(Alt|Üst|Ust)$/i.exec(pickText);
+      const totals = m && !/korner|kart|yarı|yari|devre|çeyrek|ceyrek|takım|takim/i.test(market);
+      const digits = [...el.querySelectorAll('.sb-mb-score .sb-score-digit')].map((x) => x.textContent.trim());
+      const hasScore = digits.length === 2 && digits.every((d) => /^\d+$/.test(d));
+      const logos = [...el.querySelectorAll('.sb-mb-team-logo img')].map((x) => x.getAttribute('src') || '');
+      const cls = el.className || '';
+      const forced = /result-(won|win)/.test(cls) ? 'won' : /result-(lost|lose)/.test(cls) ? 'lost' : null;
+      const label = pair.join(' - ');
+      return {
+        label, key: `leg|${norm(pair.join(' '))}`, match: pair.join(' '), pair, time: '', market, pickText,
+        line: totals ? num(m[1]) : null, side: totals && /alt/i.test(m[2]) ? 'under' : 'over', forced,
+        site: {
+          hs: hasScore ? Number(digits[0]) : null, as: hasScore ? Number(digits[1]) : null,
+          live: el.matches('.is-live'), ended: !el.matches('.result-pending') || !!res,
+          clock: el.querySelector('.sb-mb-live [data-kind]')?.textContent.trim() || '',
+          start: parseLegDate(el.querySelector('.sb-mb-leg-date')?.textContent || ''),
+          homeLogo: logos[0] || '', awayLogo: logos[1] || '',
+        },
+      };
+    });
+    if (legs.some((x) => !x)) return null;
+    const odds = num(card.querySelector('.sb-mb-foot .sb-mb-odds')?.textContent || '');
+    return { title: legs.map((x) => x.label).join(' | '), legs, odds: odds > 1 ? odds : null };
+  }
+
+  function renderSbLegs(card, lc) {
+    const res = siteResult(card);
+    const evs = lc.legs.map((leg) => legEvent(leg));
+    const starts = lc.legs.map((leg, i) => (evs[i]?.start ? evs[i].start * 1000 : leg.site.start)).filter(Boolean);
+    const verdicts = lc.legs.map((leg, i) => {
+      if (leg.forced) return leg.forced;
+      const e = evs[i];
+      const total = e && (e.hs != null) ? e.hs + e.as : leg.site.hs != null ? leg.site.hs + leg.site.as : null;
+      if (total == null || leg.line == null) return 'open';
+      return goalVerdict(total, leg.line, leg.side === 'under' ? 'alt' : 'ust', e ? SK_DONE.has(e.status) : leg.site.ended);
+    });
+    sbInfo.set(card, {
+      start: starts.length ? Math.min(...starts) : null,
+      live: lc.legs.some((leg, i) => leg.site.live || (evs[i] && fromSk(evs[i]).isLive)),
+      goal: res === 'won' || res === 'lost' ? res : verdicts.includes('lost') ? 'lost' : verdicts.every((v) => v === 'won') ? 'won' : 'open',
+    });
+    const rows = lc.legs.map((leg, i) => ({ f: evs[i] ? fromSk(evs[i]) : { home: leg.pair[0], away: leg.pair[1] } }));
+    const key = lc.title;
+    const html = poweredHtml() + (sbSort === 'manual' ? moveHtml('bets') : '') + (res ? `<div class="kcs-sb-status">${siteResultHtml(res, key)}</div>` : '')
+      + legsCardHtml(lc) + aiSection(key, aiCalls[norm(key)] || legsAi(rows));
+    let box = card.querySelector(':scope > .kcs-legs');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'kcs-legs kcs-legs--sb';
+      styleRoot(card.getRootNode());
+      card.append(box);
+    }
+    box.__kcsKey = key;
+    if (box.__kcsHtml !== html) { box.innerHTML = html; box.__kcsHtml = html; }
+    sbCache.set(sbKeyOf(card), { html, key });
+  }
+
   // Tek maçlık kart: seçim ve skor sitenin kendi kutusunda yazıyor.
   function renderSbSingle(card) {
+    const legEls = [...card.querySelectorAll('.sb-mb-leg:not(.kcs-sb-leg)')].filter((x) => !x.closest('.kcs-legs'));
+    if (legEls.length >= 2) {
+      const lc = readSbLegs(card, legEls);
+      if (lc) { renderSbLegs(card, lc); return; }
+    }
     const leg = card.querySelector('.sb-mb-leg:not(.kcs-sb-leg)');
     const pick = /^\s*(\d+(?:\.\d+)?)\s*(Alt|Üst)\s*$/i.exec(leg?.querySelector('.sb-mb-leg-pick-name')?.textContent || '');
     const digits = [...(leg?.querySelectorAll('.sb-mb-score .sb-score-digit') || [])].map((e) => e.textContent.trim());
@@ -3772,7 +3843,8 @@
   }
   // Bir maçın (kartın bir bacağı) tutma olasılığı. Biten maç kesin; çizgi aşıldıysa Üst tuttu / Alt yattı.
   function legProb(leg, e) {
-    if (!e) return null;
+    if (leg.forced) return leg.forced === 'won' ? 1 : leg.forced === 'lost' ? 0 : null;
+    if (!e || leg.line == null) return null;
     const over = leg.side === 'over';
     const total = (e.hs ?? 0) + (e.as ?? 0);
     if (SK_DONE.has(e.status)) return (over ? total > leg.line : total < leg.line) ? 1 : 0;
@@ -3817,7 +3889,22 @@
     const rows = lc.legs.map((leg) => { const e = legEvent(leg); return { leg, e, p: legProb(leg, e) }; });
     let won = 0; let lost = 0;
     const parts = rows.map(({ leg, e, p }) => {
-      const pickTxt = `${leg.line} ${leg.side === 'under' ? 'Alt' : 'Üst'}`;
+      const pickTxt = leg.line == null ? (leg.pickText || '') : `${leg.line} ${leg.side === 'under' ? 'Alt' : 'Üst'}`;
+      const sideTxt = leg.side === 'under' ? 'alt' : 'ust';
+      // Bahislerim: veri serviste bulunamasa da site kendi skorunu yazıyor; o gösterilir.
+      if (!e && leg.site) {
+        const s = leg.site;
+        const total = s.hs != null ? s.hs + s.as : null;
+        const v = leg.forced || (total != null && leg.line != null ? goalVerdict(total, leg.line, sideTxt, s.ended) : 'open');
+        if (v === 'won') won++;
+        if (v === 'lost') lost++;
+        const state = s.live ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(s.clock || 'Canlı')}</span>` : s.start ? `${esc(whenText(s.start / 1000))}${countdownHtml(s.start / 1000)}` : '';
+        const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
+        const score = `<div class="kcs-lg-score${s.live ? ' is-live' : ''}">${team(leg.pair?.[0] || leg.label, s.homeLogo)}<b>${total != null ? `${s.hs} - ${s.as}` : 'v'}</b>${team(leg.pair?.[1] || '', s.awayLogo)}</div>`;
+        const bar = total != null && leg.line != null ? goalHtml(total, { line: leg.line, side: sideTxt }, s.ended) : '';
+        return `<div class="kcs-lg${v === 'won' ? ' is-won' : v === 'lost' ? ' is-lost' : ''}"><div class="kcs-lg-head"><b>${esc(leg.market || 'Toplam')} · ${esc(pickTxt)}</b><span>${state}</span></div>${score}${bar}`
+          + '<div class="kcs-ci-note">Maç ayrıntısı veri serviste bulunamadı; skor siteden.</div></div>';
+      }
       if (!e) {
         const bk = leg.line >= 40;
         const why = bk && skMeta?.bkError ? 'Basketbol verisi alınamadı: eklentiyi güncelleyip uzantılar sayfasından yeniden yükle' : bk && !Object.values(skEvents).some((x) => x.sport === 'basketball') ? 'Basketbol listesi henüz gelmedi, birazdan yenilenir' : bk ? 'Maç bulunamadı · yalnızca NBA ve yakın saatteki maçlar aranır' : 'Maç bulunamadı';
@@ -3826,7 +3913,7 @@
       const f = fromSk(e);
       const total = (e.hs ?? 0) + (e.as ?? 0);
       const final = SK_DONE.has(e.status);
-      const v = f.hasScore ? goalVerdict(total, leg.line, leg.side === 'under' ? 'alt' : 'ust', final) : 'open';
+      const v = leg.forced || (f.hasScore && leg.line != null ? goalVerdict(total, leg.line, sideTxt, final) : 'open');
       if (v === 'won') won++;
       if (v === 'lost') lost++;
       const state = f.isLive ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(f.clock || 'Canlı')}</span>`
@@ -3834,7 +3921,7 @@
         : `${e.start ? esc(whenText(e.start)) : ''}${e.start ? countdownHtml(e.start) : ''}`;
       const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
       const score = `<div class="kcs-lg-score${f.isLive ? ' is-live' : ''}">${team(e.home, e.homeLogo)}<b>${f.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${team(e.away, e.awayLogo)}</div>`;
-      const bar = f.hasScore ? goalHtml(total, { line: leg.line, side: leg.side === 'under' ? 'alt' : 'ust' }, final) : '';
+      const bar = f.hasScore && leg.line != null ? goalHtml(total, { line: leg.line, side: sideTxt }, final) : '';
       const pre = !f.hasScore && e.sport === 'basketball' && e.ou ? `<div class="kcs-ci-note">Maç öncesi çizgi: toplam ${e.ou}${e.spread ? ` · ${esc(e.spread)}` : ''}</div>` : '';
       const prob = p != null && !final ? `<div class="kcs-lg-prob"><span>Tutma olasılığı</span><b>${pctText(p * 100)}</b></div>` : '';
       const peek = skIdOf({ id: e.id });
