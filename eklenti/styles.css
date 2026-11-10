@@ -1309,3 +1309,7 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 .kx-tile > b em { font-size: 12px; }
 .kx-tile > small { font-size: 10.5px; }
 .kcs-info.kx { margin-bottom: 12px; }
+
+/* BİLGİLER bölümünde alt başlık (Yapay zeka tahmini) */
+.kcs-ci-subhead { grid-column: 1 / -1; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); color: rgb(196, 181, 253); font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+.kcs-ci--info > .kcs-ci-body > .kcs-ci-comment { grid-column: 1 / -1; }
