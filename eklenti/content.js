@@ -1517,10 +1517,9 @@
       live: lc.legs.some((leg, i) => leg.site.live || (evs[i] && fromSk(evs[i]).isLive)),
       goal: res === 'won' || res === 'lost' ? res : verdicts.includes('lost') ? 'lost' : verdicts.every((v) => v === 'won') ? 'won' : 'open',
     });
-    const rows = lc.legs.map((leg, i) => ({ f: evs[i] ? fromSk(evs[i]) : { home: leg.pair[0], away: leg.pair[1] } }));
     const key = lc.title;
     const html = poweredHtml() + (sbSort === 'manual' ? moveHtml('bets') : '') + (res ? `<div class="kcs-sb-status">${siteResultHtml(res, key)}</div>` : '')
-      + legsCardHtml(lc) + aiSection(key, aiCalls[norm(key)] || legsAi(rows));
+      + legsCardHtml(lc);
     let box = card.querySelector(':scope > .kcs-legs');
     if (!box) {
       box = document.createElement('div');
@@ -2856,9 +2855,9 @@
 
   const isClosed = (id, key) => cardFolds[`${id}|${key}`] ?? foldAll;
 
-  function sectionHtml(id, key, title, sum, body) {
+  function sectionHtml(id, key, title, sum, body, look = id) {
     const closed = isClosed(id, key);
-    return `<section class="kcs-ci kcs-ci--${id}${closed ? ' is-closed' : ''}"><button type="button" class="kcs-ci-title kcs-fold" data-fold="${id}" aria-expanded="${!closed}">`
+    return `<section class="kcs-ci kcs-ci--${look}${closed ? ' is-closed' : ''}"><button type="button" class="kcs-ci-title kcs-fold" data-fold="${id}" aria-expanded="${!closed}">`
       + `<span class="kcs-ci-name">${title}</span>${sum ? `<span class="kcs-ci-sum">${sum}</span>` : ''}<i class="kcs-ci-chev"></i></button>`
       + `<div class="kcs-ci-body">${body}</div></section>`;
   }
@@ -3932,13 +3931,17 @@
     const pAll = known ? rows.reduce((t, x) => t * x.p, 1) : null;
     const n = rows.length;
     const status = lost ? `${lost} maç tutmadı · kupon yattı` : won === n ? 'Bütün maçlar tuttu' : `${won}/${n} maç tuttu`;
-    let body = parts + infoRow('Kupon', status, lost ? 'warn' : won === n ? 'ok' : '');
+    let body = infoRow('Kupon', status, lost ? 'warn' : won === n ? 'ok' : '');
     if (pAll != null && !lost && won < n) body += fairRows(Math.max(1e-6, pAll), lc.odds, `${n} maç birlikte`, 'Tahmindir: maçlar bağımsız sayıldı. Basketbolda toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.');
     else if (pAll == null) body += infoRow('Seçim olasılığı', 'bilgisi eksik maç var', 'warn');
     const note = cardNote(lc.title);
     body += commentHtml(note ? note.comment : '', notesHtml(lc.legs));
     const prob = pAll != null && !lost && won < n ? (pAll * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
-    return sectionHtml('info', lc.title, 'MAÇ BİLGİLERİ', infoSum(lc.legs, prob), body);
+    const ai = aiCalls[norm(lc.title)] || legsAi(rows.map(({ leg, e }) => ({ f: e ? fromSk(e) : { home: leg.pair?.[0] || leg.label, away: leg.pair?.[1] || '' } })));
+    const aiP = Number(ai?.prob);
+    if (ai) body += `<div class="kcs-ci-subhead">Yapay zeka tahmini</div>` + (aiP > 0 && aiP < 100 ? infoRow('YZ olasılığı', `%${aiP}`, '', 'Tahmindir, garanti değildir.') : '') + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '') + commentHtml(ai.comment);
+    const sum2 = [status, aiP > 0 && aiP < 100 ? `YZ %${aiP}` : ''].filter(Boolean).map(esc).join(' · ');
+    return sectionHtml('info', lc.title, 'MAÇ BİLGİLERİ', infoSum(lc.legs, prob), parts) + sectionHtml('bilgi', lc.title, 'YORUM VE TAHMİN (YZ)', sum2, body, 'info');
   }
 
   function renderSpecials() {
