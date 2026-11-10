@@ -3941,7 +3941,7 @@
     if (ai) body += `<div class="kcs-ci-subhead">Yapay zeka tahmini</div>` + (aiP > 0 && aiP < 100 ? infoRow('YZ olasılığı', `%${aiP}`, '', 'Tahmindir, garanti değildir.') : '') + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '') + commentHtml(ai.comment);
     const pShow = aiP > 0 && aiP < 100 ? aiP : null;
     const sum2 = [status, pShow != null ? `%${pShow}` : ''].filter(Boolean).map(esc).join(' · ');
-    return sectionHtml('info', lc.title, 'MAÇ BİLGİLERİ', infoSum(lc.legs, null), parts) + sectionHtml('bilgi', lc.title, 'YORUM VE TAHMİN (YZ)', sum2, body, 'info');
+    return sectionHtml('info', lc.title, 'MAÇ BİLGİLERİ', infoSum(lc.legs, null), parts) + sectionHtml('bilgi', lc.title, 'TAHMİN (YZ) VE DİĞER BİLGİLER', sum2, body, 'info');
   }
 
   function renderSpecials() {
