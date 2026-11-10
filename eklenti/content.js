@@ -2666,10 +2666,10 @@
     return l == null ? '' : lineComment(l, sp.line, sp.side === 'under' ? 'alt' : 'ust');
   }
 
-  const fairRows = (p, odds, detail, tip) => {
+  const fairRows = (p, odds, detail, tip, withProb = true) => {
     const edge = (odds * p - 1) * 100;
     return infoRow('Adil oran', `${(1 / p).toFixed(2)} · kart ${odds.toFixed(2)} <i class="kcs-ci-pct kcs-ci-pct--${edge > 0 ? 'ok' : 'no'}">${edge > 0 ? '+' : '−'}%${Math.abs(edge).toFixed(2)}</i>`, '', tip)
-      + infoRow('Seçim olasılığı', `%${(p * 100).toFixed(1)}${detail ? ` · ${detail}` : ''}`, '', 'Tahmindir: oranlardan hesaplandı, maçlar bağımsız sayıldı, garanti değildir.');
+      + (withProb ? infoRow('Seçim olasılığı', `%${(p * 100).toFixed(1)}${detail ? ` · ${detail}` : ''}`, '', 'Tahmindir: oranlardan hesaplandı, maçlar bağımsız sayıldı, garanti değildir.') : '');
   };
 
   function multiRows(multi, known) {
@@ -3932,15 +3932,14 @@
     const n = rows.length;
     const status = lost ? `${lost} maç tutmadı · kupon yattı` : won === n ? 'Bütün maçlar tuttu' : `${won}/${n} maç tuttu`;
     let body = infoRow('Kupon', status, lost ? 'warn' : won === n ? 'ok' : '');
-    if (pAll != null && !lost && won < n) body += fairRows(Math.max(1e-6, pAll), lc.odds, `${n} maç birlikte`, 'Tahmindir: maçlar bağımsız sayıldı. Basketbolda toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.');
-    else if (pAll == null) body += infoRow('Seçim olasılığı', 'bilgisi eksik maç var', 'warn');
+    if (pAll != null && lc.odds && !lost && won < n) body += fairRows(Math.max(1e-6, pAll), lc.odds, '', 'Tahmindir: maçlar bağımsız sayıldı. Basketbolda toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.', false);
     const note = cardNote(lc.title);
     body += commentHtml(note ? note.comment : '', notesHtml(lc.legs));
     const prob = pAll != null && !lost && won < n ? (pAll * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
     const ai = aiCalls[norm(lc.title)] || legsAi(rows.map(({ leg, e }) => ({ f: e ? fromSk(e) : { home: leg.pair?.[0] || leg.label, away: leg.pair?.[1] || '' } })));
     const aiP = Number(ai?.prob);
     if (ai) body += `<div class="kcs-ci-subhead">Yapay zeka tahmini</div>` + (aiP > 0 && aiP < 100 ? infoRow('YZ olasılığı', `%${aiP}`, '', 'Tahmindir, garanti değildir.') : '') + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '') + commentHtml(ai.comment);
-    const pShow = prob != null ? prob : aiP > 0 && aiP < 100 ? aiP : null;
+    const pShow = aiP > 0 && aiP < 100 ? aiP : null;
     const sum2 = [status, pShow != null ? `%${pShow}` : ''].filter(Boolean).map(esc).join(' · ');
     return sectionHtml('info', lc.title, 'MAÇ BİLGİLERİ', infoSum(lc.legs, null), parts) + sectionHtml('bilgi', lc.title, 'YORUM VE TAHMİN (YZ)', sum2, body, 'info');
   }
