@@ -3940,8 +3940,9 @@
     const ai = aiCalls[norm(lc.title)] || legsAi(rows.map(({ leg, e }) => ({ f: e ? fromSk(e) : { home: leg.pair?.[0] || leg.label, away: leg.pair?.[1] || '' } })));
     const aiP = Number(ai?.prob);
     if (ai) body += `<div class="kcs-ci-subhead">Yapay zeka tahmini</div>` + (aiP > 0 && aiP < 100 ? infoRow('YZ olasılığı', `%${aiP}`, '', 'Tahmindir, garanti değildir.') : '') + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '') + commentHtml(ai.comment);
-    const sum2 = [status, aiP > 0 && aiP < 100 ? `YZ %${aiP}` : ''].filter(Boolean).map(esc).join(' · ');
-    return sectionHtml('info', lc.title, 'MAÇ BİLGİLERİ', infoSum(lc.legs, prob), parts) + sectionHtml('bilgi', lc.title, 'YORUM VE TAHMİN (YZ)', sum2, body, 'info');
+    const pShow = prob != null ? prob : aiP > 0 && aiP < 100 ? aiP : null;
+    const sum2 = [status, pShow != null ? `%${pShow}` : ''].filter(Boolean).map(esc).join(' · ');
+    return sectionHtml('info', lc.title, 'MAÇ BİLGİLERİ', infoSum(lc.legs, null), parts) + sectionHtml('bilgi', lc.title, 'YORUM VE TAHMİN (YZ)', sum2, body, 'info');
   }
 
   function renderSpecials() {
