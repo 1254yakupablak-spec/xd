@@ -1460,7 +1460,7 @@
     const left = Math.ceil(line) - total;
     const unit = line >= 40 ? 'sayı' : 'gol';
     const note = forced === 'won' || forced === 'lost' ? 'sitede sonuçlandı' : (v !== 'open' ? '' : (side === 'alt' ? `${left} ${unit} daha gelirse yatar` : `${left} ${unit} daha lazım`));
-    const badge = { won: 'Tuttu', lost: 'Tutmadı', open: 'Devam ediyor' }[v];
+    const badge = { won: 'Tuttu', lost: 'Tutmadı', open: 'Bekleyen' }[v];
     const pct = Math.min(100, Math.round(total / Math.ceil(line) * 100));
     const undo = goal.manual ? '<button type="button" class="kcs-line-del" title="Elle girilen çizgiyi sil">Sil</button>' : '';
     return `<div class="kcs-goal kcs-goal--${v}" data-title="${esc(title)}"><div class="kcs-goal-text"><span><b>${total}</b> ${unit} / ${line} ${side === 'alt' ? 'Alt' : 'Üst'}${note ? ` · ${note}` : ''}${undo}</span>`
@@ -1730,7 +1730,7 @@
     const group = (name, body) => `<div class="kx-group"><span class="kx-label">${name}</span>${body}</div>`;
     const sortTxt = { site: 'Site', start: 'Maç saati', live: 'Canlı önce', goal: 'Gol durumu', manual: 'Elle' }[sbSort] || 'Site';
     return `${updateHtml()}<header class="kx-head"><div class="kx-brand">${markHtml()}<div><b>KOKLEYİCİ SPORTS</b></div></div>`
-      + `<div class="kx-stats">${stat('live', n((x) => x.live), 'canlı')}${stat('won', n((x) => x.goal === 'won'), 'tuttu')}${stat('open', n((x) => x.goal === 'open'), 'devam')}${stat('lost', n((x) => x.goal === 'lost'), 'tutmadı')}</div>`
+      + `<div class="kx-stats">${stat('live', n((x) => x.live), 'canlı')}${stat('won', n((x) => x.goal === 'won'), 'tuttu')}${stat('open', n((x) => x.goal === 'open'), 'bekleyen')}${stat('lost', n((x) => x.goal === 'lost'), 'tutmadı')}</div>`
       + `<div class="kx-sync"><span>${esc(`Canlı skor ${scoreTimes().replace(/^Veri servisi /, '')}`)}</span></div></header>`
       + `<div class="kx-controls">${ddHtml('b-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}${ddHtml('b-group', 'Grupla', GROUP_TXT[groupBets] || 'Yok', groupHtml('bets', groupBets))}`
       + `${ddHtml('b-cols', 'Satır başı', colsTxt(colsBets), colsHtml('bets', colsBets), true)}${ddHtml('b-feat', 'Özellikler', featSum(), featHtml())}${wideHtml()}<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`;
