@@ -2145,6 +2145,11 @@
       const clubs = await (await fetch(chrome.runtime.getURL('teams.json'))).json();
       const map = new Map();
       for (const names of clubs) {
+        // Milli takımlar tabloda "ingiltere milli futbol takimi" diye geçiyor; kuponda sadece "INGILTERE" yazar.
+        for (const n of [...names]) {
+          const m = /^(.+?) (?:a )?milli (?:futbol )?takimi$/.exec(n);
+          if (m && m[1].length >= 3 && !names.includes(m[1])) names.push(m[1]);
+        }
         for (const n of names) {
           const list = map.get(n);
           if (!list) map.set(n, [names]);
