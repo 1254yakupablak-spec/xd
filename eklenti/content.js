@@ -2889,6 +2889,9 @@
   // Futbol kartı (tek ya da çok maçlı): her maç logolu kutuda (saat, skor, oran çizgisi, Göz at).
   function footBlocks(legs, known) {
     const times = legs.map(legStart);
+    // En erken maç 15 dakikadan az kaldıysa kutusu kırmızı çerçeveli.
+    const firstT = times.filter(Boolean).sort((a, b) => a - b)[0];
+    const hotI = firstT && firstT - Date.now() / 1000 > 0 && firstT - Date.now() / 1000 <= HOT_SEC ? times.indexOf(firstT) : -1;
     const blocks = legs.map((leg, i) => {
       const hub = findHub(HUBS[2], leg);
       const e = hub ? skEvents[hub.e.id] || null : null;
@@ -2897,7 +2900,7 @@
       const head = (state) => `<div class="kcs-lg-head"><b>${esc(leg.label || leg.match)}</b><span>${state}</span></div>`;
       if (!e) {
         const t = times[i];
-        return `<div class="kcs-lg">${head(t ? `${esc(whenText(t))}${countdownHtml(t)}` : '')}${oddsNote}<div class="kcs-ci-note kcs-ci-note--warn">Maç ayrıntısı bulunamadı</div></div>`;
+        return `<div class="kcs-lg${i === hotI ? ' kcs-ci--hot' : ''}">${head(t ? `${esc(whenText(t))}${countdownHtml(t)}` : '')}${oddsNote}<div class="kcs-ci-note kcs-ci-note--warn">Maç ayrıntısı bulunamadı</div></div>`;
       }
       const fx = fromSk(e);
       const state = fx.isLive ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(fx.clock || 'Canlı')}</span>`
@@ -2906,7 +2909,7 @@
       const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
       const score = `<div class="kcs-lg-score${fx.isLive ? ' is-live' : ''}">${team(e.home, e.homeLogo)}<b>${fx.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${team(e.away, e.awayLogo)}</div>`;
       const peek = skIdOf({ id: e.id });
-      return `<div class="kcs-lg${fx.isLive ? ' is-live' : ''}">${head(state)}${score}${evLines(matchEvents(fx))}${oddsNote}${peek ? `<div class="kcs-peek-line">${peekBtns(peek)}</div>` : ''}</div>`;
+      return `<div class="kcs-lg${fx.isLive ? ' is-live' : ''}${i === hotI ? ' kcs-ci--hot' : ''}">${head(state)}${score}${evLines(matchEvents(fx))}${oddsNote}${peek ? `<div class="kcs-peek-line">${peekBtns(peek)}</div>` : ''}</div>`;
     }).join('');
     const found = times.filter(Boolean);
     let note = '';
