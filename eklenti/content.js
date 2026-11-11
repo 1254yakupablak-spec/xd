@@ -3414,6 +3414,7 @@
     let legCards = 0;
     for (const card of queryAll(SPECIAL_CARD)) {
       if (/KAPANDI/i.test(card.querySelector('.sb-cbt-action')?.textContent || '')) continue;
+      if (!sportOk(card)) continue; // Spor filtresi: hesap yalnız seçili sporun kuponlarıyla
       const multi = readMulti(card);
       if (!multi) {
         const lc = readLegsCard(card);
@@ -3458,7 +3459,7 @@
     const link = linkInfo(all);
     const tip = 'Tahmindir, garanti değildir. Aynı maç birden çok kuponda varsa birlikte sayıldı; goller Poisson ile 20.000 kez denendi. Başlamış maçlarda oran canlı değişir.';
     const plBtn = '';
-    const html = `<section class="kcs-bar-chance kx-multi"><div class="kx-multi-head"><div class="kx-multi-title" title="${esc(tip)}"><b>${markHtml()}Çok maçlı kuponlar</b><small>${esc(parts.join(' · '))}</small></div><div class="kx-multi-actions">${plBtn}</div></div>`
+    const html = `<section class="kcs-bar-chance kx-multi"><div class="kx-multi-head"><div class="kx-multi-title" title="${esc(tip)}"><b>${markHtml()}Çok maçlı kuponlar${sportShow !== 'all' ? ` · ${SPORT_TXT[sportShow]}` : ''}</b><small>${esc(parts.join(' · '))}</small></div><div class="kx-multi-actions">${plBtn}</div></div>`
       + `${features.pl ? `${tilesHtml(res)}${res ? plHtml(res) : ''}` : ''}${features.link ? link.body : ''}</section>`;
     // İkisi de kapalıysa bölüm hiç çizilmez; sadece bağlı kuponlar açıksa başlık ve liste kalır.
     if (!features.pl && !features.link) { chanceMemo = { sig, html: '', res }; return ''; }
