@@ -174,7 +174,7 @@
   // ---------- SofaScore verisi ve elle düzeltmeler (chrome.storage) ----------
 
   const hasStore = typeof chrome !== 'undefined' && !!chrome.storage?.local;
-  const STORE_KEYS = ['skFeed', 'manualOrder', 'groupSpecial', 'groupBets', 'fullWidth', 'colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'featPl', 'featLink', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
+  const STORE_KEYS = ['sportShow', 'skFeed', 'manualOrder', 'groupSpecial', 'groupBets', 'fullWidth', 'colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'featPl', 'featLink', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
     ...['xbet', 'stake'].flatMap((k) => [`${k}Events`, `${k}Odds`, `${k}Meta`])];
   let sofaEvents = {};
   // Liste sürümleri: skor ya da oran güncellemesi taramayı yenilemez, sadece maç sayısı değişince artar.
@@ -206,6 +206,7 @@
   let colsBets = 0;        // Bahislerim: satır başına kupon (0 = sitenin düzeni)
   let sbSort = 'site';      // Bahislerim: site, start, live, goal
   let cardShow = 'all';    // Özel Oranlar: all, single, multi
+  let sportShow = 'all';   // iki sayfada da: all, foot, bk (futbol / basketbol kuponları)
   let cardFolds = {};      // "arb|kart": true küçük, false açık; yoksa foldAll geçerli. Saklanmaz.
   let foldAll = true;      // sayfa her açıldığında bölümler küçük gelir
   let cardSort = 'site';   // Özel Oranlar sırası: site, arb, start
@@ -237,6 +238,7 @@
     cardSort = s.cardSort || 'site';
     lsMeta = s.lsMeta || {};
     cardShow = ['all', 'single', 'multi'].includes(s.cardShow) ? s.cardShow : 'all';
+    sportShow = ['all', 'foot', 'bk'].includes(s.sportShow) ? s.sportShow : 'all';
     sbSort = ['site', 'start', 'live', 'goal', 'manual'].includes(s.sbSort) ? s.sbSort : 'site';
     updateInfo = s.updateInfo || {};
     colsSpecial = [0, 1, 2, 3, 4, 5, 6].includes(s.colsSpecial) ? s.colsSpecial : 0;
@@ -1337,7 +1339,10 @@
   // ---------- gol durumu: Alt/Üst tuttu mu ----------
   // Bahislerim'deki çok maçlı kartta çizgi yazmaz; "ÜÇ MAÇ TOPLAM GOL 8.5 ALT" Özel Oranlar kartında ya da sitenin
   // kendi yanıtında geçer. Buradan öğrenilir, kupon yazısıyla saklanır (bitmiş kartlar sitede kalmadığı için).
-  const GOAL_LINE = /(\d{1,2}[.,]5)\s*(?:GOL\s*)?(ALT|ÜST|UST)(?![A-ZÇĞİÖŞÜa-zçğıöşü])/i;
+  // "2.5 Üst", "10.5 GOL ALT", basketbolda "457.5 alt" ve "447.5 sayı alt". Önünde rakam olmamalı (457.5 → 57.5 okunmasın).
+  const GOAL_LINE = /(?<![\d.,])(\d{1,3}[.,]5)\s*(?:(?:GOL|SAY[ıiİ])\s*)?(ALT|ÜST|UST)(?![A-ZÇĞİÖŞÜa-zçğıöşü])/i;
+  // Basketbol toplam sayı kartı: çizgi 40'tan büyük ya da "sayı" yazıyor.
+  const isBkLine = (text, line) => line >= 40 || /say[ıiİ]/i.test(text);
   const OTHER_MARKET = /KORNER|CORNER|KART/i;
   const LINE_DAYS = 40;
 
@@ -1417,7 +1422,8 @@
       const title = card.querySelector('.sb-cbt-team')?.textContent;
       const text = block.textContent || '';
       const m = OTHER_MARKET.test(text) ? null : GOAL_LINE.exec(text);
-      if (title && m) items.push({ title, line: m[1], side: m[2] });
+      // Basketbol kartının çizgisi gol çizgisi değil, kaydedilmez.
+      if (title && m && !isBkLine(text, num(m[1]))) items.push({ title, line: m[1], side: m[2] });
     }
     if (items.length) saveLines(items);
   }
@@ -1731,7 +1737,7 @@
     return `${updateHtml()}<header class="kx-head"><div class="kx-brand">${markHtml()}<div><b>KOKLEYİCİ SPORTS</b></div></div>`
       + `<div class="kx-stats">${stat('live', n((x) => x.live), 'canlı')}${stat('won', n((x) => x.goal === 'won'), 'tuttu')}${stat('open', n((x) => x.goal === 'open'), 'bekleyen')}${stat('lost', n((x) => x.goal === 'lost'), 'tutmadı')}</div>`
       + `<div class="kx-sync"><span>${esc(`Canlı skor ${scoreTimes().replace(/^Veri servisi /, '')}`)}</span></div></header>`
-      + `<div class="kx-controls">${ddHtml('b-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}${ddHtml('b-group', 'Grupla', GROUP_TXT[groupBets] || 'Yok', groupHtml('bets', groupBets))}`
+      + `<div class="kx-controls">${sportDd('b-sport', cards)}${ddHtml('b-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}${ddHtml('b-group', 'Grupla', GROUP_TXT[groupBets] || 'Yok', groupHtml('bets', groupBets))}`
       + `${ddHtml('b-cols', 'Satır başı', colsTxt(colsBets), colsHtml('bets', colsBets), true)}${ddHtml('b-feat', 'Özellikler', featSum(), featHtml())}${wideHtml()}<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`;
     void group;
   }
@@ -2566,7 +2572,8 @@
       const match = pair.join(' ');
       return { label: label.trim(), key: `leg|${norm(match)}`, match, pair: pair.length === 2 ? pair : null, time: '', odds, side: 'under', line: 2.5, team: null };
     });
-    return legs.length > 1 ? { title, legs, odds, line: num(m[1]), side: /alt/i.test(m[2]) ? 'alt' : 'ust' } : null;
+    const line = num(m[1]);
+    return legs.length > 1 ? { title, legs, odds, line, side: /alt/i.test(m[2]) ? 'alt' : 'ust', bk: isBkLine(block.textContent, line) } : null;
   }
 
   // Maçın başlama saati: bulunduğu sitelerden ve ad kaynaklarından en erkeni (yanılırsa erken tarafa yanılsın).
@@ -3413,6 +3420,15 @@
         else { legCards++; list.push({ legs: [{ k: `kart|${lc.title}`, l: null }], line: 0, side: '', odds: lc.odds, p: Math.min(0.9999, Math.max(0.0001, p)) }); }
         continue;
       }
+      // Basketbol toplam sayı kartı: kendi olasılığıyla (canlı skor ve çizgiden, yoksa not dosyasından) sayılır.
+      if (multi.bk) {
+        all.push({ title: multi.title, line: multi.line, side: multi.side, legs: multi.legs.map((leg) => ({ k: norm(leg.label), label: leg.label })) });
+        const live = bkSumProb(multi, multi.legs.map(legEvent));
+        const p = live ?? (Number(cardNote(multi.title)?.prob) > 0 ? Number(cardNote(multi.title).prob) / 100 : null);
+        if (p == null) skipped++;
+        else { legCards++; list.push({ legs: [{ k: `kart|${multi.title}`, l: null }], line: 0, side: '', odds: multi.odds, p: Math.min(0.9999, Math.max(0.0001, p)) }); }
+        continue;
+      }
       const legs = multi.legs.map((leg) => {
         const k = norm(leg.label);
         const odd = legInfo(leg).l;
@@ -3472,7 +3488,7 @@
     const group = (name, body) => `<div class="kx-group"><span class="kx-label">${name}</span>${body}</div>`;
     void group;
     if (!features.arb) return `${head}<div class="kx-controls">${ddHtml('s-feat', 'Özellikler', featSum(true), featHtml(true))}</div>`;
-    return `${head}<div class="kx-controls">${ddHtml('s-show', 'Göster', showTxt, `<span class="kcs-seg">${shows}</span>`)}${ddHtml('s-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}`
+    return `${head}<div class="kx-controls">${sportDd('s-sport', cards)}${ddHtml('s-show', 'Göster', showTxt, `<span class="kcs-seg">${shows}</span>`)}${ddHtml('s-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}`
       + `${ddHtml('s-group', 'Grupla', GROUP_TXT[groupSpecial] || 'Yok', groupHtml('special', groupSpecial))}${ddHtml('s-cols', 'Satır başı', colsTxt(colsSpecial), colsHtml('special', colsSpecial), true)}`
       + `${ddHtml('s-feat', 'Özellikler', featSum(true), featHtml(true))}${wideHtml()}<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
       + multiChanceHtml()
@@ -3502,6 +3518,24 @@
       st.textContent = '[class*="max-w-[calc(1200px+6vw)]"]{max-width:none!important}';
       (document.head || document.documentElement).append(st);
     }
+  }
+  // Kartın sporu: sitenin spor simgesi, "Uzatma Dahil" / "Toplam Sayı" pazarı ya da 40'tan büyük Alt/Üst çizgisi basketbol demektir.
+  const BK_TEXT = /uzatma dahil|toplam say[ıi]|nba|basketbol/i;
+  function cardSport(card) {
+    if (card.querySelector?.('img[src*="basket" i]')) return 'bk';
+    let text = '';
+    for (const el of card.children || []) if (!el.matches('.kcs-arb-wrap, .kcs-legs')) text += ` ${el.textContent}`;
+    if (BK_TEXT.test(text)) return 'bk';
+    for (const m of text.matchAll(/(d{2,3}(?:[.,]5)?)s*(?:alt|üst|ust)/gi)) if (num(m[1]) >= 40) return 'bk';
+    return 'foot';
+  }
+  const sportOk = (card) => sportShow === 'all' || cardSport(card) === sportShow;
+  const SPORT_TXT = { all: 'Tümü', foot: 'Futbol', bk: 'Basketbol' };
+  function sportDd(id, cards) {
+    const n = { all: cards.length, foot: 0, bk: 0 };
+    for (const c of cards) n[cardSport(c)]++;
+    const btns = ['all', 'foot', 'bk'].map((k) => `<button type="button" class="kcs-sport-btn${sportShow === k ? ' is-on' : ''}" data-sport="${k}">${SPORT_TXT[k]}<span class="kcs-count">${n[k]}</span></button>`).join('');
+    return ddHtml(id, 'Spor', `${SPORT_TXT[sportShow]} <em>${n[sportShow]}</em>`, `<span class="kcs-seg">${btns}</span>`);
   }
   const groupHtml = (page, val) => `<span class="kcs-seg">${[['none', 'Yok'], ['single', 'Tekli önce'], ['multi', 'Çoklu önce']]
     .map(([k, label]) => `<button type="button" class="kcs-group-btn${val === k ? ' is-on' : ''}" data-page="${page}" data-group="${k}">${label}</button>`).join('')}</span>`;
@@ -3590,7 +3624,7 @@
       styleRoot(card.getRootNode());
       card.append(box);
       if (c.ticket) card.classList.add('kcs-ticket');
-      const shown = cardShow === 'all' || (cardShow === 'multi') === c.isMulti;
+      const shown = (cardShow === 'all' || (cardShow === 'multi') === c.isMulti) && sportOk(card);
       card.style.display = shown ? '' : 'none';
       if (cardSort !== 'site' && orderMap.has(key)) card.style.order = String(orderMap.get(key));
       restored++;
@@ -3825,7 +3859,13 @@
   // NBA toplam sayı: maç öncesi çizgi (yoksa 225) ortalama, sapma ~18 sayı. Canlıda kalan süre, şimdiki tempoyla
   // maç öncesi tempo harmanlanarak (ilk 12 dakika ağırlıklı çizgiden) tahmin edilir; sapma kalan süreyle küçülür. Uzatma hesaba katılmaz.
   function bkOverProb(e, line) {
+    const { mean, sd } = bkDist(e);
+    return 1 - normCdf((line - mean) / sd);
+  }
+  // Maçın bitişteki toplam sayısı için ortalama ve sapma (bitmiş maçta sapma 0).
+  function bkDist(e) {
     const total = (e.hs ?? 0) + (e.as ?? 0);
+    if (SK_DONE.has(e.status)) return { mean: total, sd: 0, total };
     const ou = Number(e.ou) || 225;
     const live = !SK_WAIT.has(e.status) && !SK_DONE.has(e.status);
     let elapsed = 0;
@@ -3838,7 +3878,56 @@
     const rate = ((ou / 48) * 12 + total) / (12 + elapsed);
     const mean = total + rate * rem;
     const sd = Math.max(2.5, 18 * Math.sqrt(rem / 48));
-    return 1 - normCdf((line - mean) / sd);
+    return { mean, sd, total };
+  }
+  // Çok maçlı basketbol kartı (iki maçın toplam sayısı): maçların dağılımları toplanır.
+  function bkSumProb(multi, events) {
+    if (events.some((e) => !e)) return null;
+    const ds = events.map(bkDist);
+    const total = ds.reduce((t, d) => t + d.total, 0);
+    const mean = ds.reduce((t, d) => t + d.mean, 0);
+    const sd = Math.sqrt(ds.reduce((t, d) => t + d.sd * d.sd, 0));
+    const over = total > multi.line ? 1 : sd === 0 ? (mean > multi.line ? 1 : 0) : 1 - normCdf((multi.line - mean) / sd);
+    return multi.side === 'alt' ? 1 - over : over;
+  }
+
+  function bkSumHtml(multi) {
+    const events = multi.legs.map(legEvent);
+    const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
+    let sum = 0;
+    let found = 0;
+    let done = 0;
+    const parts = multi.legs.map((leg, i) => {
+      const e = events[i];
+      if (!e) {
+        const why = skMeta?.bkError ? 'Basketbol verisi alınamadı: eklentiyi güncelleyip uzantılar sayfasından yeniden yükle' : !Object.values(skEvents).some((x) => x.sport === 'basketball') ? 'Basketbol listesi henüz gelmedi, birazdan yenilenir' : 'Maç bulunamadı · yalnızca NBA ve yakın saatteki maçlar aranır';
+        return `<div class="kcs-lg"><div class="kcs-lg-head"><b>${esc(leg.label)}</b></div><div class="kcs-ci-note kcs-ci-note--warn">${esc(why)}</div></div>`;
+      }
+      found++;
+      const f = fromSk(e);
+      if (f.hasScore) sum += (e.hs ?? 0) + (e.as ?? 0);
+      if (SK_DONE.has(e.status)) done++;
+      const state = f.isLive ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(f.clock || 'Canlı')}</span>`
+        : f.ended ? `<span class="kcs-done-badge">${esc(f.clock || 'MS')}</span>`
+        : `${e.start ? esc(whenText(e.start)) : ''}${e.start ? countdownHtml(e.start) : ''}`;
+      const score = `<div class="kcs-lg-score${f.isLive ? ' is-live' : ''}">${team(e.home, e.homeLogo)}<b>${f.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${team(e.away, e.awayLogo)}</div>`;
+      const pre = e.ou ? `<div class="kcs-ci-note">Maç öncesi çizgi: toplam ${e.ou}${e.spread ? ` · ${esc(e.spread)}` : ''}</div>` : '';
+      return `<div class="kcs-lg"><div class="kcs-lg-head"><b>${esc(leg.label)}</b><span>${state}</span></div>${score}${pre}</div>`;
+    }).join('');
+    const n = multi.legs.length;
+    const all = found === n;
+    const bar = all ? goalHtml(sum, { line: multi.line, side: multi.side }, done === n) : '';
+    const p = all ? bkSumProb(multi, events) : null;
+    const note = cardNote(multi.title);
+    const ou = all && events.every((e) => Number(e.ou) > 0) ? events.reduce((t, e) => t + Number(e.ou), 0) : null;
+    let body = infoRow('Çizgi', `${multi.line} ${multi.side === 'alt' ? 'Alt' : 'Üst'} · ${n} maçın toplam sayısı`)
+      + (ou ? infoRow('Maç öncesi çizgiler toplamı', String(ou)) : '')
+      + infoRow('Eşleşme', `${found}/${n} maç bulundu`, all ? '' : 'warn');
+    if (p != null && multi.odds && done < n) body += fairRows(Math.min(0.9999, Math.max(1e-4, p)), multi.odds, '', 'Tahmindir: maçlar bağımsız sayıldı. Toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.');
+    else if (Number(note?.prob) > 0) body += probRow(note);
+    body += commentHtml(note ? note.comment : '', notesHtml(multi.legs));
+    const prob = p != null && done < n ? (p * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
+    return sectionHtml('info', multi.title, 'MAÇ TAKİP', infoSum(multi.legs, prob), parts + bar) + sectionHtml('bilgi', multi.title, 'DİĞER BİLGİLER', '', body, 'info');
   }
   // Bir maçın (kartın bir bacağı) tutma olasılığı. Biten maç kesin; çizgi aşıldıysa Üst tuttu / Alt yattı.
   function legProb(leg, e) {
@@ -3956,7 +4045,7 @@
     for (const root of roots()) watchRoot(root);
     const one = (card) => {
       const isMulti = specialIsMulti(card);
-      const shown = cardShow === 'all' || (cardShow === 'multi') === isMulti;
+      const shown = (cardShow === 'all' || (cardShow === 'multi') === isMulti) && sportOk(card);
       const display = shown ? '' : 'none';
       if (card.style.display !== display) card.style.display = display;
       // Yeni kart bilet gibi: eklenenler iki sütunun da altına, kesik çizgiyle ayrılmış olarak gelir.
@@ -3979,7 +4068,7 @@
       // Bir karttaki hata diğer kartların satırlarını silmesin: o kartta hatayı göster, devam et.
       let html;
       try {
-        html = lc ? (features.info ? legsCardHtml(lc) : '') : (multi || !features.arb ? '' : sectionHtml('arb', sp.key, 'ORANLAR', arbSum(sp), `<div class="kcs-arb-list">${arbHtml(sp)}</div>`))
+        html = multi?.bk ? (features.info ? bkSumHtml(multi) : '') : lc ? (features.info ? legsCardHtml(lc) : '') : (multi || !features.arb ? '' : sectionHtml('arb', sp.key, 'ORANLAR', arbSum(sp), `<div class="kcs-arb-list">${arbHtml(sp)}</div>`))
           + (features.info ? cardInfoHtml(sp, multi) : '');
       } catch (err) {
         console.error('[kupon-skor] arbitraj satırı', sp?.match, err);
@@ -4004,7 +4093,8 @@
         boxCache.delete(sortItem.key);
       }
       // Çok maçlı kartta her maç ayrı aranır (ve "bu maç hangi özel oran?" çubuğunda seçilebilir).
-      for (const item of multi ? multi.legs : lc ? [] : (sp.unsupported ? [] : [sp])) {
+      // Basketbol maçlarının oranı sitelerde aranmaz (maç başı çizgili kartlar gibi).
+      for (const item of multi ? (multi.bk ? [] : multi.legs) : lc ? [] : (sp.unsupported ? [] : [sp])) {
         for (const k in want) {
           try { want[k].push(wantItem(k, item)); } catch (err) { console.error('[kupon-skor] arama listesi', item.match, err); }
         }
@@ -4190,6 +4280,14 @@
       render();
       return true;
     }
+    if (btn.classList.contains('kcs-sport-btn')) {
+      sportShow = btn.dataset.sport;
+      if (hasStore) await chrome.storage.local.set({ sportShow });
+      render();
+      renderStatus();
+      renderInfo();
+      return true;
+    }
     if (btn.classList.contains('kcs-show-btn')) {
       cardShow = btn.dataset.show;
       if (hasStore) await chrome.storage.local.set({ cardShow });
@@ -4304,6 +4402,7 @@
     holdRecent();
     learnLines();
     renderSpecials();
+    for (const c of queryAll(SB_BET)) { const d = sportOk(c) ? '' : 'none'; if (c.style.display !== d) c.style.display = d; }
     renderPeekModal();
     // Canlı skor kapalıysa eklenen bölümleri kaldır ve skor tarafını hiç çalıştırma.
     renderStatus();
