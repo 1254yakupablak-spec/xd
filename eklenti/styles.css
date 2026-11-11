@@ -1313,3 +1313,6 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 /* BİLGİLER bölümünde alt başlık (Yapay zeka tahmini) */
 .kcs-ci-subhead { grid-column: 1 / -1; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); color: rgb(196, 181, 253); font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
 .kcs-ci--info > .kcs-ci-body > .kcs-ci-comment { grid-column: 1 / -1; }
+
+/* Futbol MAÇ TAKİP: 15 dakikadan az kalan en erken maç */
+.kcs-lg.kcs-ci--hot { border-color: rgba(255, 92, 92, 0.75); box-shadow: 0 0 0 1px rgba(255, 92, 92, 0.35) inset; }
