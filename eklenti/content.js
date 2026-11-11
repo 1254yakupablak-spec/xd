@@ -2886,31 +2886,82 @@
     return [when, prob ? `%${prob}` : ''].filter(Boolean).map(esc).join(' · ');
   }
 
+  // Futbol kartı (tek ya da çok maçlı): her maç logolu kutuda (saat, skor, oran çizgisi, Göz at).
+  function footBlocks(legs, known) {
+    const times = legs.map(legStart);
+    const blocks = legs.map((leg, i) => {
+      const hub = findHub(HUBS[2], leg);
+      const e = hub ? skEvents[hub.e.id] || null : null;
+      const o = known?.[i]?.show;
+      const oddsNote = o ? `<div class="kcs-ci-note">${esc(o.book)} · Üst ${o.line}: ${Number(o.over.toFixed(2))} · Alt ${o.line}: ${Number(o.under.toFixed(2))} · ${known[i].l.toFixed(2)} gol</div>` : '';
+      const head = (state) => `<div class="kcs-lg-head"><b>${esc(leg.label || leg.match)}</b><span>${state}</span></div>`;
+      if (!e) {
+        const t = times[i];
+        return `<div class="kcs-lg">${head(t ? `${esc(whenText(t))}${countdownHtml(t)}` : '')}${oddsNote}<div class="kcs-ci-note kcs-ci-note--warn">Maç ayrıntısı bulunamadı</div></div>`;
+      }
+      const fx = fromSk(e);
+      const state = fx.isLive ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(fx.clock || 'Canlı')}</span>`
+        : fx.ended ? `<span class="kcs-done-badge">${esc(fx.clock || 'MS')}</span>`
+        : `${e.start ? esc(whenText(e.start)) : ''}${e.start ? countdownHtml(e.start) : ''}`;
+      const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
+      const score = `<div class="kcs-lg-score${fx.isLive ? ' is-live' : ''}">${team(e.home, e.homeLogo)}<b>${fx.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${team(e.away, e.awayLogo)}</div>`;
+      const peek = skIdOf({ id: e.id });
+      return `<div class="kcs-lg${fx.isLive ? ' is-live' : ''}">${head(state)}${score}${evLines(matchEvents(fx))}${oddsNote}${peek ? `<div class="kcs-peek-line">${peekBtns(peek)}</div>` : ''}</div>`;
+    }).join('');
+    const found = times.filter(Boolean);
+    let note = '';
+    if (found.length) {
+      const left = Math.min(...found) - Date.now() / 1000;
+      const hot = left > 0 && left <= HOT_SEC;
+      const text = left > 0 ? `${legs.length > 1 ? 'En erken maçtan' : 'Bu saatten'} önce oynanmalı · ${leftText(left)}` : 'Maç başlamış görünüyor';
+      const partial = found.length < legs.length ? '<br>Saati bulunmayan maç daha erken olabilir.' : '';
+      note = `<div class="kcs-ci-note kcs-ci-countdown${hot ? ' kcs-ci-note--hot' : left > 0 && !partial ? '' : ' kcs-ci-note--warn'}">${esc(text)}${partial}</div>`;
+    }
+    return blocks + note;
+  }
+
+  // Yapay zeka tahmini bloğu (TAHMİN (YZ) VE DİĞER BİLGİLER bölümünde, yorumun üstünde).
+  function aiBlock(ai) {
+    if (!ai) return '';
+    const p = Number(ai.prob);
+    return '<div class="kcs-ci-subhead">Yapay zeka tahmini</div>' + (p > 0 && p < 100 ? infoRow('YZ olasılığı', `%${p}`, '', 'Tahmindir, garanti değildir.') : '')
+      + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '') + commentHtml(ai.comment);
+  }
+
   function cardInfoHtml(sp, multi) {
     let body;
+    let blocks;
     let prob = null;
+    let ai;
     if (multi) {
       const known = multi.legs.map((leg) => ({ sp: leg, ...legInfo(leg) }));
-      body = startRows(multi.legs, known) + multiRows(multi, known)
-        + scenarioRows(multi, known) + matchRow(multi.legs);
+      blocks = footBlocks(multi.legs, known);
+      body = multiRows(multi, known) + scenarioRows(multi, known) + matchRow(multi.legs);
       if (known.every((x) => x.l != null)) {
         const over = overProb(known.reduce((n, x) => n + x.l, 0), multi.line);
         prob = ((multi.side === 'alt' ? 1 - over : over) * 100).toFixed(1);
       }
       const note = cardNote(multi.title);
       if (prob == null && Number(note?.prob) > 0) prob = Number(note.prob);
+      ai = aiCalls[norm(multi.title)] || null;
       const auto = known.every((x) => x.l != null) ? multiComment(multi, known) : '';
-      body += commentHtml(note ? note.comment : auto, notesHtml(multi.legs));
+      body += aiBlock(ai) + commentHtml(note ? note.comment : auto, notesHtml(multi.legs));
     } else {
       const one = [{ ...sp, label: sp.match }];
-      body = startRows(one) + matchRow(one);
+      blocks = footBlocks(one, [{ sp, ...legInfo(sp) }]);
+      body = matchRow(one);
       const note = cardNote(sp.match);
       prob = Number(note?.prob) || null;
-      body += probRow(note) + commentHtml(note ? note.comment : singleComment(sp), notesHtml(one));
+      ai = sp.pair ? aiForTeams(sp.pair[0], sp.pair[1]) : null;
+      body += probRow(note) + aiBlock(ai) + commentHtml(note ? note.comment : singleComment(sp), notesHtml(one));
     }
     const legs = multi ? multi.legs : [sp];
-    return sectionHtml('info', multi ? multi.title : sp.key, 'MAÇ BİLGİLERİ', infoSum(legs, prob), body);
+    const key = multi ? multi.title : sp.key;
+    const aiP = Number(ai?.prob);
+    const sum2 = prob != null ? `%${prob}` : aiP > 0 && aiP < 100 ? `YZ %${aiP}` : '';
+    return sectionHtml('info', key, 'MAÇ TAKİP', infoSum(legs, null), blocks) + sectionHtml('bilgi', key, 'TAHMİN (YZ) VE DİĞER BİLGİLER', esc(sum2), body, 'info');
   }
+
 
   // Ters oranı bilinen satır: kâr yüzdesi, tıklayınca tutar hesabı. note: oranın yanında küçük not.
   function oddsRowHtml(b, sp, e, m, otherName, o2, note, pickBtn, tipNote) {
