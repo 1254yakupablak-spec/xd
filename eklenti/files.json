@@ -1,5 +1,5 @@
 {
- "version": "3.110.6",
+ "version": "3.111.0",
  "files": [
   "BENIOKU.md",
   "background.js",
@@ -41,7 +41,7 @@
   "icons/stake.ico": "ecb0f7645b970de493e3bd1239e21a580925d894",
   "learned.js": "4e6c685fe48caf43b9595714b3eaa387b1957cc3",
   "learned.json": "11a50f6a25de2ba8b7706d5e2933d8febcc35c71",
-  "manifest.json": "a34a0c540432a2aad31b87bb7926c94e1bb6f801",
+  "manifest.json": "04459382ad445226a1781b9c80d3a3a42f2bb33b",
   "notes.json": "f6413c06f0f063f853cf13ed02b378fca6005861",
   "popup.css": "3d7196c2aa4bbc100beffd165f551eeb04816b91",
   "popup.html": "f26328ca89f7bf3ffe05377df0cd7082e9029736",
