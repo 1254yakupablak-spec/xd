@@ -3525,13 +3525,13 @@
     }
   }
   // Kartın sporu: sitenin spor simgesi, "Uzatma Dahil" / "Toplam Sayı" pazarı ya da 40'tan büyük Alt/Üst çizgisi basketbol demektir.
-  const BK_TEXT = /uzatma dahil|toplam say[ıi]|nba|basketbol/i;
+  const BK_TEXT = /uzatma dahil|toplam say[ıi]|\d\s*say[ıi](?![a-zçğıöşü])|\bnba\b|basketbol/i;
   function cardSport(card) {
     if (card.querySelector?.('img[src*="basket" i]')) return 'bk';
     let text = '';
     for (const el of card.children || []) if (!el.matches('.kcs-arb-wrap, .kcs-legs')) text += ` ${el.textContent}`;
     if (BK_TEXT.test(text)) return 'bk';
-    for (const m of text.matchAll(/(d{2,3}(?:[.,]5)?)s*(?:alt|üst|ust)/gi)) if (num(m[1]) >= 40) return 'bk';
+    for (const m of text.matchAll(/(\d{2,3}(?:[.,]5)?)\s*(?:say[ıi]\s*)?(?:alt|üst|ust)(?![a-zçğıöşü])/gi)) if (num(m[1]) >= 40) return 'bk';
     return 'foot';
   }
   const sportOk = (card) => sportShow === 'all' || cardSport(card) === sportShow;
