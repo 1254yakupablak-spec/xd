@@ -2886,41 +2886,88 @@
     return [when, prob ? `%${prob}` : ''].filter(Boolean).map(esc).join(' · ');
   }
 
-  // Futbol kartı (tek ya da çok maçlı): her maç logolu kutuda (saat, skor, oran çizgisi, Göz at).
-  function footBlocks(legs, known) {
-    const times = legs.map(legStart);
-    // En erken maç 15 dakikadan az kaldıysa kutusu kırmızı çerçeveli.
-    const firstT = times.filter(Boolean).sort((a, b) => a - b)[0];
-    const hotI = firstT && firstT - Date.now() / 1000 > 0 && firstT - Date.now() / 1000 <= HOT_SEC ? times.indexOf(firstT) : -1;
-    const blocks = legs.map((leg, i) => {
-      const hub = findHub(HUBS[2], leg);
-      const e = hub ? skEvents[hub.e.id] || null : null;
-      const o = known?.[i]?.show;
-      const oddsNote = o ? `<div class="kcs-ci-note">${esc(o.book)} · Üst ${o.line}: ${Number(o.over.toFixed(2))} · Alt ${o.line}: ${Number(o.under.toFixed(2))} · ${known[i].l.toFixed(2)} gol</div>` : '';
-      const head = (state) => `<div class="kcs-lg-head"><b>${esc(leg.label || leg.match)}</b><span>${state}</span></div>`;
-      if (!e) {
-        const t = times[i];
-        return `<div class="kcs-lg${i === hotI ? ' kcs-ci--hot' : ''}">${head(t ? `${esc(whenText(t))}${countdownHtml(t)}` : '')}${oddsNote}<div class="kcs-ci-note kcs-ci-note--warn">Maç ayrıntısı bulunamadı</div></div>`;
-      }
-      const fx = fromSk(e);
-      const state = fx.isLive ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(fx.clock || 'Canlı')}</span>`
-        : fx.ended ? `<span class="kcs-done-badge">${esc(fx.clock || 'MS')}</span>`
-        : `${e.start ? esc(whenText(e.start)) : ''}${e.start ? countdownHtml(e.start) : ''}`;
-      const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
-      const score = `<div class="kcs-lg-score${fx.isLive ? ' is-live' : ''}">${team(e.home, e.homeLogo)}<b>${fx.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${team(e.away, e.awayLogo)}</div>`;
-      const peek = skIdOf({ id: e.id });
-      return `<div class="kcs-lg${fx.isLive ? ' is-live' : ''}${i === hotI ? ' kcs-ci--hot' : ''}">${head(state)}${score}${evLines(matchEvents(fx))}${oddsNote}${peek ? `<div class="kcs-peek-line">${peekBtns(peek)}</div>` : ''}</div>`;
-    }).join('');
-    const found = times.filter(Boolean);
-    let note = '';
-    if (found.length) {
-      const left = Math.min(...found) - Date.now() / 1000;
-      const hot = left > 0 && left <= HOT_SEC;
-      const text = left > 0 ? `${legs.length > 1 ? 'En erken maçtan' : 'Bu saatten'} önce oynanmalı · ${leftText(left)}` : 'Maç başlamış görünüyor';
-      const partial = found.length < legs.length ? '<br>Saati bulunmayan maç daha erken olabilir.' : '';
-      note = `<div class="kcs-ci-note kcs-ci-countdown${hot ? ' kcs-ci-note--hot' : left > 0 && !partial ? '' : ' kcs-ci-note--warn'}">${esc(text)}${partial}</div>`;
+  // ---------- Bütün kart türleri için tek maç kutusu ----------
+  // Tek maçlık, çok maçlı (tek çizgi) ve maç başı çizgili kartlar, futbol ve basketbol: hepsi aynı kutuyu çizer.
+  // Sıra hep aynı: başlık (maç adı, saat ya da canlı dakika), seçim, takımlar ve skor, çizgi ilerlemesi, olaylar,
+  // maç öncesi çizgi, oran, tutma olasılığı, Göz at. Maç bulunamazsa da takımlar ve "v" görünür, altında neden.
+  const legTeam = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
+  const liveState = (clock) => `<span class="kcs-clock kcs-clock--live"><i></i>${esc(clock || 'Canlı')}</span>`;
+  const whenState = (t) => (t ? `${esc(whenText(t))}${countdownHtml(t)}` : '');
+  function missWhy(bk) {
+    if (!bk) return 'Maç bulunamadı';
+    if (skMeta?.bkError) return 'Basketbol verisi alınamadı: eklentiyi güncelleyip uzantılar sayfasından yeniden yükle';
+    if (!Object.values(skEvents).some((x) => x.sport === 'basketball')) return 'Basketbol listesi henüz gelmedi, birazdan yenilenir';
+    return 'Maç bulunamadı · yalnızca NBA ve yakın saatteki maçlar aranır';
+  }
+  // o: { pick: seçim yazısı, goal: { line, side: 'alt'|'ust' } (maçın kendi çizgisi), odds: oran notu html,
+  //      p: tutma olasılığı (0-1), hot: en erken maç ve 15 dk'dan az kaldı, start: bilinen başlama saati, bk: basketbol }
+  function legBox(leg, e, o = {}) {
+    const label = leg.label || leg.match;
+    const pick = o.pick ? `<div class="kcs-ci-note kcs-lg-pickline">Seçim: <b>${esc(o.pick)}</b></div>` : '';
+    const head = (state) => `<div class="kcs-lg-head"><b>${esc(label)}</b><span>${state}</span></div>`;
+    const cls = (v, live) => `kcs-lg${v === 'won' ? ' is-won' : v === 'lost' ? ' is-lost' : ''}${live ? ' is-live' : ''}${o.hot ? ' kcs-ci--hot' : ''}`;
+    if (!e) {
+      // Bahislerim: veri serviste bulunamasa da site kendi skorunu yazıyor; o gösterilir.
+      const s = leg.site || null;
+      const total = s?.hs != null ? s.hs + s.as : null;
+      const v = leg.forced || (total != null && o.goal ? goalVerdict(total, o.goal.line, o.goal.side, s.ended) : 'open');
+      const state = s?.live ? liveState(s.clock) : whenState(s?.start ? s.start / 1000 : o.start);
+      const score = `<div class="kcs-lg-score${s?.live ? ' is-live' : ''}">${legTeam(leg.pair?.[0] || label, s?.homeLogo)}<b>${total != null ? `${s.hs} - ${s.as}` : 'v'}</b>${leg.pair?.[1] ? legTeam(leg.pair[1], s?.awayLogo) : '<span></span>'}</div>`;
+      const bar = total != null && o.goal ? goalHtml(total, o.goal, s.ended) : '';
+      const why = s ? '<div class="kcs-ci-note">Maç ayrıntısı veri serviste bulunamadı; skor siteden.</div>' : `<div class="kcs-ci-note kcs-ci-note--warn">${esc(missWhy(o.bk))}</div>`;
+      return { v, html: `<div class="${cls(v, s?.live)}">${head(state)}${pick}${score}${bar}${o.odds || ''}${why}</div>` };
     }
-    return blocks + note;
+    const f = fromSk(e);
+    const total = (e.hs ?? 0) + (e.as ?? 0);
+    const final = SK_DONE.has(e.status);
+    const v = leg.forced || (f.hasScore && o.goal ? goalVerdict(total, o.goal.line, o.goal.side, final) : 'open');
+    const state = f.isLive ? liveState(f.clock) : f.ended ? `<span class="kcs-done-badge">${esc(f.clock || 'MS')}</span>` : whenState(e.start);
+    const score = `<div class="kcs-lg-score${f.isLive ? ' is-live' : ''}">${legTeam(e.home, e.homeLogo)}<b>${f.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${legTeam(e.away, e.awayLogo)}</div>`;
+    const bar = f.hasScore && o.goal ? goalHtml(total, o.goal, final) : '';
+    const evs = e.sport === 'basketball' ? '' : evLines(matchEvents(f));
+    const pre = e.sport === 'basketball' && e.ou ? `<div class="kcs-ci-note">Maç öncesi çizgi: toplam ${e.ou}${e.spread ? ` · ${esc(e.spread)}` : ''}</div>` : '';
+    const prob = o.p != null && !final ? `<div class="kcs-lg-prob"><span>Tutma olasılığı</span><b>${pctText(o.p * 100)}</b></div>` : '';
+    const peek = skIdOf({ id: e.id });
+    return { v, html: `<div class="${cls(v, f.isLive)}">${head(state)}${pick}${score}${bar}${evs}${pre}${o.odds || ''}${prob}${peek ? `<div class="kcs-peek-line">${peekBtns(peek)}</div>` : ''}</div>` };
+  }
+
+  // Maç saatleri: bulunan maçtan, yoksa sitelerden.
+  const legTimes = (legs) => legs.map((leg) => legEvent(leg)?.start || legStart(leg));
+  // En erken maç 15 dakikadan az kaldıysa kutusu kırmızı çerçeveli.
+  function hotIndex(times) {
+    const firstT = times.filter(Boolean).sort((a, b) => a - b)[0];
+    const left = firstT ? firstT - Date.now() / 1000 : 0;
+    return left > 0 && left <= HOT_SEC ? times.indexOf(firstT) : -1;
+  }
+  // Kutuların altında: en erken maça ne kadar kaldı.
+  function countdownNote(times) {
+    const found = times.filter(Boolean);
+    if (!found.length) return '';
+    const left = Math.min(...found) - Date.now() / 1000;
+    const hot = left > 0 && left <= HOT_SEC;
+    const text = left > 0 ? `${times.length > 1 ? 'En erken maçtan' : 'Bu saatten'} önce oynanmalı · ${leftText(left)}` : 'Maç başlamış görünüyor';
+    const partial = found.length < times.length ? '<br>Saati bulunmayan maç daha erken olabilir.' : '';
+    return `<div class="kcs-ci-note kcs-ci-countdown${hot ? ' kcs-ci-note--hot' : left > 0 && !partial ? '' : ' kcs-ci-note--warn'}">${esc(text)}${partial}</div>`;
+  }
+
+  // Futbol kartı (tek ya da çok maçlı). goal: tek maçlık kartın kendi çizgisi.
+  function footBlocks(legs, known, goal = null) {
+    const times = legTimes(legs);
+    const hotI = hotIndex(times);
+    const blocks = legs.map((leg, i) => {
+      const o = known?.[i]?.show;
+      const odds = o ? `<div class="kcs-ci-note">${esc(o.book)} · Üst ${o.line}: ${Number(o.over.toFixed(2))} · Alt ${o.line}: ${Number(o.under.toFixed(2))} · ${known[i].l.toFixed(2)} gol</div>` : '';
+      return legBox(leg, legEvent(leg), { goal, odds, hot: i === hotI, start: times[i] }).html;
+    }).join('');
+    return blocks + countdownNote(times);
+  }
+  // Çok maçlı tek çizgili kart: bütün maçlar bulunduysa toplam gol/sayı çizgiye göre.
+  function sumBar(multi, events) {
+    if (!events.length || events.some((e) => !e)) return '';
+    const fs = events.map(fromSk);
+    if (!fs.some((f) => f.hasScore)) return '';
+    const sum = events.reduce((t, e) => t + (e.hs ?? 0) + (e.as ?? 0), 0);
+    return goalHtml(sum, { line: multi.line, side: multi.side }, events.every((e) => SK_DONE.has(e.status)));
   }
 
   // Yapay zeka tahmini bloğu (TAHMİN (YZ) VE DİĞER BİLGİLER bölümünde, yorumun üstünde).
@@ -2931,6 +2978,9 @@
       + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '') + commentHtml(ai.comment);
   }
 
+  // Kartın yorumu: YZ bloğu aynı yorumu zaten gösteriyorsa ikinci kez yazılmaz.
+  const noteComment = (note, ai, auto = '') => (note ? (ai && ai.comment === note.comment ? '' : note.comment) : auto);
+
   function cardInfoHtml(sp, multi) {
     let body;
     let blocks;
@@ -2938,7 +2988,7 @@
     let ai;
     if (multi) {
       const known = multi.legs.map((leg) => ({ sp: leg, ...legInfo(leg) }));
-      blocks = footBlocks(multi.legs, known);
+      blocks = footBlocks(multi.legs, known) + sumBar(multi, multi.legs.map(legEvent));
       body = multiRows(multi, known) + scenarioRows(multi, known) + matchRow(multi.legs);
       if (known.every((x) => x.l != null)) {
         const over = overProb(known.reduce((n, x) => n + x.l, 0), multi.line);
@@ -2948,21 +2998,29 @@
       if (prob == null && Number(note?.prob) > 0) prob = Number(note.prob);
       ai = aiCalls[norm(multi.title)] || null;
       const auto = known.every((x) => x.l != null) ? multiComment(multi, known) : '';
-      body += aiBlock(ai) + commentHtml(note ? note.comment : auto, notesHtml(multi.legs));
+      body += aiBlock(ai) + commentHtml(noteComment(note, ai, auto), notesHtml(multi.legs));
     } else {
-      const one = [{ ...sp, label: sp.match }];
-      blocks = footBlocks(one, [{ sp, ...legInfo(sp) }]);
+      const one = [{ ...sp, label: sp.pair ? sp.pair.join(' - ') : sp.match }];
+      // Toplam gol kartında maçın kendi çizgisi skorun altında ilerleme olarak görünür (takım golü ve KG hariç).
+      const goal = !sp.unsupported && !sp.team && sp.kind !== 'btts' && sp.line != null ? { line: sp.line, side: sp.side === 'under' ? 'alt' : 'ust' } : null;
+      blocks = footBlocks(one, [{ sp, ...legInfo(sp) }], goal);
       body = matchRow(one);
       const note = cardNote(sp.match);
       prob = Number(note?.prob) || null;
       ai = sp.pair ? aiForTeams(sp.pair[0], sp.pair[1]) : null;
-      body += probRow(note) + aiBlock(ai) + commentHtml(note ? note.comment : singleComment(sp), notesHtml(one));
+      body += probRow(note) + aiBlock(ai) + commentHtml(noteComment(note, ai, singleComment(sp)), notesHtml(one));
     }
     const legs = multi ? multi.legs : [sp];
     const key = multi ? multi.title : sp.key;
+    return cardSections(key, legs, prob, ai, blocks, body);
+  }
+
+  // Bütün kart türlerinde aynı iki bölüm: MAÇ TAKİP (özet: en erken saat · olasılık) ve
+  // TAHMİN (YZ) VE DİĞER BİLGİLER (özet: varsa durum, YZ olasılığı).
+  function cardSections(key, legs, prob, ai, blocks, body, status = '') {
     const aiP = Number(ai?.prob);
-    const sum2 = prob != null ? `%${prob}` : aiP > 0 && aiP < 100 ? `YZ %${aiP}` : '';
-    return sectionHtml('info', key, 'MAÇ TAKİP', infoSum(legs, null), blocks) + sectionHtml('bilgi', key, 'TAHMİN (YZ) VE DİĞER BİLGİLER', esc(sum2), body, 'info');
+    const sum2 = [status, aiP > 0 && aiP < 100 ? `YZ %${aiP}` : ''].filter(Boolean).map(esc).join(' · ');
+    return sectionHtml('info', key, 'MAÇ TAKİP', infoSum(legs, prob), blocks) + sectionHtml('bilgi', key, 'TAHMİN (YZ) VE DİĞER BİLGİLER', sum2, body, 'info');
   }
 
 
@@ -3956,30 +4014,14 @@
 
   function bkSumHtml(multi) {
     const events = multi.legs.map(legEvent);
-    const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
-    let sum = 0;
-    let found = 0;
-    let done = 0;
-    const parts = multi.legs.map((leg, i) => {
-      const e = events[i];
-      if (!e) {
-        const why = skMeta?.bkError ? 'Basketbol verisi alınamadı: eklentiyi güncelleyip uzantılar sayfasından yeniden yükle' : !Object.values(skEvents).some((x) => x.sport === 'basketball') ? 'Basketbol listesi henüz gelmedi, birazdan yenilenir' : 'Maç bulunamadı · yalnızca NBA ve yakın saatteki maçlar aranır';
-        return `<div class="kcs-lg"><div class="kcs-lg-head"><b>${esc(leg.label)}</b></div><div class="kcs-ci-note kcs-ci-note--warn">${esc(why)}</div></div>`;
-      }
-      found++;
-      const f = fromSk(e);
-      if (f.hasScore) sum += (e.hs ?? 0) + (e.as ?? 0);
-      if (SK_DONE.has(e.status)) done++;
-      const state = f.isLive ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(f.clock || 'Canlı')}</span>`
-        : f.ended ? `<span class="kcs-done-badge">${esc(f.clock || 'MS')}</span>`
-        : `${e.start ? esc(whenText(e.start)) : ''}${e.start ? countdownHtml(e.start) : ''}`;
-      const score = `<div class="kcs-lg-score${f.isLive ? ' is-live' : ''}">${team(e.home, e.homeLogo)}<b>${f.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${team(e.away, e.awayLogo)}</div>`;
-      const pre = e.ou ? `<div class="kcs-ci-note">Maç öncesi çizgi: toplam ${e.ou}${e.spread ? ` · ${esc(e.spread)}` : ''}</div>` : '';
-      return `<div class="kcs-lg"><div class="kcs-lg-head"><b>${esc(leg.label)}</b><span>${state}</span></div>${score}${pre}</div>`;
-    }).join('');
+    const times = legTimes(multi.legs);
+    const hotI = hotIndex(times);
+    const parts = multi.legs.map((leg, i) => legBox(leg, events[i], { bk: true, hot: i === hotI, start: times[i] }).html).join('') + countdownNote(times);
+    const found = events.filter(Boolean).length;
+    const done = events.filter((e) => e && SK_DONE.has(e.status)).length;
     const n = multi.legs.length;
     const all = found === n;
-    const bar = all ? goalHtml(sum, { line: multi.line, side: multi.side }, done === n) : '';
+    const bar = sumBar(multi, events);
     const p = all ? bkSumProb(multi, events) : null;
     const note = cardNote(multi.title);
     const ou = all && events.every((e) => Number(e.ou) > 0) ? events.reduce((t, e) => t + Number(e.ou), 0) : null;
@@ -3988,9 +4030,10 @@
       + infoRow('Eşleşme', `${found}/${n} maç bulundu`, all ? '' : 'warn');
     if (p != null && multi.odds && done < n) body += fairRows(Math.min(0.9999, Math.max(1e-4, p)), multi.odds, '', 'Tahmindir: maçlar bağımsız sayıldı. Toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.');
     else if (Number(note?.prob) > 0) body += probRow(note);
-    body += commentHtml(note ? note.comment : '', notesHtml(multi.legs));
+    const ai = aiCalls[norm(multi.title)] || null;
+    body += aiBlock(ai) + commentHtml(noteComment(note, ai), notesHtml(multi.legs));
     const prob = p != null && done < n ? (p * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
-    return sectionHtml('info', multi.title, 'MAÇ TAKİP', infoSum(multi.legs, prob), parts + bar) + sectionHtml('bilgi', multi.title, 'DİĞER BİLGİLER', '', body, 'info');
+    return cardSections(multi.title, multi.legs, prob, ai, parts + bar, body);
   }
   // Bir maçın (kartın bir bacağı) tutma olasılığı. Biten maç kesin; çizgi aşıldıysa Üst tuttu / Alt yattı.
   function legProb(leg, e) {
@@ -4038,62 +4081,30 @@
 
   function legsCardHtml(lc) {
     const rows = lc.legs.map((leg) => { const e = legEvent(leg); return { leg, e, p: legProb(leg, e) }; });
+    const times = legTimes(lc.legs);
+    const hotI = hotIndex(times);
     let won = 0; let lost = 0;
-    const parts = rows.map(({ leg, e, p }) => {
+    const parts = rows.map(({ leg, e, p }, i) => {
       const pickTxt = leg.line == null ? (leg.pickText || '') : `${leg.line} ${leg.side === 'under' ? 'Alt' : 'Üst'}`;
-      const sideTxt = leg.side === 'under' ? 'alt' : 'ust';
-      // Bahislerim: veri serviste bulunamasa da site kendi skorunu yazıyor; o gösterilir.
-      if (!e && leg.site) {
-        const s = leg.site;
-        const total = s.hs != null ? s.hs + s.as : null;
-        const v = leg.forced || (total != null && leg.line != null ? goalVerdict(total, leg.line, sideTxt, s.ended) : 'open');
-        if (v === 'won') won++;
-        if (v === 'lost') lost++;
-        const state = s.live ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(s.clock || 'Canlı')}</span>` : s.start ? `${esc(whenText(s.start / 1000))}${countdownHtml(s.start / 1000)}` : '';
-        const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
-        const score = `<div class="kcs-lg-score${s.live ? ' is-live' : ''}">${team(leg.pair?.[0] || leg.label, s.homeLogo)}<b>${total != null ? `${s.hs} - ${s.as}` : 'v'}</b>${team(leg.pair?.[1] || '', s.awayLogo)}</div>`;
-        const bar = total != null && leg.line != null ? goalHtml(total, { line: leg.line, side: sideTxt }, s.ended) : '';
-        return `<div class="kcs-lg${v === 'won' ? ' is-won' : v === 'lost' ? ' is-lost' : ''}"><div class="kcs-lg-head"><b>${esc(leg.market || 'Toplam')} · ${esc(pickTxt)}</b><span>${state}</span></div>${score}${bar}`
-          + '<div class="kcs-ci-note">Maç ayrıntısı veri serviste bulunamadı; skor siteden.</div></div>';
-      }
-      if (!e) {
-        const bk = leg.line >= 40;
-        const why = bk && skMeta?.bkError ? 'Basketbol verisi alınamadı: eklentiyi güncelleyip uzantılar sayfasından yeniden yükle' : bk && !Object.values(skEvents).some((x) => x.sport === 'basketball') ? 'Basketbol listesi henüz gelmedi, birazdan yenilenir' : bk ? 'Maç bulunamadı · yalnızca NBA ve yakın saatteki maçlar aranır' : 'Maç bulunamadı';
-        return `<div class="kcs-lg"><div class="kcs-lg-head"><b>${esc(leg.label)}</b><span class="kcs-lg-pick">${esc(pickTxt)}</span></div><div class="kcs-ci-note kcs-ci-note--warn">${esc(why)}</div></div>`;
-      }
-      const f = fromSk(e);
-      const total = (e.hs ?? 0) + (e.as ?? 0);
-      const final = SK_DONE.has(e.status);
-      const v = leg.forced || (f.hasScore && leg.line != null ? goalVerdict(total, leg.line, sideTxt, final) : 'open');
-      if (v === 'won') won++;
-      if (v === 'lost') lost++;
-      const state = f.isLive ? `<span class="kcs-clock kcs-clock--live"><i></i>${esc(f.clock || 'Canlı')}</span>`
-        : f.ended ? `<span class="kcs-done-badge">${esc(f.clock || 'MS')}</span>`
-        : `${e.start ? esc(whenText(e.start)) : ''}${e.start ? countdownHtml(e.start) : ''}`;
-      const team = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
-      const score = `<div class="kcs-lg-score${f.isLive ? ' is-live' : ''}">${team(e.home, e.homeLogo)}<b>${f.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${team(e.away, e.awayLogo)}</div>`;
-      const bar = f.hasScore && leg.line != null ? goalHtml(total, { line: leg.line, side: sideTxt }, final) : '';
-      const pre = !f.hasScore && e.sport === 'basketball' && e.ou ? `<div class="kcs-ci-note">Maç öncesi çizgi: toplam ${e.ou}${e.spread ? ` · ${esc(e.spread)}` : ''}</div>` : '';
-      const prob = p != null && !final ? `<div class="kcs-lg-prob"><span>Tutma olasılığı</span><b>${pctText(p * 100)}</b></div>` : '';
-      const peek = skIdOf({ id: e.id });
-      return `<div class="kcs-lg${v === 'won' ? ' is-won' : v === 'lost' ? ' is-lost' : ''}"><div class="kcs-lg-head"><b>${esc(leg.market || 'Toplam')} · ${esc(pickTxt)}</b><span>${state}</span></div>${score}${bar}${pre}${prob}`
-        + (peek ? `<div class="kcs-peek-line">${peekBtns(peek)}</div>` : '') + '</div>';
-    }).join('');
+      const goal = leg.line != null ? { line: leg.line, side: leg.side === 'under' ? 'alt' : 'ust' } : null;
+      const box = legBox(leg, e, { pick: `${leg.market || 'Toplam'} · ${pickTxt}`, goal, p, hot: i === hotI, start: times[i], bk: leg.line >= 40 });
+      if (box.v === 'won') won++;
+      if (box.v === 'lost') lost++;
+      return box.html;
+    }).join('') + countdownNote(times);
     const known = rows.every((x) => x.p != null);
     const pAll = known ? rows.reduce((t, x) => t * x.p, 1) : null;
     const n = rows.length;
+    const found = rows.filter((x) => x.e).length;
     const status = lost ? `${lost} maç tutmadı · kupon yattı` : won === n ? 'Bütün maçlar tuttu' : `${won}/${n} maç tuttu`;
-    let body = infoRow('Kupon', status, lost ? 'warn' : won === n ? 'ok' : '');
+    let body = infoRow('Kupon', status, lost ? 'warn' : won === n ? 'ok' : '')
+      + infoRow('Eşleşme', `${found}/${n} maç bulundu`, found === n ? '' : 'warn');
     if (pAll != null && lc.odds && !lost && won < n) body += fairRows(Math.max(1e-6, pAll), lc.odds, '', 'Tahmindir: maçlar bağımsız sayıldı. Basketbolda toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.', false);
     const note = cardNote(lc.title);
     const prob = pAll != null && !lost && won < n ? (pAll * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
     const ai = aiCalls[norm(lc.title)] || legsAi(rows.map(({ leg, e }) => ({ f: e ? fromSk(e) : { home: leg.pair?.[0] || leg.label, away: leg.pair?.[1] || '' } })));
-    const aiP = Number(ai?.prob);
-    if (ai) body += `<div class="kcs-ci-subhead">Yapay zeka tahmini</div>` + (aiP > 0 && aiP < 100 ? infoRow('YZ olasılığı', `%${aiP}`, '', 'Tahmindir, garanti değildir.') : '') + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '') + commentHtml(ai.comment);
-    body += commentHtml(note ? note.comment : '', notesHtml(lc.legs));
-    const pShow = aiP > 0 && aiP < 100 ? aiP : null;
-    const sum2 = [status, pShow != null ? `%${pShow}` : ''].filter(Boolean).map(esc).join(' · ');
-    return sectionHtml('info', lc.title, 'MAÇ TAKİP', infoSum(lc.legs, null), parts) + sectionHtml('bilgi', lc.title, 'TAHMİN (YZ) VE DİĞER BİLGİLER', sum2, body, 'info');
+    body += aiBlock(ai) + commentHtml(noteComment(note, ai), notesHtml(lc.legs));
+    return cardSections(lc.title, lc.legs, prob, ai, parts, body, status);
   }
 
   function renderSpecials() {
