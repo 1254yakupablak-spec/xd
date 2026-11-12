@@ -3434,6 +3434,9 @@
 
   // Birbirine bağlı kuponlar: aynı maç birden çok kuponda. O maç bütün bu kuponları birlikte etkiler;
   // bir kuponda Alt, diğerinde Üst ise aynı maç ters yönde oynanmış olur.
+  // Ortak maç, karttaki yazıyla değil bulunan maçın kimliğiyle anlaşılır: "WASHİNGTON WIZARDS-DITROIT PISTONS"
+  // ile "Washington Wizards - Detroit Pistons" aynı maçtır. Maç bulunamazsa yazıya düşülür.
+  const linkKey = (leg) => { const e = legEvent(leg); return e?.id != null ? `ev|${e.id}` : norm(leg.label); };
   function linkInfo(all) {
     const byMatch = new Map();
     for (const c of all) {
@@ -3475,14 +3478,14 @@
         if (!lc || lc.legs.length < 2) continue;
         const ps = lc.legs.map((leg) => legProb(leg, legEvent(leg)));
         const p = ps.every((x) => x != null) ? ps.reduce((t, x) => t * x, 1) : null;
-        all.push({ title: lc.title, sideText: lc.legs.map((l) => `${l.line} ${l.side === 'under' ? 'Alt' : 'Üst'}`).join(' / '), legs: lc.legs.map((leg) => ({ k: norm(leg.label), label: leg.label })) });
+        all.push({ title: lc.title, sideText: lc.legs.map((l) => `${l.line} ${l.side === 'under' ? 'Alt' : 'Üst'}`).join(' / '), legs: lc.legs.map((leg) => ({ k: linkKey(leg), label: leg.label })) });
         if (p == null) skipped++;
         else { legCards++; list.push({ legs: [{ k: `kart|${lc.title}`, l: null }], line: 0, side: '', odds: lc.odds, p: Math.min(0.9999, Math.max(0.0001, p)) }); }
         continue;
       }
       // Basketbol toplam sayı kartı: kendi olasılığıyla (canlı skor ve çizgiden, yoksa not dosyasından) sayılır.
       if (multi.bk) {
-        all.push({ title: multi.title, line: multi.line, side: multi.side, legs: multi.legs.map((leg) => ({ k: norm(leg.label), label: leg.label })) });
+        all.push({ title: multi.title, line: multi.line, side: multi.side, legs: multi.legs.map((leg) => ({ k: linkKey(leg), label: leg.label })) });
         const live = bkSumProb(multi, multi.legs.map(legEvent));
         const p = live ?? (Number(cardNote(multi.title)?.prob) > 0 ? Number(cardNote(multi.title).prob) / 100 : null);
         if (p == null) skipped++;
@@ -3497,7 +3500,7 @@
         if (n > 0) { fromNote.add(k); return { k, l: n }; }
         return { k, l: null };
       });
-      all.push({ title: multi.title, line: multi.line, side: multi.side, legs: multi.legs.map((leg) => ({ k: norm(leg.label), label: leg.label })) });
+      all.push({ title: multi.title, line: multi.line, side: multi.side, legs: multi.legs.map((leg) => ({ k: linkKey(leg), label: leg.label })) });
       const p = Number(cardNote(multi.title)?.prob);
       const c = { legs, line: multi.line, side: multi.side, odds: multi.odds, p: p > 0 && p < 100 ? p / 100 : null };
       if (!c.legs.every((x) => x.l > 0) && c.p == null) skipped++; else list.push(c);
