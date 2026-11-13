@@ -2666,12 +2666,14 @@
   }
 
   // Oranlardan kurala bağlı üretilen kısa yorum (yapay zekâ değil, ek istek atmaz).
+  // Sade dil: matematik terimi yok, yüzdenin nedenini anlatır.
   function lineComment(total, line, side) {
     const gap = total - line;
-    const pos = `Beklenen ${total.toFixed(2)} gol, ${line} çizgisinin ${Math.abs(gap).toFixed(2)} ${gap >= 0 ? 'üstünde' : 'altında'}.`;
-    if (Math.abs(gap) < 0.5) return `${pos} Çizgiye çok yakın, tek gol sonucu değiştirir.`;
-    const same = (gap > 0) === (side === 'ust');
-    return `${pos} Seçim (${side === 'alt' ? 'Alt' : 'Üst'}) oranların gösterdiği yönle ${same ? 'aynı' : 'ters'}.`;
+    const need = side === 'alt' ? `en fazla ${Math.floor(line)} gol` : `en az ${Math.floor(line) + 1} gol`;
+    const cmp = Math.abs(gap) < 0.3 ? 'bu beklenene çok yakın'
+      : (gap < 0) === (side === 'ust') ? `bu beklenenden ${Math.abs(gap) > 1.5 ? 'epey ' : ''}${side === 'ust' ? 'fazla' : 'az'}`
+        : `bu beklenenden ${side === 'ust' ? 'az' : 'fazla'}, seçimin lehine`;
+    return `Oranlara göre yaklaşık ${total.toFixed(1)} gol bekleniyor. Kart ${need} istiyor; ${cmp}.`;
   }
 
   function commentHtml(text, notes = '') {
@@ -2681,19 +2683,17 @@
 
   function multiComment(multi, known) {
     const total = known.reduce((n, x) => n + x.l, 0);
-    const sorted = [...known].sort((a, b) => b.l - a.l);
-    const hi = sorted[0];
-    const lo = sorted[sorted.length - 1];
-    return `${lineComment(total, multi.line, multi.side)} En çok gol beklenen ${hi.sp.label} (${hi.l.toFixed(2)}), en az ${lo.sp.label} (${lo.l.toFixed(2)}). ${PROB_HOW}`;
+    const legs = known.map((x) => `${x.sp.label} yaklaşık ${x.l.toFixed(1)}`).join(', ');
+    return `Maçlarda beklenen goller: ${legs}. ${lineComment(total, multi.line, multi.side).replace('Oranlara göre yaklaşık', 'Toplamda yaklaşık')} ${PROB_HOW}`;
   }
 
   // Yorum kutusu maçları tek tek anlatmaz; yüzdenin nasıl bulunduğunu söyler.
-  const PROB_HOW = 'Yüzde: maçların oranlarından çıkan beklenen gollerin toplamı Poisson dağılımına konup çizginin seçilen tarafında kalma olasılığı hesaplandı.';
+  const PROB_HOW = 'Yüzde, beklenen gol sayısıyla kartın istediği gol sayısı karşılaştırılarak bulundu.';
 
   function singleComment(sp) {
     if (sp.unsupported || sp.kind === 'btts' || sp.team) return '';
     const { l } = legInfo(sp);
-    return l == null ? '' : `${lineComment(l, sp.line, sp.side === 'under' ? 'alt' : 'ust')} Yüzde: oranlardan çıkan beklenen golle Poisson dağılımından hesaplandı.`;
+    return l == null ? '' : `${lineComment(l, sp.line, sp.side === 'under' ? 'alt' : 'ust')} ${PROB_HOW}`;
   }
 
   const fairRows = (p, odds, detail, tip, withProb = true) => {
