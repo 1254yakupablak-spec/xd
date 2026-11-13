@@ -1658,7 +1658,9 @@
   function sbGridStyle(root, on, cols, gap) {
     let st = root.querySelector('style[data-kcs-sbsort]');
     if (!on) { st?.remove(); return; }
-    const css = `.sb-mb-grid{display:grid!important;grid-template-columns:repeat(${cols},minmax(0,1fr));gap:${gap};align-items:start}.sb-mb-col{display:contents!important}`;
+    // Yan paneldeki Açık Bahislerim (.sb-mb-panel) dar: satır başı kupon ayarı ona uygulanmaz, hep tek sütun.
+    const css = `.sb-mb-grid{display:grid!important;grid-template-columns:repeat(${cols},minmax(0,1fr));gap:${gap};align-items:start}.sb-mb-col{display:contents!important}`
+      + `.sb-mb-grid.sb-mb-panel{grid-template-columns:minmax(0,1fr)!important}`;
     if (!st) { st = document.createElement('style'); st.dataset.kcsSbsort = '1'; root.append(st); }
     if (st.textContent !== css) st.textContent = css;
   }
