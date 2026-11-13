@@ -2820,7 +2820,9 @@
     if (!list.length) return null;
     const probs = list.map((x) => Number(x.ai.prob)).filter((p) => p > 0 && p < 100);
     const prob = list.length === rows.length && probs.length === rows.length ? Math.round(probs.reduce((t, p) => t * p / 100, 1) * 100) : null;
-    return { comment: list.map((x) => `${x.r.f.home} - ${x.r.f.away}: ${x.ai.comment}`).join(' '), prob, at: list.map((x) => x.ai.at).sort().pop() };
+    // Kupon başına tek yorum: maçların yorumları art arda yazılmaz.
+    const comment = list.length === 1 ? list[0].ai.comment : 'Kupon yüzdesi, maçların her birinin tutma olasılığı birlikte düşünülerek bulundu.';
+    return { comment, prob, at: list.map((x) => x.ai.at).sort().pop() };
   }
 
   function aiSection(key, ai) {
@@ -2989,11 +2991,11 @@
     if (!ai) return '';
     const p = Number(ai.prob);
     return '<div class="kcs-ci-subhead">Yapay zeka tahmini</div>' + (p > 0 && p < 100 ? infoRow('YZ olasılığı', `%${p}`, '', 'Tahmindir, garanti değildir.') : '')
-      + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '') + commentHtml(ai.comment);
+      + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '');
   }
 
-  // Kartın yorumu: YZ bloğu aynı yorumu zaten gösteriyorsa ikinci kez yazılmaz.
-  const noteComment = (note, ai, auto = '') => (note ? (ai && ai.comment === note.comment ? '' : note.comment) : auto);
+  // Kartta tek yorum: önce güncel not dosyası, yoksa saklanan YZ yorumu, o da yoksa otomatik yorum.
+  const noteComment = (note, ai, auto = '') => note?.comment || ai?.comment || auto;
 
   function cardInfoHtml(sp, multi) {
     let body;
