@@ -2896,10 +2896,10 @@
     return `<em class="kcs-ci-pct kcs-ci-pct--${p > 0 ? 'ok' : 'no'}">${p > 0 ? '+' : '−'}%${Math.abs(p).toFixed(2)}</em>`;
   }
 
-  function infoSum(legs, prob) {
+  // MAÇ TAKİP özeti sadece en erken saat; yüzde TAHMİN (YZ) bölümünde zaten var.
+  function infoSum(legs) {
     const times = legs.map(legStart).filter(Boolean);
-    const when = times.length ? whenText(Math.min(...times)) : '';
-    return [when, prob ? `%${prob}` : ''].filter(Boolean).map(esc).join(' · ');
+    return times.length ? esc(whenText(Math.min(...times))) : '';
   }
 
   // ---------- Bütün kart türleri için tek maç kutusu ----------
@@ -3036,7 +3036,7 @@
   function cardSections(key, legs, prob, ai, blocks, body, status = '') {
     const aiP = Number(ai?.prob);
     const sum2 = [status, aiP > 0 && aiP < 100 ? `YZ %${aiP}` : ''].filter(Boolean).map(esc).join(' · ');
-    return sectionHtml('info', key, 'MAÇ TAKİP', infoSum(legs, prob), blocks) + sectionHtml('bilgi', key, 'TAHMİN (YZ) VE DİĞER BİLGİLER', sum2, body, 'info');
+    return sectionHtml('info', key, 'MAÇ TAKİP', infoSum(legs), blocks) + sectionHtml('bilgi', key, 'TAHMİN (YZ) VE DİĞER BİLGİLER', sum2, body, 'info');
   }
 
 
@@ -3611,10 +3611,11 @@
     const label = busy ? 'Yenileniyor…' : 'Yenile';
     const sorts = [['site', 'Site'], ['arb', 'Arbitraj'], ['start', 'Saat'], ['both', 'Saat + Arbitraj'], ['manual', 'Elle']]
       .map(([k, label]) => `<button type="button" class="kcs-sort-btn${cardSort === k ? ' is-on' : ''}" data-sort="${k}">${label}</button>`).join('');
-    // Filtre düğmelerinde kaç kart olduğu: sayfadaki tüm kartlar sayılır, gizliler de.
+    // Filtre düğmelerinde kaç kart olduğu. Spor sayıları bütün kartlardan; Göster sayıları seçili sporun kartlarından.
     const cards = queryAll(SPECIAL_CARD);
-    const multiN = cards.filter(specialIsMulti).length;
-    const counts = { all: cards.length, single: cards.length - multiN, multi: multiN };
+    const inSport = cards.filter(sportOk);
+    const multiN = inSport.filter(specialIsMulti).length;
+    const counts = { all: inSport.length, single: inSport.length - multiN, multi: multiN };
     const shows = [['all', 'Tümü'], ['single', 'Tek maç'], ['multi', 'Çok maç']]
       .map(([k, label]) => `<button type="button" class="kcs-show-btn kcs-sort-btn${cardShow === k ? ' is-on' : ''}" data-show="${k}">${label}<span class="kcs-count">${counts[k]}</span></button>`).join('');
     const refresh = `<button type="button" class="kcs-refresh${busy ? ' is-busy' : ''}"${busy || !open ? ' disabled' : ''} title="${open ? 'Oranları yenile' : 'Yenilemek için 1xBet ya da Stake sekmesini aç'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6.3"/><path d="M20 5v6h-6"/></svg>${label}</button>`;
