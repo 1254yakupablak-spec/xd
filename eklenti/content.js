@@ -767,15 +767,29 @@
   // bu yazının altına sitenin kendi maç kutusu sınıflarıyla çizilir, böylece aynı görünür.
   const SB_BET = '.sb-mb';
 
+  // Kupon yazısında maçlar ile çizgi yazısı bitişik gelebilir: "…DALLAS MAVERICKSIKI MAC TOPLAM SAYI 448.5 ÜST".
+  // Çizgi kısmı ayrılır; maç adları ondan önceki kısım, çizgi de yazının kendisinden okunur.
+  const LINE_TAIL = /\s*(?:İKİ|IKI|İKI|IKİ|ÜÇ|UC|ÜC|UÇ|DÖRT|DORT|BEŞ|BES|ALTI|\d+)?\s*MA[CÇ]\s*TOPLAM[\s\S]*$|\s*TOPLAM\s*(?:GOL|SAY[IİıiI])[\s\S]*$/i;
+  function splitTextBet(text) {
+    const raw = String(text || '').trim();
+    const cut = LINE_TAIL.exec(raw);
+    const title = (cut ? raw.slice(0, cut.index) : raw).trim();
+    const m = cut && !OTHER_MARKET.test(cut[0]) ? GOAL_LINE.exec(cut[0]) : null;
+    const line = m ? { line: num(m[1]), side: /alt/i.test(m[2]) ? 'alt' : 'ust' } : null;
+    return { title, line };
+  }
+
   function analyzeSb(card, list) {
     const text = card.querySelector('.sb-mb-textbet')?.textContent || '';
+    const { title, line } = splitTextBet(text);
     const rows = [];
-    for (const pair of text.trim().split(/\s+[I|]\s+|\s{2,}|\s*\|\s*/)) {
+    for (const pair of title.split(/\s+[I|]\s+|\s{2,}|\s*\|\s*/)) {
       if (!pair.includes('-')) continue;
       const auto = overrides[rowKey(pair)] != null ? null : matchPair(pair, list);
       rows.push({ label: pair.trim(), ...resolve(pair, auto) });
     }
-    return { rows, placedAt: parsePlaced(card), title: text, goal: goalLines[lineKey(text)] || goalLines[norm(text)] || null };
+    const saved = goalLines[lineKey(title)] || goalLines[norm(title)] || goalLines[lineKey(text)] || goalLines[norm(text)] || null;
+    return { rows, placedAt: parsePlaced(card), title, goal: saved || line };
   }
 
   // Skor değişince maç kutusu 45 sn boyunca işaretlenir: kutu yanıp söner, "GOL" etiketi çıkar, golü atan tarafın
@@ -1422,8 +1436,8 @@
       const title = card.querySelector('.sb-cbt-team')?.textContent;
       const text = block.textContent || '';
       const m = OTHER_MARKET.test(text) ? null : GOAL_LINE.exec(text);
-      // Basketbol kartının çizgisi gol çizgisi değil, kaydedilmez.
-      if (title && m && !isBkLine(text, num(m[1]))) items.push({ title, line: m[1], side: m[2] });
+      // Basketbol kartının toplam sayı çizgisi de kaydedilir (Bahislerim'de sayı toplamıyla karşılaştırılır).
+      if (title && m) items.push({ title, line: m[1], side: m[2] });
     }
     if (items.length) saveLines(items);
   }
@@ -1599,7 +1613,8 @@
     const live = data.rows.filter((r) => r.f?.isLive).length;
     const done = data.rows.filter((r) => r.f?.ended).length;
     const goals = data.rows.filter((r) => r.f?.hasScore).reduce((n, r) => n + Number(r.f.hs) + Number(r.f.as), 0);
-    const summary = [live && `${live} canlı`, done && `${done} bitti`, `${data.rows.length} maç`, `toplam ${goals} gol`].filter(Boolean).join(' · ');
+    const bk = (data.goal?.line || 0) >= 40 || data.rows.some((r) => r.f?.sport === 'basketball');
+    const summary = [live && `${live} canlı`, done && `${done} bitti`, `${data.rows.length} maç`, `toplam ${goals} ${bk ? 'sayı' : 'gol'}`].filter(Boolean).join(' · ');
     const res = siteResult(card);
     const final = !!res || data.rows.every((row) => row.f?.ended);
     let status;
@@ -2669,13 +2684,16 @@
     const sorted = [...known].sort((a, b) => b.l - a.l);
     const hi = sorted[0];
     const lo = sorted[sorted.length - 1];
-    return `${lineComment(total, multi.line, multi.side)} En çok gol beklenen ${hi.sp.label} (${hi.l.toFixed(2)}), en az ${lo.sp.label} (${lo.l.toFixed(2)}).`;
+    return `${lineComment(total, multi.line, multi.side)} En çok gol beklenen ${hi.sp.label} (${hi.l.toFixed(2)}), en az ${lo.sp.label} (${lo.l.toFixed(2)}). ${PROB_HOW}`;
   }
+
+  // Yorum kutusu maçları tek tek anlatmaz; yüzdenin nasıl bulunduğunu söyler.
+  const PROB_HOW = 'Yüzde: maçların oranlarından çıkan beklenen gollerin toplamı Poisson dağılımına konup çizginin seçilen tarafında kalma olasılığı hesaplandı.';
 
   function singleComment(sp) {
     if (sp.unsupported || sp.kind === 'btts' || sp.team) return '';
     const { l } = legInfo(sp);
-    return l == null ? '' : lineComment(l, sp.line, sp.side === 'under' ? 'alt' : 'ust');
+    return l == null ? '' : `${lineComment(l, sp.line, sp.side === 'under' ? 'alt' : 'ust')} Yüzde: oranlardan çıkan beklenen golle Poisson dağılımından hesaplandı.`;
   }
 
   const fairRows = (p, odds, detail, tip, withProb = true) => {
@@ -2815,10 +2833,6 @@
 
   const noteTime = (iso) => new Date(iso).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-  function notesHtml(sps) {
-    const found = sps.map((sp) => ({ sp, note: notesMap.get(norm(sp.match)) })).filter((x) => typeof x.note?.text === 'string');
-    return found.map(({ sp, note }) => `<div class="kcs-ci-noteline">${sps.length > 1 ? `<u>${esc(sp.label)}</u> ` : ''}${esc(note.text)}${note.at ? ` <small>(${esc(noteTime(note.at))})</small>` : ''}</div>`).join('');
-  }
 
   function howText(k, sp) {
     const m = findMatch(k, sp);
@@ -2998,7 +3012,7 @@
       if (prob == null && Number(note?.prob) > 0) prob = Number(note.prob);
       ai = aiCalls[norm(multi.title)] || null;
       const auto = known.every((x) => x.l != null) ? multiComment(multi, known) : '';
-      body += aiBlock(ai) + commentHtml(noteComment(note, ai, auto), notesHtml(multi.legs));
+      body += aiBlock(ai) + commentHtml(noteComment(note, ai, auto));
     } else {
       const one = [{ ...sp, label: sp.pair ? sp.pair.join(' - ') : sp.match }];
       // Toplam gol kartında maçın kendi çizgisi skorun altında ilerleme olarak görünür (takım golü ve KG hariç).
@@ -3008,7 +3022,7 @@
       const note = cardNote(sp.match);
       prob = Number(note?.prob) || null;
       ai = sp.pair ? aiForTeams(sp.pair[0], sp.pair[1]) : null;
-      body += probRow(note) + aiBlock(ai) + commentHtml(noteComment(note, ai, singleComment(sp)), notesHtml(one));
+      body += probRow(note) + aiBlock(ai) + commentHtml(noteComment(note, ai, singleComment(sp)));
     }
     const legs = multi ? multi.legs : [sp];
     const key = multi ? multi.title : sp.key;
@@ -3188,7 +3202,9 @@
   let sortMoved = false;
   // Gruplama: tekli ve çoklu kuponlar ayrı bloklarda. Sıra numarasına grubun payı eklenir (1. grup 0, 2. grup 1000);
   // grup başlığı her grubun en başında (pay - 1).
-  const isMultiCard = (card) => (card.matches?.(SB_BET) ? !!card.querySelector?.('.sb-mb-textbet') : specialIsMulti(card));
+  // Bahislerim: "A-B I C-D" yazılı özel kupon ya da her maçın kendi seçimi olan kombine (basketbol kuponları gibi) çoklu sayılır.
+  const sbLegCount = (card) => [...(card.querySelectorAll?.('.sb-mb-leg:not(.kcs-sb-leg)') || [])].filter((x) => !x.closest('.kcs-legs')).length;
+  const isMultiCard = (card) => (card.matches?.(SB_BET) ? !!card.querySelector?.('.sb-mb-textbet') || sbLegCount(card) > 1 : specialIsMulti(card));
   const groupModeOf = (card) => (card.matches?.(SB_BET) ? groupBets : groupSpecial);
   const groupRank = (mode, multi) => (mode === 'none' ? 0 : (mode === 'single') === !multi ? 0 : 1);
   const specialKey = (card) => (card.querySelector('.sb-cbt-team') || !card.querySelector('.sb-cbt-leg')
@@ -4031,7 +4047,7 @@
     if (p != null && multi.odds && done < n) body += fairRows(Math.min(0.9999, Math.max(1e-4, p)), multi.odds, '', 'Tahmindir: maçlar bağımsız sayıldı. Toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.');
     else if (Number(note?.prob) > 0) body += probRow(note);
     const ai = aiCalls[norm(multi.title)] || null;
-    body += aiBlock(ai) + commentHtml(noteComment(note, ai), notesHtml(multi.legs));
+    body += aiBlock(ai) + commentHtml(noteComment(note, ai));
     const prob = p != null && done < n ? (p * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
     return cardSections(multi.title, multi.legs, prob, ai, parts + bar, body);
   }
@@ -4103,7 +4119,7 @@
     const note = cardNote(lc.title);
     const prob = pAll != null && !lost && won < n ? (pAll * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
     const ai = aiCalls[norm(lc.title)] || legsAi(rows.map(({ leg, e }) => ({ f: e ? fromSk(e) : { home: leg.pair?.[0] || leg.label, away: leg.pair?.[1] || '' } })));
-    body += aiBlock(ai) + commentHtml(noteComment(note, ai), notesHtml(lc.legs));
+    body += aiBlock(ai) + commentHtml(noteComment(note, ai));
     return cardSections(lc.title, lc.legs, prob, ai, parts, body, status);
   }
 
