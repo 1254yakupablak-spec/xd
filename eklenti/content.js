@@ -3662,13 +3662,21 @@
     }
   }
   // Kartın sporu: sitenin spor simgesi, "Uzatma Dahil" / "Toplam Sayı" pazarı ya da 40'tan büyük Alt/Üst çizgisi basketbol demektir.
-  const BK_TEXT = /uzatma dahil|toplam say[ıi]|\d\s*say[ıi](?![a-zçğıöşü])|\bnba\b|basketbol/i;
+  // Site büyük harfle "SAYİ" (noktalı İ) yazabiliyor; /i bayrağı İ'yi i saymadığı için ayrıca yazıldı.
+  const BK_TEXT = /uzatma dahil|toplam say[ıiİI]|\d\s*say[ıiİI](?![a-zçğıöşü])|\bnba\b|basketbol/i;
   function cardSport(card) {
-    if (card.querySelector?.('img[src*="basket" i]')) return 'bk';
-    let text = '';
-    for (const el of card.children || []) if (!el.matches('.kcs-arb-wrap, .kcs-legs')) text += ` ${el.textContent}`;
+    if (card.querySelector?.('img[src*="basket" i], img[src*="/nba/" i]')) return 'bk';
+    // Metin düğümleri boşlukla birleştirilir: textContent "480.5 UST" ile "KUPONA EKLE"yi bitiştiriyordu ("USTKUPONA").
+    const parts = [];
+    const walk = (n) => {
+      if (n.nodeType === 3) { parts.push(n.textContent); return; }
+      if (n.nodeType !== 1 || n.matches('.kcs-arb-wrap, .kcs-legs')) return;
+      for (const c of n.childNodes) walk(c);
+    };
+    for (const el of card.children || []) walk(el);
+    const text = parts.join(' ');
     if (BK_TEXT.test(text)) return 'bk';
-    for (const m of text.matchAll(/(\d{2,3}(?:[.,]5)?)\s*(?:say[ıi]\s*)?(?:alt|üst|ust)(?![a-zçğıöşü])/gi)) if (num(m[1]) >= 40) return 'bk';
+    for (const m of text.matchAll(/(\d{2,3}(?:[.,]5)?)\s*(?:say[ıiİI]\s*)?(?:alt|üst|ust)(?![a-zçğıöşü])/gi)) if (num(m[1]) >= 40) return 'bk';
     return 'foot';
   }
   const sportOk = (card) => sportShow === 'all' || cardSport(card) === sportShow;
