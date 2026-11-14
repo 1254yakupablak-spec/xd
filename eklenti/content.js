@@ -789,7 +789,9 @@
       rows.push({ label: pair.trim(), ...resolve(pair, auto) });
     }
     const saved = goalLines[lineKey(title)] || goalLines[norm(title)] || goalLines[lineKey(text)] || goalLines[norm(text)] || null;
-    return { rows, placedAt: parsePlaced(card), title, goal: saved || line };
+    // Kartın üstünde yazan çizgi esastır; kayıtlı çizgi sadece yazı çizgi içermiyorsa kullanılır
+    // (eski sürümler "455.5"i "55.5" diye kaydetmişti).
+    return { rows, placedAt: parsePlaced(card), title, goal: line || saved };
   }
 
   // Skor değişince maç kutusu 45 sn boyunca işaretlenir: kutu yanıp söner, "GOL" etiketi çıkar, golü atan tarafın
