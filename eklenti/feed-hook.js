@@ -12,10 +12,12 @@
 (() => {
   if (!/(^|\.)6q[\w-]*\./i.test(location.hostname) || window.__kcsLineHook) return;
   window.__kcsLineHook = true;
-  const LINE = /(\d{1,2}[.,]5)\s*(?:GOL\s*)?(ALT|ÜST|UST)(?![A-ZÇĞİÖŞÜa-zçğıöşü])/i;
+  // Basketbol çizgisi üç hanelidir ("455.5"): önünde rakam olmamalı, yoksa "55.5" okunur.
+  const LINE = /(?<![\d.,])(\d{1,3}[.,]5)\s*(?:(?:GOL|SAY[IİıiI])\s*)?(ALT|ÜST|UST)(?![A-ZÇĞİÖŞÜa-zçğıöşü])/i;
   const URL_RE = /\/custom-bets(\/|\?|$)/;
   const found = [];
-  const clean = (t) => t.replace(/\s*(\S+\s+MAÇ\s+)?(TOPLAM\s+)?(GOL\s+)?\d{1,2}[.,]5.*$/is, '').replace(/\s*(\S+\s+MAÇ\s+)?TOPLAM\s+GOL.*$/is, '').trim();
+  const clean = (t) => t.replace(/\s*(\S+\s+MA[CÇ]\s+)?(TOPLAM\s+)?((GOL|SAY[IİıiI])\s+)?(?<![\d.,])\d{1,3}[.,]5.*$/is, '')
+    .replace(/\s*(\S+\s+MA[CÇ]\s+)?TOPLAM\s+(GOL|SAY[IİıiI]).*$/is, '').trim();
   const isMatches = (t) => (t.match(/\S-\S/g) || []).length >= 2;
 
   function walk(v, depth) {
