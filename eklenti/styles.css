@@ -1357,3 +1357,12 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 .kcs-calc-quick button.is-on { border-color: var(--kcs-text); background: color-mix(in srgb, var(--kcs-a) 40%, transparent); }
 .kcs-calc-quick button:disabled { opacity: 0.45; cursor: default; }
 .kcs-calc-quick em { padding: 0 5px; border-radius: 7px; background: var(--kcs-bg); color: var(--kcs-text); font-size: 11px; font-style: normal; }
+/* Maç kutusu: takımlar yan yana, ortada skor ya da saat ve kalan süre */
+.kcs-lg-score { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; margin: 2px 0 8px; }
+.kcs-lg-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 64px; }
+.kcs-lg-mid > b { padding: 3px 10px; border-radius: 6px; background: var(--kcs-bg); color: var(--kcs-fg); font-size: 16px; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kcs-lg-mid > .kcs-lg-time { font-size: 14px; }
+.kcs-lg-score.is-live .kcs-lg-mid > b { box-shadow: inset 0 0 0 1px var(--kcs-text); }
+.kcs-lg-sub { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; color: var(--kcs-muted); font-size: 11px; white-space: nowrap; }
+.kcs-lg-sub .kcs-left { margin: 0; }
+.kcs-lg-team > span { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
