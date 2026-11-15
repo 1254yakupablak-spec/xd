@@ -211,35 +211,65 @@ async function skPoll() {
     let events = s.skEvents || {};
     const now = Date.now();
     let changed = false;
-    const noLogos = Object.keys(events).length && !Object.values(events).some((e) => 'homeLogo' in e);
-    if (noLogos || now - (meta.fixturesAt || 0) > 30 * 60 * 1000) {
-      // Kuponlar birkaç gün önce yapılmış olabilir: son 4 günün ve yarının maçları alınır, bitmiş maçlar 7 gün saklanır.
-      // Eski günler (3 ve 2 gün önce) değişmez: günde bir kez yeniden alınması yeter.
-      const next = {};
-      for (const [k, e] of Object.entries(events)) if (e.start && now / 1000 - e.start < 7 * 86400) next[k] = e;
-      const oldDue = noLogos || now - (meta.oldDaysAt || 0) > 24 * 3600 * 1000;
-      for (const d of oldDue ? [-3, -2, -1, 0, 1] : [-1, 0, 1]) for (const f of await skGet(`fixtures?date=${skDate(now + d * 864e5)}`)) next[f.id] = skConv(f);
-      if (oldDue) meta.oldDaysAt = now;
-      events = next;
-      meta.fixturesAt = now;
-      changed = true;
-    }
-    if (now - (meta.liveAt || 0) > 7 * 1000) {
-      const live = await skGet('live');
-      const ids = new Set(live.map((f) => f.id));
-      for (const f of live) events[f.id] = { ...events[f.id], ...skConv(f) };
-      // Canlıyken listeden düşen maç bitmiştir: son skoru ve durumu bugünün listesinden al.
-      if (Object.values(events).some((e) => e.sport !== 'basketball' && SK_LIVE.has(e.status) && !ids.has(e.id))) {
-        for (const f of await skGet(`fixtures?date=${skDate(now)}`)) events[f.id] = { ...events[f.id], ...skConv(f) };
+    // Yedekteyken ana servis 2 dakikada bir yoklanır; yanıt verirse yedek bırakılır, liste baştan alınır.
+    let main = !(meta.fbMode && now - (meta.fbProbeAt || 0) < 2 * 60 * 1000);
+    if (main) {
+      try {
+        if (meta.fbMode) {
+          await skGet('live');
+          for (const [k, e] of Object.entries(events)) if (e.alt) delete events[k];
+          meta.fbMode = false;
+          meta.fixturesAt = 0;
+          meta.oldDaysAt = 0;
+          meta.liveAt = 0;
+          changed = true;
+        }
+        const noLogos = Object.keys(events).length && !Object.values(events).some((e) => 'homeLogo' in e);
+        if (noLogos || now - (meta.fixturesAt || 0) > 30 * 60 * 1000) {
+          // Kuponlar birkaç gün önce yapılmış olabilir: son 4 günün ve yarının maçları alınır, bitmiş maçlar 7 gün saklanır.
+          // Eski günler (3 ve 2 gün önce) değişmez: günde bir kez yeniden alınması yeter.
+          const next = {};
+          for (const [k, e] of Object.entries(events)) if (e.start && now / 1000 - e.start < 7 * 86400) next[k] = e;
+          const oldDue = noLogos || now - (meta.oldDaysAt || 0) > 24 * 3600 * 1000;
+          for (const d of oldDue ? [-3, -2, -1, 0, 1] : [-1, 0, 1]) for (const f of await skGet(`fixtures?date=${skDate(now + d * 864e5)}`)) next[f.id] = skConv(f);
+          if (oldDue) meta.oldDaysAt = now;
+          events = next;
+          meta.fixturesAt = now;
+          changed = true;
+        }
+        if (now - (meta.liveAt || 0) > 7 * 1000) {
+          const live = await skGet('live');
+          const ids = new Set(live.map((f) => f.id));
+          for (const f of live) events[f.id] = { ...events[f.id], ...skConv(f) };
+          // Canlıyken listeden düşen maç bitmiştir: son skoru ve durumu bugünün listesinden al.
+          if (Object.values(events).some((e) => e.sport !== 'basketball' && !e.alt && SK_LIVE.has(e.status) && !ids.has(e.id))) {
+            for (const f of await skGet(`fixtures?date=${skDate(now)}`)) events[f.id] = { ...events[f.id], ...skConv(f) };
+          }
+          meta.liveAt = now;
+          changed = true;
+        }
+        if (meta.error) { meta.error = null; changed = true; }
+      } catch (err) {
+        meta.mainError = String(err?.message || err);
+        meta.fbProbeAt = now;
+        main = false;
+        changed = true;
       }
-      meta.liveAt = now;
-      changed = true;
+    }
+    if (!main) {
+      try {
+        if (await fbPoll(events, meta, now)) changed = true;
+        if (meta.error) { meta.error = null; changed = true; }
+      } catch (err) {
+        meta.error = `${meta.mainError || 'veri servisi'} · yedek: ${String(err?.message || err)}`;
+        meta.errorAt = now;
+        changed = true;
+      }
     }
     if (await bkPoll(events, meta, now)) changed = true;
     if (changed) {
       meta.updatedAt = now;
       meta.count = Object.keys(events).length;
-      meta.error = null;
       await chrome.storage.local.set({ skEvents: events, skMeta: meta });
     }
   } catch (err) {
@@ -252,7 +282,7 @@ async function skPoll() {
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg?.type === 'skPoll') { skPoll(); if (Array.isArray(msg.ids) && msg.ids.length) skFeedPoll(msg.ids); }
-  if (msg?.type === 'skDetail' && /^b?\d+$/.test(String(msg.id))) {
+  if (msg?.type === 'skDetail' && /^[be]?\d+$/.test(String(msg.id))) {
     skDetail(String(msg.id)).then((d) => reply({ ok: true, d })).catch((err) => reply({ ok: false, error: String(err?.message || err) }));
     return true;
   }
@@ -345,6 +375,7 @@ async function skJson(path) {
 }
 async function skDetail(id) {
   if (id.startsWith('b')) return bkDetail(id.slice(1));
+  if (id.startsWith('e')) return fbDetail(id.slice(1));
   const now = Date.now();
   const c = skDetailCache.get(id) || {};
   const live = SK_LIVE.has(c.detail?.fixture?.status);
@@ -530,4 +561,195 @@ async function bkDetail(id) {
   skDetailCache.set(key, c);
   if (skDetailCache.size > 60) skDetailCache.delete(skDetailCache.keys().next().value);
   return c.d;
+}
+
+// ---------- futbol yedek kaynağı: veri servisi yanıt vermezken (ör. bakım) ----------
+// Maçlar skEvents içinde "e" önekiyle tutulur (ör. e401861172). Ana servis geri gelince yedek maçlar silinir,
+// ana servisin listesi baştan alınır. Liste 30 dakikada bir, canlı skor maç varken 15 sn'de bir.
+const FB_API = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer/all/';
+const FB_TABLE = 'https://site.web.api.espn.com/apis/v2/sports/soccer/';
+
+// "90'+5'" → [90, 5]
+function fbClock(text) {
+  const m = /^(\d+)'?(?:\s*\+\s*(\d+))?/.exec(String(text || ''));
+  return m ? [Number(m[1]), m[2] ? Number(m[2]) : null] : [null, null];
+}
+function fbStatus(st) {
+  const n = st?.type?.name || '';
+  const s = st?.type?.state;
+  if (/POSTPONED/.test(n)) return 'POSTPONED';
+  if (/CANCEL/.test(n)) return 'CANCELLED';
+  if (/ABANDONED/.test(n)) return 'ABANDONED';
+  if (/SUSPENDED|DELAYED/.test(n)) return 'SUSPENDED';
+  if (s === 'post') return /PEN/.test(n) ? 'AFTER_PENALTIES' : /AET|EXTRA/.test(n) ? 'AFTER_EXTRA_TIME' : 'FINISHED';
+  if (s === 'in') {
+    if (n === 'STATUS_HALFTIME') return 'HALFTIME';
+    if (/SHOOTOUT|PENALT/.test(n)) return 'PENALTIES';
+    if (/OVERTIME|EXTRA/.test(n)) return 'EXTRA_TIME';
+    if (/END_OF_REGULATION|END_PERIOD/.test(n)) return 'BREAK';
+    return 'LIVE';
+  }
+  return 'NOT_STARTED';
+}
+const fbLogo = (t) => t?.logo || t?.logos?.find((l) => l.rel?.includes('default'))?.href || t?.logos?.[0]?.href || '';
+function fbConv(ev) {
+  const c = ev.competitions?.[0] || {};
+  const side = (s) => c.competitors?.find((x) => x.homeAway === s) || {};
+  const h = side('home');
+  const a = side('away');
+  const status = fbStatus(ev.status);
+  const started = !['NOT_STARTED', 'POSTPONED', 'CANCELLED'].includes(status);
+  const [minute, added] = status === 'LIVE' || status === 'EXTRA_TIME' ? fbClock(ev.status?.displayClock) : [null, null];
+  // Kadın ve genç takımlar erkek A takımıyla aynı adla geliyor ("Arsenal"): ayırt edici ek eklenir, kupon yanlış maça bağlanmasın.
+  const tag = `${ev.season?.slug || ''} ${c.league?.slug || ''} ${c.altGameNote || ''}`;
+  const suffix = /wom[ae]n|liga-f|vrouwen|frauen|femin|nwsl|\.w\./i.test(tag) && !/\bwomen\b/i.test(h.team?.displayName || '') ? ' Women'
+    : (/\bu-?(17|19|20|21|23)\b/i.exec(tag.replace(/-/g, ' ')) ? ` U${/\bu-?(17|19|20|21|23)\b/i.exec(tag.replace(/-/g, ' '))[1]}` : '');
+  return {
+    id: `e${ev.id}`,
+    home: (h.team?.displayName || '') + (h.team?.displayName ? suffix : ''), away: (a.team?.displayName || '') + (a.team?.displayName ? suffix : ''),
+    homeLogo: fbLogo(h.team), awayLogo: fbLogo(a.team),
+    start: ev.date ? Math.round(Date.parse(ev.date) / 1000) : null,
+    status, label: status === 'HALFTIME' ? 'Devre arası' : '', minute, added,
+    hs: started && h.score != null ? Number(h.score) : null,
+    as: started && a.score != null ? Number(a.score) : null,
+    league: c.league?.name || String(c.altGameNote || '').split(',')[0] || '',
+    homeTid: h.team?.id ?? null, awayTid: a.team?.id ?? null,
+    alt: true,
+  };
+}
+async function fbGet(date) {
+  const res = await fetch(`${FB_API}scoreboard?dates=${date}&limit=1000`, { cache: 'no-store', credentials: 'omit' });
+  if (!res.ok) throw new Error(`yedek futbol ${res.status}`);
+  return (await res.json())?.events || [];
+}
+// Ana servis düştüğünde skPoll içinden çağrılır. Ana servisin (artık güncellenmeyen) futbol maçları çıkarılır,
+// yoksa kuponlar donmuş skorlu eski kayıtla eşleşebilirdi.
+async function fbPoll(events, meta, now) {
+  if (!meta.fbMode) {
+    for (const [k, e] of Object.entries(events)) if (e.sport !== 'basketball' && !e.alt) delete events[k];
+    meta.fbMode = true;
+    meta.fbListAt = 0;
+  }
+  if (now - (meta.fbListAt || 0) > 30 * 60 * 1000) {
+    for (const [k, e] of Object.entries(events)) if (e.alt && (!e.start || now / 1000 - e.start > 7 * 86400)) delete events[k];
+    const oldDue = now - (meta.fbOldAt || 0) > 24 * 3600 * 1000;
+    for (const d of oldDue ? [-3, -2, -1, 0, 1] : [-1, 0, 1]) for (const ev of await fbGet(bkDate(now + d * 864e5))) events[`e${ev.id}`] = fbConv(ev);
+    if (oldDue) meta.fbOldAt = now;
+    meta.fbListAt = now;
+    meta.liveAt = now;
+    return true;
+  }
+  const hot = Object.values(events).filter((e) => e.alt && e.start
+    && (SK_LIVE.has(e.status) || (e.status === 'NOT_STARTED' && e.start * 1000 - now < 10 * 60 * 1000 && now - e.start * 1000 < 4 * 3600 * 1000)));
+  if (hot.length && now - (meta.liveAt || 0) > 15 * 1000) {
+    for (const d of new Set(hot.map((e) => bkDate(e.start * 1000)))) for (const ev of await fbGet(d)) events[`e${ev.id}`] = fbConv(ev);
+    meta.liveAt = now;
+    return true;
+  }
+  return false;
+}
+
+// Maç ayrıntısı: Göz at paneli ana servisle aynı biçimi bekler; yedek veri o biçime çevrilir.
+const FB_KIND = (t) => {
+  if (/own/.test(t)) return 'OWN_GOAL';
+  if (/penalty/.test(t) && /miss|save/.test(t)) return 'MISSED_PENALTY';
+  if (/penalty/.test(t) && /goal|scored/.test(t)) return 'PENALTY';
+  if (/^goal/.test(t)) return 'GOAL';
+  if (/yellow-red|second-yellow/.test(t)) return 'SECOND_YELLOW';
+  if (/red-card/.test(t)) return 'RED_CARD';
+  if (/yellow-card/.test(t)) return 'YELLOW_CARD';
+  if (/substitution/.test(t)) return 'SUBSTITUTION';
+  return null;
+};
+const FB_STAT = { shotsOnTarget: 'SHOTS_ON_TARGET', totalShots: 'SHOTS_TOTAL', possessionPct: 'BALL_POSSESSION', wonCorners: 'CORNERS', saves: 'SAVES', offsides: 'OFFSIDES', foulsCommitted: 'FOULS', yellowCards: 'YELLOW_CARDS', redCards: 'RED_CARDS', passPct: 'SUCCESSFUL_PASSES_PERCENTAGE' };
+const fbPos = (p) => (/goal/i.test(p) ? 'Goalkeeper' : /defen|back/i.test(p) ? 'Defender' : /mid/i.test(p) ? 'Midfielder' : /forw|strik|wing|attack/i.test(p) ? 'Attacker' : 'Midfielder');
+
+function fbSummary(j, id) {
+  const comp = j.header?.competitions?.[0] || {};
+  const st = comp.status || {};
+  const side = (s) => comp.competitors?.find((x) => x.homeAway === s) || {};
+  const team = (c) => ({ id: c.team?.id ?? null, name: c.team?.displayName || '', shortCode: c.team?.abbreviation || '', logoUrl: fbLogo(c.team) });
+  const h = side('home');
+  const a = side('away');
+  const status = fbStatus(st);
+  const started = !['NOT_STARTED', 'POSTPONED', 'CANCELLED'].includes(status);
+  const [minute, added] = fbClock(st.displayClock);
+  const live = SK_LIVE.has(status);
+  const fixture = {
+    id: `e${id}`, status, minute: live ? minute : null, addedMinute: live ? added : null,
+    stateLabel: status === 'HALFTIME' ? 'Devre arası' : /FINISHED|AFTER/.test(status) ? 'Maç bitti' : status === 'NOT_STARTED' ? '' : (st.type?.shortDetail || ''),
+    home: team(h), away: team(a), kickoffAt: comp.date || null,
+    score: started ? { home: Number(h.score ?? 0), away: Number(a.score ?? 0) } : null,
+    competition: { name: j.header?.league?.name || '' },
+  };
+  // Olaylar: skor, gollerin sırasıyla hesaplanır.
+  let hs = 0;
+  let as = 0;
+  const events = [];
+  (j.keyEvents || []).forEach((k, i) => {
+    const kind = FB_KIND(k.type?.type || '');
+    if (!kind) return;
+    const [m, add] = fbClock(k.clock?.displayValue);
+    const teamId = k.team?.id ?? null;
+    const ev = { id: `e${k.id}`, kind, minute: m, addedMinute: add, teamId, sortOrder: i, player: k.participants?.[0]?.athlete?.displayName || '', relatedPlayer: k.participants?.[1]?.athlete?.displayName || '', detail: '' };
+    if (/GOAL|PENALTY/.test(kind) && kind !== 'MISSED_PENALTY') {
+      if (teamId === fixture.home.id) hs++; else as++;
+      ev.score = { home: hs, away: as };
+    }
+    events.push(ev);
+  });
+  const statistics = [];
+  for (const t of j.boxscore?.teams || []) {
+    for (const s of t.statistics || []) {
+      const code = FB_STAT[s.name];
+      if (!code) continue;
+      let v = s.displayValue;
+      if (s.name === 'passPct') v = String(Math.round(parseFloat(s.value ?? s.displayValue) * (parseFloat(s.displayValue) <= 1 ? 100 : 1)));
+      statistics.push({ code, teamId: t.team?.id ?? null, value: v });
+    }
+  }
+  const lineups = [];
+  const formations = [];
+  for (const r of j.rosters || []) {
+    const tid = r.team?.id ?? null;
+    if (r.formation) formations.push({ teamId: tid, formation: r.formation });
+    for (const p of r.roster || []) lineups.push({ teamId: tid, player: p.athlete?.displayName || '', number: p.jersey ?? null, starter: !!p.starter, position: fbPos(p.position?.name || p.position?.displayName || '') });
+  }
+  const v = j.gameInfo?.venue;
+  return {
+    detail: { fixture, events, statistics, lineups, formations, trends: [], lineupConfirmed: lineups.some((x) => x.starter) },
+    h2h: { fixtures: [], played: 0 },
+    ctx: { referees: (j.gameInfo?.officials || []).map((o) => ({ role: /referee/i.test(o.position?.name || o.position?.displayName || '') && !/assist|fourth|video/i.test(o.position?.name || '') ? 'REFEREE' : 'OTHER', person: { name: o.fullName || o.displayName || '' } })),
+      coaches: [], weather: null, broadcasts: [], venue: v ? { name: v.fullName || '', city: v.address?.city || '', capacity: v.capacity || null } : null },
+    slug: j.header?.league?.slug || '',
+  };
+}
+async function fbTable(slug) {
+  if (!slug) return [];
+  const res = await fetch(`${FB_TABLE}${slug}/standings`, { cache: 'no-store', credentials: 'omit' });
+  if (!res.ok) return [];
+  const j = await res.json();
+  const rows = [];
+  for (const [gi, g] of (j.children?.length ? j.children : [j]).entries()) {
+    for (const e of g.standings?.entries || []) {
+      const s = Object.fromEntries((e.stats || []).map((x) => [x.name, x.value]));
+      rows.push({ position: s.rank ?? rows.length + 1, team: { id: e.team?.id ?? null, name: e.team?.displayName || '', logoUrl: fbLogo(e.team) }, played: s.gamesPlayed ?? 0, won: s.wins ?? 0, drawn: s.ties ?? 0, lost: s.losses ?? 0,
+        goalsFor: s.pointsFor ?? 0, goalsAgainst: s.pointsAgainst ?? 0, goalDifference: s.pointDifferential ?? 0, points: s.points ?? 0, group: (j.children?.length || 0) > 1 ? (g.name || gi) : null, stage: null });
+    }
+  }
+  return rows;
+}
+const fbCache = new Map();
+async function fbDetail(id) {
+  const now = Date.now();
+  const c = fbCache.get(id);
+  const live = SK_LIVE.has(c?.d?.detail?.fixture?.status);
+  if (c && now - c.at < (live ? 12 * 1000 : 5 * 60 * 1000)) return c.d;
+  const res = await fetch(`${FB_API}summary?event=${id}`, { cache: 'no-store', credentials: 'omit' });
+  if (!res.ok) throw new Error(`yedek futbol ${res.status}`);
+  const d = fbSummary(await res.json(), id);
+  d.standings = c?.d?.standings && now - (c.tableAt || 0) < 3600 * 1000 ? c.d.standings : await fbTable(d.slug).catch(() => []);
+  fbCache.set(id, { d, at: now, tableAt: c?.d?.standings && now - (c.tableAt || 0) < 3600 * 1000 ? c.tableAt : now });
+  if (fbCache.size > 40) fbCache.delete(fbCache.keys().next().value);
+  return d;
 }
