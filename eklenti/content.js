@@ -820,7 +820,7 @@
   PEEK_ICON.fark = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h18"/><path d="M3 15l4-6 4 5 3-8 3 10 4-4"/></svg>';
   const PEEK_TABS = [['genel', 'Genel'], ['akis', 'Canlı akış'], ['ist', 'İstatistik'], ['baski', 'Baskı'], ['h2h', 'Karşılaşmalar'], ['puan', 'Puan durumu'], ['kadro', 'Kadro']];
   const PEEK_LIVE = new Set(['LIVE', 'HALFTIME', 'EXTRA_TIME', 'BREAK', 'PENALTIES', 'IN_PLAY']);
-  const skIdOf = (f) => { const id = String(f?.id || '').replace(/^k/, ''); return /^b?\d+$/.test(id) ? id : null; };
+  const skIdOf = (f) => { const id = String(f?.id || '').replace(/^k/, ''); return /^[be]?\d+$/.test(id) ? id : null; };
 
   function peekRedraw() {
     renderPeekModal();
@@ -1768,7 +1768,7 @@
     const sofa = `SofaScore ${sofaConnected() ? clock(sofaMeta.updatedAt) : 'kapalı'}`;
     const ls = `Livescore ${lsOn ? clock(Math.max(lsMeta.scannedAt || 0, lsLive.at || 0)) : 'kapalı'}`;
     const skOn = Date.now() - (skMeta.liveAt || 0) < 3 * 60 * 1000;
-    const sk = `Veri servisi ${skOn ? clock(skMeta.liveAt) : (skMeta.error ? 'hata' : 'kapalı')}`;
+    const sk = `Veri servisi${skMeta.fbMode ? ' (yedek)' : ''} ${skOn ? clock(skMeta.liveAt) : (skMeta.error ? 'hata' : 'kapalı')}`;
     return sk;
   }
 
@@ -2600,7 +2600,15 @@
     return legs.length > 1 ? { title, legs, odds, line, side: /alt/i.test(m[2]) ? 'alt' : 'ust', bk: isBkLine(block.textContent, line) } : null;
   }
 
+  // Not dosyasındaki saat (gece görevi yazar, "kickoffAt": "2026-11-15T17:00:00+03:00"): saniye ya da null.
+  function noteStart(sp) {
+    const note = notesMap.get(norm(sp.match || '')) || notesMap.get(norm(sp.label || ''));
+    const t = Date.parse(note?.kickoffAt || '');
+    return Number.isFinite(t) ? t / 1000 : null;
+  }
+
   // Maçın başlama saati: bulunduğu sitelerden ve ad kaynaklarından en erkeni (yanılırsa erken tarafa yanılsın).
+  // Hiçbir kaynakta bulunamazsa (veri servisi kapalıysa da) not dosyasındaki saat kullanılır.
   function legStart(sp) {
     const times = [];
     for (const b of BOOKS) {
@@ -2612,7 +2620,7 @@
       const t = findHub(hub, sp)?.e?.start;
       if (t) times.push(t);
     }
-    return times.length ? Math.min(...times) : null;
+    return times.length ? Math.min(...times) : noteStart(sp);
   }
 
   const infoRow = (label, value, cls = '', tip = '') => `<div class="kcs-ci-row${cls ? ` kcs-ci--${cls}` : ''}"${tip ? ` title="${esc(tip)}"` : ''}><span>${label}</span><b>${value}</b></div>`;
@@ -2795,7 +2803,7 @@
     let changed = Object.keys(next).length !== Object.keys(skLinks).length;
     for (const [k, note] of notesMap) {
       // Futbol: sayı; basketbol: "b" önekli kod (b401909952).
-      const id = /^b\d+$/.test(String(note.skId)) ? String(note.skId) : Number(note.skId);
+      const id = /^[be]\d+$/.test(String(note.skId)) ? String(note.skId) : Number(note.skId);
       if (!(typeof id === 'string' || id > 0) || next[k]?.id === id) continue;
       next[k] = { id, at: Date.now() };
       changed = true;
