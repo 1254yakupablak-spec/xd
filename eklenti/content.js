@@ -3585,7 +3585,8 @@
         const ps = lc.legs.map((leg) => legProb(leg, legEvent(leg)));
         const p = ps.every((x) => x != null) ? ps.reduce((t, x) => t * x, 1) : null;
         const sideText = lc.legs.map((l) => `${l.line} ${l.side === 'under' ? 'Alt' : 'Üst'}`).join(' / ');
-        items.push({ title: lc.title, sideText, odds: lc.odds, bk: lc.legs.some((l) => l.line >= 40), p, src: 'skor',
+        const dirs = new Set(lc.legs.map((l) => (l.side === 'under' ? 'alt' : 'ust')));
+        items.push({ title: lc.title, sideText, odds: lc.odds, bk: lc.legs.some((l) => l.line >= 40), side: dirs.size === 1 ? [...dirs][0] : 'mix', p, src: 'skor',
           rec: { title: lc.title, sideText, legs: lc.legs.map((leg) => ({ k: linkKey(leg), label: leg.label })) },
           entry: p == null ? null : { legs: [{ k: `kart|${lc.title}`, l: null }], line: 0, side: '', odds: lc.odds, p: Math.min(0.9999, Math.max(0.0001, p)) } });
         continue;
@@ -3596,7 +3597,7 @@
       if (multi.bk) {
         const live = bkSumProb(multi, multi.legs.map(legEvent));
         const p = live ?? (Number(cardNote(multi.title)?.prob) > 0 ? Number(cardNote(multi.title).prob) / 100 : null);
-        items.push({ title: multi.title, sideText, odds: multi.odds, bk: true, p, src: 'skor', rec,
+        items.push({ title: multi.title, sideText, odds: multi.odds, bk: true, side: multi.side, p, src: 'skor', rec,
           entry: p == null ? null : { legs: [{ k: `kart|${multi.title}`, l: null }], line: 0, side: '', odds: multi.odds, p: Math.min(0.9999, Math.max(0.0001, p)) } });
         continue;
       }
@@ -3614,11 +3615,18 @@
       const known = legs.every((x) => x.l > 0);
       let p = entry.p;
       if (known) { const over = overProb(legs.reduce((t, x) => t + x.l, 0), multi.line); p = multi.side === 'alt' ? 1 - over : over; }
-      items.push({ title: multi.title, sideText, odds: multi.odds, bk: false, p, src: known ? (from.note ? 'oran+analiz' : 'oran') : (entry.p != null ? 'not' : ''), rec,
+      items.push({ title: multi.title, sideText, odds: multi.odds, bk: false, side: multi.side, p, src: known ? (from.note ? 'oran+analiz' : 'oran') : (entry.p != null ? 'not' : ''), rec,
         entry: known || entry.p != null ? entry : null });
     }
     return items;
   }
+
+  // Hızlı seçim: yalnız bu türdeki kuponlar hesaba katılır, diğerleri çıkarılır.
+  const CALC_QUICK = [
+    ['foot', 'Futbol', (x) => !x.bk], ['bk', 'Basketbol', (x) => x.bk],
+    ['alt', 'Alt', (x) => x.side === 'alt'], ['ust', 'Üst', (x) => x.side === 'ust'],
+    ['data', 'Hesaplanabilen', (x) => !!x.entry],
+  ];
 
   // Panel düğmesi: kaç kupon var, kaçı hesapta.
   function calcBtnHtml() {
@@ -3649,7 +3657,12 @@
         + `<span class="kcs-calc-odds">${x.odds ? `${Number(x.odds).toFixed(2)}x` : ''}</span><span class="kcs-calc-p${x.p == null ? ' is-none' : ''}">${pTxt}</span></button>`;
     }).join('');
     const tools = `<div class="kcs-calc-tools"><span>${sel.length}/${items.length} kupon hesapta${skipped ? ` · ${skipped} kuponun verisi yok` : ''}</span>`
-      + '<button type="button" class="kcs-calc-all">Hepsini seç</button><button type="button" class="kcs-calc-none">Hiçbirini</button></div>';
+      + '<button type="button" class="kcs-calc-all">Hepsini seç</button><button type="button" class="kcs-calc-none">Hiçbirini</button></div>'
+      + `<div class="kcs-calc-quick"><span>Sadece:</span>${CALC_QUICK.map(([k, label, fit]) => {
+        const n = items.filter(fit).length;
+        const on = n > 0 && items.every((x) => fit(x) === !calcOff.has(x.title));
+        return `<button type="button" class="kcs-calc-only${on ? ' is-on' : ''}" data-only="${k}"${n ? '' : ' disabled'}>${label}<em>${n}</em></button>`;
+      }).join('')}</div>`;
     const tip = 'Tahmindir, garanti değildir. Aynı maç birden çok kuponda varsa birlikte sayıldı; goller Poisson ile 20.000 kez denendi. Başlamış maçlarda oran canlı değişir.';
     let out = '';
     if (!sel.length) out = '<div class="kcs-peek-empty">Hesaba katılacak kupon seç.</div>';
@@ -4409,6 +4422,12 @@
       if (calcOff.has(t)) calcOff.delete(t); else calcOff.add(t);
       saveCalcOff();
       renderInfo();
+      return true;
+    }
+    if (btn.classList.contains('kcs-calc-only')) {
+      const fit = CALC_QUICK.find(([k]) => k === btn.dataset.only)?.[2];
+      const items = multiItems();
+      if (fit && items.some(fit)) { calcOff = new Set(items.filter((x) => !fit(x)).map((x) => x.title)); saveCalcOff(); renderInfo(); }
       return true;
     }
     if (btn.classList.contains('kcs-calc-all') || btn.classList.contains('kcs-calc-none')) {
