@@ -3028,8 +3028,9 @@
   function aiBlock(ai) {
     if (!ai) return '';
     const p = Number(ai.prob);
-    return '<div class="kcs-ci-subhead">Yapay zeka tahmini</div>' + (p > 0 && p < 100 ? infoRow('YZ olasılığı', `%${p}`, '', 'Tahmindir, garanti değildir.') : '')
-      + (ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '');
+    const ok = p > 0 && p < 100;
+    return `<div class="kcs-ai" title="Tahmindir, garanti değildir."><div class="kcs-ai-top"><span>Yapay zeka tahmini</span>${ai.at ? `<small class="kcs-ai-at">${esc(noteTime(ai.at))}</small>` : ''}</div>`
+      + (ok ? `<div class="kcs-ai-main"><b>%${p}</b><span class="kcs-ai-meter"><i style="width:${p}%"></i></span></div>` : '<div class="kcs-ai-main"><b>—</b></div>') + '</div>';
   }
 
   // Kartta tek yorum: önce güncel not dosyası, yoksa saklanan YZ yorumu, o da yoksa otomatik yorum.
@@ -3081,7 +3082,7 @@
   function cardSections(key, legs, prob, ai, blocks, body, status = '') {
     const aiP = Number(ai?.prob);
     const sum2 = [status, aiP > 0 && aiP < 100 ? `YZ %${aiP}` : ''].filter(Boolean).map(esc).join(' · ');
-    return sectionHtml('info', key, 'MAÇ TAKİP', infoSum(legs), blocks) + sectionHtml('bilgi', key, 'TAHMİN (YZ) VE DİĞER BİLGİLER', sum2, body, 'info');
+    return sectionHtml('info', key, 'MAÇ TAKİP', infoSum(legs), blocks) + sectionHtml('bilgi', key, 'TAHMİN (YZ) VE DİĞER BİLGİLER', sum2, body, 'info kcs-ci--yz');
   }
 
 
