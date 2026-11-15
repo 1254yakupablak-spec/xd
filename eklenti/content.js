@@ -2928,6 +2928,25 @@
   const legTeam = (name, url) => `<span class="kcs-lg-team">${bkLogo(url)}<span>${esc(name)}</span></span>`;
   const liveState = (clock) => `<span class="kcs-clock kcs-clock--live"><i></i>${esc(clock || 'Canlı')}</span>`;
   const whenState = (t) => (t ? `${esc(whenText(t))}${countdownHtml(t)}` : '');
+  // Takımlar yan yana, ortada durum: başlamadıysa saat ve ne kadar kaldığı, başladıysa skor ve dakika, bittiyse skor ve MS.
+  const hourText = (t) => new Date(t * 1000).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' });
+  const legDay = (t) => new Date(t * 1000).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit' });
+  function midHtml({ score, live, done, clock, start }) {
+    let main;
+    let sub;
+    if (score) {
+      main = `<b class="kcs-lg-num">${esc(score)}</b>`;
+      sub = live ? liveState(clock) : done ? `<span class="kcs-done-badge">${esc(clock || 'MS')}</span>` : '';
+    } else if (start) {
+      const today = legDay(start) === legDay(Date.now() / 1000);
+      main = `<b class="kcs-lg-time">${esc(hourText(start))}</b>`;
+      sub = `${today ? '' : `<span class="kcs-lg-day">${esc(legDay(start))}</span>`}${countdownHtml(start)}`;
+    } else {
+      main = '<b class="kcs-lg-time">v</b>';
+      sub = live ? liveState(clock) : '';
+    }
+    return `<div class="kcs-lg-mid">${main}${sub ? `<span class="kcs-lg-sub">${sub}</span>` : ''}</div>`;
+  }
   function missWhy(bk) {
     if (!bk) return 'Maç bulunamadı';
     if (skMeta?.bkError) return 'Basketbol verisi alınamadı: eklentiyi güncelleyip uzantılar sayfasından yeniden yükle';
@@ -2939,31 +2958,31 @@
   function legBox(leg, e, o = {}) {
     const label = leg.label || leg.match;
     const pick = o.pick ? `<div class="kcs-ci-note kcs-lg-pickline">Seçim: <b>${esc(o.pick)}</b></div>` : '';
-    const head = (state) => `<div class="kcs-lg-head"><b>${esc(label)}</b><span>${state}</span></div>`;
+    
     const cls = (v, live) => `kcs-lg${v === 'won' ? ' is-won' : v === 'lost' ? ' is-lost' : ''}${live ? ' is-live' : ''}${o.hot ? ' kcs-ci--hot' : ''}`;
     if (!e) {
       // Bahislerim: veri serviste bulunamasa da site kendi skorunu yazıyor; o gösterilir.
       const s = leg.site || null;
       const total = s?.hs != null ? s.hs + s.as : null;
       const v = leg.forced || (total != null && o.goal ? goalVerdict(total, o.goal.line, o.goal.side, s.ended) : 'open');
-      const state = s?.live ? liveState(s.clock) : whenState(s?.start ? s.start / 1000 : o.start);
-      const score = `<div class="kcs-lg-score${s?.live ? ' is-live' : ''}">${legTeam(leg.pair?.[0] || label, s?.homeLogo)}<b>${total != null ? `${s.hs} - ${s.as}` : 'v'}</b>${leg.pair?.[1] ? legTeam(leg.pair[1], s?.awayLogo) : '<span></span>'}</div>`;
+      const mid = midHtml({ score: total != null ? `${s.hs} - ${s.as}` : '', live: s?.live, done: s?.ended && total != null, clock: s?.live ? s.clock : '', start: s?.start ? s.start / 1000 : o.start });
+      const score = `<div class="kcs-lg-score${s?.live ? ' is-live' : ''}">${legTeam(leg.pair?.[0] || label, s?.homeLogo)}${mid}${leg.pair?.[1] ? legTeam(leg.pair[1], s?.awayLogo) : '<span></span>'}</div>`;
       const bar = total != null && o.goal ? goalHtml(total, o.goal, s.ended) : '';
       const why = s ? '<div class="kcs-ci-note">Maç ayrıntısı veri serviste bulunamadı; skor siteden.</div>' : `<div class="kcs-ci-note kcs-ci-note--warn">${esc(missWhy(o.bk))}</div>`;
-      return { v, html: `<div class="${cls(v, s?.live)}">${head(state)}${pick}${score}${bar}${o.odds || ''}${why}</div>` };
+      return { v, html: `<div class="${cls(v, s?.live)}">${pick}${score}${bar}${o.odds || ''}${why}</div>` };
     }
     const f = fromSk(e);
     const total = (e.hs ?? 0) + (e.as ?? 0);
     const final = SK_DONE.has(e.status);
     const v = leg.forced || (f.hasScore && o.goal ? goalVerdict(total, o.goal.line, o.goal.side, final) : 'open');
-    const state = f.isLive ? liveState(f.clock) : f.ended ? `<span class="kcs-done-badge">${esc(f.clock || 'MS')}</span>` : whenState(e.start);
-    const score = `<div class="kcs-lg-score${f.isLive ? ' is-live' : ''}">${legTeam(e.home, e.homeLogo)}<b>${f.hasScore ? `${e.hs} - ${e.as}` : 'v'}</b>${legTeam(e.away, e.awayLogo)}</div>`;
+    const mid = midHtml({ score: f.hasScore ? `${e.hs} - ${e.as}` : '', live: f.isLive, done: f.ended, clock: f.clock, start: e.start });
+    const score = `<div class="kcs-lg-score${f.isLive ? ' is-live' : ''}">${legTeam(e.home, e.homeLogo)}${mid}${legTeam(e.away, e.awayLogo)}</div>`;
     const bar = f.hasScore && o.goal ? goalHtml(total, o.goal, final) : '';
     const evs = e.sport === 'basketball' ? '' : evLines(matchEvents(f));
     const pre = e.sport === 'basketball' && e.ou ? `<div class="kcs-ci-note">Maç öncesi çizgi: toplam ${e.ou}${e.spread ? ` · ${esc(e.spread)}` : ''}</div>` : '';
     const prob = o.p != null && !final ? `<div class="kcs-lg-prob"><span>Tutma olasılığı</span><b>${pctText(o.p * 100)}</b></div>` : '';
     const peek = skIdOf({ id: e.id });
-    return { v, html: `<div class="${cls(v, f.isLive)}">${head(state)}${pick}${score}${bar}${evs}${pre}${o.odds || ''}${prob}${peek ? `<div class="kcs-peek-line">${peekBtns(peek)}</div>` : ''}</div>` };
+    return { v, html: `<div class="${cls(v, f.isLive)}">${pick}${score}${bar}${evs}${pre}${o.odds || ''}${prob}${peek ? `<div class="kcs-peek-line">${peekBtns(peek)}</div>` : ''}</div>` };
   }
 
   // Maç saatleri: bulunan maçtan, yoksa sitelerden.
