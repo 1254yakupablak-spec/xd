@@ -1,5 +1,5 @@
 {
- "version": "3.117.1",
+ "version": "3.117.2",
  "files": [
   "BENIOKU.md",
   "background.js",
@@ -41,13 +41,13 @@
   "icons/stake.ico": "ecb0f7645b970de493e3bd1239e21a580925d894",
   "learned.js": "4e6c685fe48caf43b9595714b3eaa387b1957cc3",
   "learned.json": "11a50f6a25de2ba8b7706d5e2933d8febcc35c71",
-  "manifest.json": "81e35d440e994ec57d5554d52cc2528bbacf760d",
+  "manifest.json": "21f1e78879204a4d76ec02ed1a3fe5ca2c85b9d0",
   "notes.json": "f6413c06f0f063f853cf13ed02b378fca6005861",
   "popup.css": "3d7196c2aa4bbc100beffd165f551eeb04816b91",
   "popup.html": "f26328ca89f7bf3ffe05377df0cd7082e9029736",
   "popup.js": "d379b863784af7ae01f5155baadf5a31beb79939",
   "stake.js": "d6222fea22cda3da8aa3ed64568c49ef51e7b088",
-  "styles.css": "d2b7899e86c3ecb71919ba5a401730aa3fa53340",
+  "styles.css": "f2768cc509286b1b6b112d467807d966cf3a0d12",
   "teams.json": "fea94ff68716e1f3fcd614167f0bcbea15bf5797",
   "update.css": "07cd06f5f68d360e488e515f69e3103231cd9bca",
   "update.html": "0bc3e46772901f05a32a9ab976344eb69c12d03a",
