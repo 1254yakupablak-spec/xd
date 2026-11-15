@@ -1349,3 +1349,9 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 .kcs-calc-p.is-none { color: var(--kcs-muted); font-weight: 600; }
 .kcs-calc-item.is-nodata { opacity: 0.75; }
 .kcs-calc .kx-tiles { margin-top: 4px; }
+.kcs-calc-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--kcs-muted); font-size: 12px; font-weight: 700; }
+.kcs-calc-quick button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--kcs-line); border-radius: 999px; background: var(--kcs-panel); color: var(--kcs-fg); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.kcs-calc-quick button:hover:not(:disabled) { border-color: var(--kcs-text); }
+.kcs-calc-quick button.is-on { border-color: var(--kcs-text); background: color-mix(in srgb, var(--kcs-a) 40%, transparent); }
+.kcs-calc-quick button:disabled { opacity: 0.45; cursor: default; }
+.kcs-calc-quick em { padding: 0 5px; border-radius: 7px; background: var(--kcs-bg); color: var(--kcs-text); font-size: 11px; font-style: normal; }
