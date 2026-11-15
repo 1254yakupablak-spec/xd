@@ -107,13 +107,17 @@
     return info;
   }
 
+  // Düzenleme uzaklığı; yan yana iki harfin yer değiştirmesi (CEUTA → CUETA) tek hata sayılır.
   function lev(a, b) {
+    let pp = null;
     let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
     for (let i = 1; i <= a.length; i++) {
       const cur = [i];
       for (let j = 1; j <= b.length; j++) {
         cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (pp && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) cur[j] = Math.min(cur[j], pp[j - 2] + 1);
       }
+      pp = prev;
       prev = cur;
     }
     return prev[b.length];
@@ -174,7 +178,7 @@
   // ---------- SofaScore verisi ve elle düzeltmeler (chrome.storage) ----------
 
   const hasStore = typeof chrome !== 'undefined' && !!chrome.storage?.local;
-  const STORE_KEYS = ['sportShow', 'skFeed', 'manualOrder', 'groupSpecial', 'groupBets', 'fullWidth', 'colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'featPl', 'featLink', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
+  const STORE_KEYS = ['calcOff', 'sportShow', 'skFeed', 'manualOrder', 'groupSpecial', 'groupBets', 'fullWidth', 'colsSpecial', 'colsBets', 'updateInfo', 'sbSort', 'skLinks', 'skEvents', 'skMeta', 'linkOpen', 'plOpen', 'multiStake', 'aiCalls', 'sofaEvents', 'sofaMeta', 'overrides', 'sofaResolved', 'goalLines', 'linesSeeded', 'cardSort', 'cardShow', 'lsMeta', 'learnedSides', 'arbLinks', 'arbLearned', 'featScores', 'featArb', 'featInfo', 'featPl', 'featLink', 'lsEvents', 'lsLive', 'scoreSource', 'siteTabs',
     ...['xbet', 'stake'].flatMap((k) => [`${k}Events`, `${k}Odds`, `${k}Meta`])];
   let sofaEvents = {};
   // Liste sürümleri: skor ya da oran güncellemesi taramayı yenilemez, sadece maç sayısı değişince artar.
@@ -230,6 +234,7 @@
     aiCalls = s.aiCalls || {};
     multiStake = Number(s.multiStake) > 0 ? Number(s.multiStake) : 100;
     plOpen = s.plOpen === true;
+    calcOff = new Set(Array.isArray(s.calcOff) ? s.calcOff : []);
     linkOpen = s.linkOpen === true;
     overrides = s.overrides || {};
     sofaResolved = s.sofaResolved || {};
@@ -2078,6 +2083,8 @@
 
   function candidates2(index, toks) {
     const pre = prefixes(toks);
+    // Kupondaki yazım hatası ilk üç harfte olabilir (CUETA): harf yer değiştirmiş önekler de aranır.
+    for (const t of toks) if (t.length >= 5) { pre.add(t[1] + t[0] + t[2]); pre.add(t[0] + t[2] + t[1]); }
     const seen = new Set();
     const out = [];
     for (const p of pre) {
@@ -3483,6 +3490,7 @@
     const input = targetOf(ev);
     if (ev.key === 'Enter' && input.matches?.('.kcs-stake-input')) { ev.preventDefault(); input.blur(); }
     if (ev.key === 'Escape' && peekOpen.size) closePeek();
+    else if (ev.key === 'Escape' && calcOpen) closeCalcModal();
   }
   function onStakeOut(ev) {
     const input = targetOf(ev);
@@ -3557,67 +3565,132 @@
   }
 
   let chanceMemo = { sig: null, html: '' };
-  function multiChanceHtml() {
-    const list = [];
-    let skipped = 0;
-    const fromOdds = new Set();
-    const fromNote = new Set();
-    const all = []; // bağlı kupon bilgisi için: verisi olmayan kuponlar da
-    let legCards = 0;
+  // Çok maçlı kupon hesaplayıcı: ayrı pencerede açılır. Kullanıcı kuponları tek tek hesaba katar ya da çıkarır;
+  // olasılık, kâr/zarar ve bağlı kuponlar yalnız seçili kuponlarla hesaplanır. Çıkarılanlar saklanır (calcOff).
+  let calcOpen = false;
+  let calcOff = new Set();
+  const saveCalcOff = () => { if (hasStore) chrome.storage.local.set({ calcOff: [...calcOff] }); };
+
+  // Sayfadaki açık çok maçlı kartlar (Spor filtresine göre). Her biri: hesap girdisi (entry), bağlı kupon kaydı (rec),
+  // kartın tek başına tutma olasılığı (p, biliniyorsa) ve hesaba neden katılamadığı (why).
+  function multiItems() {
+    const items = [];
     for (const card of queryAll(SPECIAL_CARD)) {
       if (/KAPANDI/i.test(card.querySelector('.sb-cbt-action')?.textContent || '')) continue;
-      if (!sportOk(card)) continue; // Spor filtresi: hesap yalnız seçili sporun kuponlarıyla
+      if (!sportOk(card)) continue;
       const multi = readMulti(card);
       if (!multi) {
         const lc = readLegsCard(card);
         if (!lc || lc.legs.length < 2) continue;
         const ps = lc.legs.map((leg) => legProb(leg, legEvent(leg)));
         const p = ps.every((x) => x != null) ? ps.reduce((t, x) => t * x, 1) : null;
-        all.push({ title: lc.title, sideText: lc.legs.map((l) => `${l.line} ${l.side === 'under' ? 'Alt' : 'Üst'}`).join(' / '), legs: lc.legs.map((leg) => ({ k: linkKey(leg), label: leg.label })) });
-        if (p == null) skipped++;
-        else { legCards++; list.push({ legs: [{ k: `kart|${lc.title}`, l: null }], line: 0, side: '', odds: lc.odds, p: Math.min(0.9999, Math.max(0.0001, p)) }); }
+        const sideText = lc.legs.map((l) => `${l.line} ${l.side === 'under' ? 'Alt' : 'Üst'}`).join(' / ');
+        items.push({ title: lc.title, sideText, odds: lc.odds, bk: lc.legs.some((l) => l.line >= 40), p, src: 'skor',
+          rec: { title: lc.title, sideText, legs: lc.legs.map((leg) => ({ k: linkKey(leg), label: leg.label })) },
+          entry: p == null ? null : { legs: [{ k: `kart|${lc.title}`, l: null }], line: 0, side: '', odds: lc.odds, p: Math.min(0.9999, Math.max(0.0001, p)) } });
         continue;
       }
+      const sideText = `${multi.line} ${multi.side === 'alt' ? 'Alt' : 'Üst'}`;
+      const rec = { title: multi.title, line: multi.line, side: multi.side, legs: multi.legs.map((leg) => ({ k: linkKey(leg), label: leg.label })) };
       // Basketbol toplam sayı kartı: kendi olasılığıyla (canlı skor ve çizgiden, yoksa not dosyasından) sayılır.
       if (multi.bk) {
-        all.push({ title: multi.title, line: multi.line, side: multi.side, legs: multi.legs.map((leg) => ({ k: linkKey(leg), label: leg.label })) });
         const live = bkSumProb(multi, multi.legs.map(legEvent));
         const p = live ?? (Number(cardNote(multi.title)?.prob) > 0 ? Number(cardNote(multi.title).prob) / 100 : null);
-        if (p == null) skipped++;
-        else { legCards++; list.push({ legs: [{ k: `kart|${multi.title}`, l: null }], line: 0, side: '', odds: multi.odds, p: Math.min(0.9999, Math.max(0.0001, p)) }); }
+        items.push({ title: multi.title, sideText, odds: multi.odds, bk: true, p, src: 'skor', rec,
+          entry: p == null ? null : { legs: [{ k: `kart|${multi.title}`, l: null }], line: 0, side: '', odds: multi.odds, p: Math.min(0.9999, Math.max(0.0001, p)) } });
         continue;
       }
+      const from = { odds: 0, note: 0 };
       const legs = multi.legs.map((leg) => {
         const k = norm(leg.label);
         const odd = legInfo(leg).l;
-        if (odd != null) { fromOdds.add(k); return { k, l: odd }; }
+        if (odd != null) { from.odds++; return { k, l: odd }; }
         const n = Number(notesMap.get(k)?.lambda);
-        if (n > 0) { fromNote.add(k); return { k, l: n }; }
+        if (n > 0) { from.note++; return { k, l: n }; }
         return { k, l: null };
       });
-      all.push({ title: multi.title, line: multi.line, side: multi.side, legs: multi.legs.map((leg) => ({ k: linkKey(leg), label: leg.label })) });
-      const p = Number(cardNote(multi.title)?.prob);
-      const c = { legs, line: multi.line, side: multi.side, odds: multi.odds, p: p > 0 && p < 100 ? p / 100 : null };
-      if (!c.legs.every((x) => x.l > 0) && c.p == null) skipped++; else list.push(c);
+      const noteP = Number(cardNote(multi.title)?.prob);
+      const entry = { legs, line: multi.line, side: multi.side, odds: multi.odds, p: noteP > 0 && noteP < 100 ? noteP / 100 : null };
+      const known = legs.every((x) => x.l > 0);
+      let p = entry.p;
+      if (known) { const over = overProb(legs.reduce((t, x) => t + x.l, 0), multi.line); p = multi.side === 'alt' ? 1 - over : over; }
+      items.push({ title: multi.title, sideText, odds: multi.odds, bk: false, p, src: known ? (from.note ? 'oran+analiz' : 'oran') : (entry.p != null ? 'not' : ''), rec,
+        entry: known || entry.p != null ? entry : null });
     }
-    if (!list.length && !skipped) return '';
-    const sig = JSON.stringify([list, skipped, fromOdds.size, fromNote.size, multiStake, features.pl, features.link, all]);
-    if (sig === chanceMemo.sig) return chanceMemo.html;
-    const res = multiChance(list);
-    const pct = !res ? 'hesaplanamadı' : (res.sure || res.atLeast1 >= 0.999 ? '%99.9 üstü' : `%${(res.atLeast1 * 100).toFixed(1)}`);
-    const mean = res ? `<span class="kcs-chance-mean">ortalama <b>${res.mean.toFixed(1)}</b> / ${res.count} kupon tutar</span>` : '';
-    const parts = [`${list.length + skipped} kupon`, `${fromOdds.size} maç oranlardan`, fromNote.size && `${fromNote.size} maç analizden`,
-      legCards && `${legCards} kupon skor ve çizgiden`, res?.loose - legCards > 0 && `${res.loose - legCards} kupon kendi olasılığıyla`, skipped && `${skipped} kuponun verisi yok, sayılmadı`].filter(Boolean);
-    const link = linkInfo(all);
-    const tip = 'Tahmindir, garanti değildir. Aynı maç birden çok kuponda varsa birlikte sayıldı; goller Poisson ile 20.000 kez denendi. Başlamış maçlarda oran canlı değişir.';
-    const plBtn = '';
-    const html = `<section class="kcs-bar-chance kx-multi"><div class="kx-multi-head"><div class="kx-multi-title" title="${esc(tip)}"><b>${markHtml()}Çok maçlı kuponlar${sportShow !== 'all' ? ` · ${SPORT_TXT[sportShow]}` : ''}</b><small>${esc(parts.join(' · '))}</small></div><div class="kx-multi-actions">${plBtn}</div></div>`
-      + `${features.pl ? `${tilesHtml(res)}${res ? plHtml(res) : ''}` : ''}${features.link ? link.body : ''}</section>`;
-    // İkisi de kapalıysa bölüm hiç çizilmez; sadece bağlı kuponlar açıksa başlık ve liste kalır.
-    if (!features.pl && !features.link) { chanceMemo = { sig, html: '', res }; return ''; }
-    chanceMemo = { sig, html, res };
-    return html;
+    return items;
   }
+
+  // Panel düğmesi: kaç kupon var, kaçı hesapta.
+  function calcBtnHtml() {
+    if (!features.pl && !features.link) return '';
+    const items = multiItems();
+    if (!items.length) return '';
+    const on = items.filter((x) => !calcOff.has(x.title)).length;
+    return `<button type="button" class="kcs-calc-open${calcOpen ? ' is-on' : ''}" title="Çok maçlı kuponları seç, birlikte tutma olasılığını ve kâr/zararı hesapla">`
+      + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11v6M8 15h2M12 15h2"/></svg>`
+      + `Çok maçlı hesap <em>${on}/${items.length}</em></button>`;
+  }
+
+  // Pencerenin içi: kupon listesi (seç / çıkar) ve seçili kuponlarla hesap.
+  function calcBodyHtml() {
+    const items = multiItems();
+    if (!items.length) return '<div class="kcs-peek-empty">Bu sayfada (seçili sporda) açık çok maçlı kupon yok.</div>';
+    const sel = items.filter((x) => !calcOff.has(x.title));
+    const list = sel.map((x) => x.entry).filter(Boolean);
+    const skipped = sel.filter((x) => !x.entry).length;
+    const sig = JSON.stringify([list, skipped, multiStake, features.pl, features.link, sel.map((x) => x.rec)]);
+    if (sig !== chanceMemo.sig) chanceMemo = { sig, res: list.length ? multiChance(list) : null };
+    const res = chanceMemo.res;
+    const rows = items.map((x) => {
+      const on = !calcOff.has(x.title);
+      const pTxt = x.p != null ? pctText(x.p * 100) : 'veri yok';
+      return `<button type="button" class="kcs-calc-item${on ? ' is-on' : ''}${x.entry ? '' : ' is-nodata'}" data-title="${esc(x.title)}" aria-pressed="${on}">`
+        + `<i class="kcs-calc-check"></i><span class="kcs-calc-name"><b>${esc(x.title)}</b><small>${x.bk ? 'Basketbol' : 'Futbol'} · ${esc(x.sideText)}${x.entry ? '' : ' · hesaplanamıyor, sayılmaz'}</small></span>`
+        + `<span class="kcs-calc-odds">${x.odds ? `${Number(x.odds).toFixed(2)}x` : ''}</span><span class="kcs-calc-p${x.p == null ? ' is-none' : ''}">${pTxt}</span></button>`;
+    }).join('');
+    const tools = `<div class="kcs-calc-tools"><span>${sel.length}/${items.length} kupon hesapta${skipped ? ` · ${skipped} kuponun verisi yok` : ''}</span>`
+      + '<button type="button" class="kcs-calc-all">Hepsini seç</button><button type="button" class="kcs-calc-none">Hiçbirini</button></div>';
+    const tip = 'Tahmindir, garanti değildir. Aynı maç birden çok kuponda varsa birlikte sayıldı; goller Poisson ile 20.000 kez denendi. Başlamış maçlarda oran canlı değişir.';
+    let out = '';
+    if (!sel.length) out = '<div class="kcs-peek-empty">Hesaba katılacak kupon seç.</div>';
+    else {
+      if (features.pl) out += `${tilesHtml(res)}${res ? plHtml(res) : ''}`;
+      if (features.link) out += `<div class="kcs-calc-sub">Bağlı kuponlar</div>${linkInfo(sel.map((x) => x.rec)).body}`;
+    }
+    return `<div class="kcs-calc kcs-bar-chance kx-multi" title="${esc(tip)}"><div class="kcs-calc-sub">Kuponlar <small>tıkla: hesaba kat / çıkar · yüzde: kuponun tek başına tutma olasılığı</small></div>${tools}`
+      + `<div class="kcs-calc-list">${rows}</div><div class="kcs-calc-sub">Seçili kuponlarla hesap${sportShow !== 'all' ? ` · ${SPORT_TXT[sportShow]}` : ''}</div>${out}</div>`;
+  }
+
+  function renderCalcModal() {
+    const host = queryOne('.kcs-info');
+    const root = host?.getRootNode();
+    let modal = queryOne('.kcs-cmodal');
+    if (!calcOpen || !root) { modal?.remove(); return; }
+    if (!modal || modal.getRootNode() !== root) {
+      modal?.remove();
+      modal = document.createElement('div');
+      modal.className = 'kcs-cmodal';
+      styleRoot(root);
+      (root === document ? document.body : root).append(modal);
+    }
+    const active = modal.getRootNode().activeElement;
+    if (active && modal.contains(active) && active.matches('.kcs-stake-input')) return;
+    const html = `<div class="kcs-modal-box kcs-calc-box" role="dialog" aria-modal="true" aria-label="Çok maçlı kupon hesaplayıcı"><div class="kcs-modal-top"><b>${markHtml()}Çok maçlı kupon hesaplayıcı</b>`
+      + `<button type="button" class="kcs-calc-close" aria-label="Kapat">×</button></div><div class="kcs-calc-scroll">${calcBodyHtml()}</div></div>`;
+    if (modal.__kcsHtml !== html) {
+      const sc = modal.querySelector('.kcs-calc-scroll')?.scrollTop || 0;
+      modal.innerHTML = html;
+      modal.__kcsHtml = html;
+      const s2 = modal.querySelector('.kcs-calc-scroll');
+      if (s2) s2.scrollTop = sc;
+    }
+  }
+  function closeCalcModal() {
+    calcOpen = false;
+    renderCalcModal();
+    renderInfo();
+  }
+
 
   function infoHtml() {
     const times = BOOKS.map((b) => {
@@ -3649,8 +3722,7 @@
     if (!features.arb) return `${head}<div class="kx-controls">${ddHtml('s-feat', 'Özellikler', featSum(true), featHtml(true))}</div>`;
     return `${head}<div class="kx-controls">${sportDd('s-sport', cards)}${ddHtml('s-show', 'Göster', showTxt, `<span class="kcs-seg">${shows}</span>`)}${ddHtml('s-sort', 'Sırala', sortTxt, `<span class="kcs-seg">${sorts}</span>`)}`
       + `${ddHtml('s-group', 'Grupla', GROUP_TXT[groupSpecial] || 'Yok', groupHtml('special', groupSpecial))}${ddHtml('s-cols', 'Satır başı', colsTxt(colsSpecial), colsHtml('special', colsSpecial), true)}`
-      + `${ddHtml('s-feat', 'Özellikler', featSum(true), featHtml(true))}${wideHtml()}<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
-      + multiChanceHtml()
+      + `${ddHtml('s-feat', 'Özellikler', featSum(true), featHtml(true))}${calcBtnHtml()}${wideHtml()}<button type="button" class="kcs-fold-all">${foldAll ? 'Tümünü aç' : 'Tümünü küçült'}</button></div>`
       + `<footer class="kx-warn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Oranlar her an değişebilir. Oynamadan önce maçı ve oranı sitede kontrol et.</footer>`;
   }
 
@@ -3735,6 +3807,7 @@
     if (active && box.contains(active) && active.matches('.kcs-stake-input')) return;
     const html = infoHtml();
     if (box.__kcsHtml !== html) { box.innerHTML = html; box.__kcsHtml = html; }
+    renderCalcModal();
   }
 
   const SLICE_MS = 12;
@@ -4329,6 +4402,21 @@
       return true;
     }
     if (btn.classList.contains('kcs-modal-close')) { closePeek(); return true; }
+    if (btn.classList.contains('kcs-calc-open')) { calcOpen = true; kxDd = null; renderInfo(); return true; }
+    if (btn.classList.contains('kcs-calc-close')) { closeCalcModal(); return true; }
+    if (btn.classList.contains('kcs-calc-item')) {
+      const t = btn.dataset.title;
+      if (calcOff.has(t)) calcOff.delete(t); else calcOff.add(t);
+      saveCalcOff();
+      renderInfo();
+      return true;
+    }
+    if (btn.classList.contains('kcs-calc-all') || btn.classList.contains('kcs-calc-none')) {
+      calcOff = btn.classList.contains('kcs-calc-all') ? new Set() : new Set(multiItems().map((x) => x.title));
+      saveCalcOff();
+      renderInfo();
+      return true;
+    }
     if (btn.classList.contains('kcs-pz-play')) {
       const el = btn.closest('.kcs-pz');
       const st = el && pzState.get(el.dataset.sk);
@@ -4589,7 +4677,7 @@
     if (hasStore) await chrome.storage.local.set({ overrides: next });
   }
 
-  const OWN = '.kcs-legs, .kcs-status, .kcs-arb-wrap, .kcs-pop, .kcs-info, .kcs-modal';
+  const OWN = '.kcs-legs, .kcs-status, .kcs-arb-wrap, .kcs-pop, .kcs-info, .kcs-modal, .kcs-cmodal';
 
   // Düğmeler basıldığı anda (pointerdown) çalışır: Özel Oranlar kartları basınca yeniden çiziliyor,
   // bırakınca düğme artık aynı öğe olmadığından tarayıcı "click" üretmiyor. Klavyeyle (Enter/Boşluk)
@@ -4621,6 +4709,7 @@
     const t = targetOf(ev);
     // Pencerenin dışına (karartılmış alana) tıklayınca kapanır.
     if (t.classList?.contains('kcs-modal')) { ev.stopPropagation(); closePeek(); return; }
+    if (t.classList?.contains('kcs-cmodal')) { ev.stopPropagation(); closeCalcModal(); return; }
     const inOwn = t.closest?.(OWN);
     if (!inOwn) return;
     const btn = t.closest('button');
