@@ -1263,6 +1263,8 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 .kcs-box-dnp { grid-column: 2 / -1; text-align: left; font-size: 11.5px; }
 @media (max-width: 520px) { .kcs-bkl-wrap { grid-template-columns: 1fr; } .kcs-box-row { grid-template-columns: minmax(0, 1fr) 28px 32px 28px 28px 40px 36px 32px; padding: 0 6px; font-size: 11px; } }
 .kcs-ci-body > .kcs-lg { grid-column: 1 / -1; width: 100%; box-sizing: border-box; }
+.kcs-ci-body > .kcs-goal, .kcs-ci-body > .kcs-goal-alert { grid-column: 1 / -1; width: 100%; box-sizing: border-box; margin-top: 2px; }
+.kcs-ci-body > .kcs-goal .kcs-goal-text > span:first-child { min-width: 0; line-height: 1.4; }
 .kcs-lg-head b { min-width: 0; }
 .kcs-lg-head > span { flex: none; display: inline-flex; align-items: center; gap: 6px; }
 /* Üst panel: sıkı düzen, açılır listeler */
