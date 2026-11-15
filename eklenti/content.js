@@ -3007,7 +3007,14 @@
   }
 
   // Kartta tek yorum: önce güncel not dosyası, yoksa saklanan YZ yorumu, o da yoksa otomatik yorum.
-  const noteComment = (note, ai, auto = '') => note?.comment || ai?.comment || auto;
+  // Kartın yorumu: not dosyasındaki yorum (YZ tahmininin yorumuyla aynıysa bir kez yazılır), yoksa ve YZ tahmini de yoksa kurala bağlı yorum.
+  const noteComment = (note, ai, auto = '') => (note?.comment && note.comment !== ai?.comment ? note.comment : ai ? '' : auto);
+  // Gece görevinin maç notları (form bilgisi): her maçın kendi satırı.
+  function notesHtml(sps) {
+    const found = sps.map((sp) => ({ sp, note: notesMap.get(norm(sp.match || '')) || notesMap.get(norm(sp.label || '')) || notesMap.get(rowKey(sp.label || '')) }))
+      .filter((x) => typeof x.note?.text === 'string' && x.note.text);
+    return found.map(({ sp, note }) => `<div class="kcs-ci-noteline">${sps.length > 1 ? `<u>${esc(sp.label || sp.match)}</u> ` : ''}${esc(note.text)}${note.at ? ` <small>(${esc(noteTime(note.at))})</small>` : ''}</div>`).join('');
+  }
 
   function cardInfoHtml(sp, multi) {
     let body;
@@ -3026,7 +3033,7 @@
       if (prob == null && Number(note?.prob) > 0) prob = Number(note.prob);
       ai = aiCalls[norm(multi.title)] || null;
       const auto = known.every((x) => x.l != null) ? multiComment(multi, known) : '';
-      body += aiBlock(ai) + commentHtml(noteComment(note, ai, auto));
+      body += aiBlock(ai) + commentHtml(noteComment(note, ai, auto), notesHtml(multi.legs));
     } else {
       const one = [{ ...sp, label: sp.pair ? sp.pair.join(' - ') : sp.match }];
       // Toplam gol kartında maçın kendi çizgisi skorun altında ilerleme olarak görünür (takım golü ve KG hariç).
@@ -3036,7 +3043,7 @@
       const note = cardNote(sp.match);
       prob = Number(note?.prob) || null;
       ai = sp.pair ? aiForTeams(sp.pair[0], sp.pair[1]) : null;
-      body += probRow(note) + aiBlock(ai) + commentHtml(noteComment(note, ai, singleComment(sp)));
+      body += probRow(note) + aiBlock(ai) + commentHtml(noteComment(note, ai, singleComment(sp)), notesHtml(one));
     }
     const legs = multi ? multi.legs : [sp];
     const key = multi ? multi.title : sp.key;
@@ -4070,7 +4077,7 @@
     if (p != null && multi.odds && done < n) body += fairRows(Math.min(0.9999, Math.max(1e-4, p)), multi.odds, '', 'Tahmindir: maçlar bağımsız sayıldı. Toplam sayı maç öncesi çizgi etrafında dağılır, canlıda kalan süre ve tempo hesaba katılır; uzatma sayılmaz.');
     else if (Number(note?.prob) > 0) body += probRow(note);
     const ai = aiCalls[norm(multi.title)] || null;
-    body += aiBlock(ai) + commentHtml(noteComment(note, ai));
+    body += aiBlock(ai) + commentHtml(noteComment(note, ai), notesHtml(multi.legs));
     const prob = p != null && done < n ? (p * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
     return cardSections(multi.title, multi.legs, prob, ai, parts + bar, body);
   }
@@ -4142,7 +4149,7 @@
     const note = cardNote(lc.title);
     const prob = pAll != null && !lost && won < n ? (pAll * 100).toFixed(1) : (Number(note?.prob) > 0 ? Number(note.prob) : null);
     const ai = aiCalls[norm(lc.title)] || legsAi(rows.map(({ leg, e }) => ({ f: e ? fromSk(e) : { home: leg.pair?.[0] || leg.label, away: leg.pair?.[1] || '' } })));
-    body += aiBlock(ai) + commentHtml(noteComment(note, ai));
+    body += aiBlock(ai) + commentHtml(noteComment(note, ai), notesHtml(lc.legs));
     return cardSections(lc.title, lc.legs, prob, ai, parts, body, status);
   }
 
