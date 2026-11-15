@@ -1316,3 +1316,36 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 
 /* Futbol MAÇ TAKİP: 15 dakikadan az kalan en erken maç */
 .kcs-lg.kcs-ci--hot { border-color: rgba(255, 92, 92, 0.75); box-shadow: 0 0 0 1px rgba(255, 92, 92, 0.35) inset; }
+
+/* ---------- Çok maçlı kupon hesaplayıcı (ayrı pencere) ---------- */
+.kx .kcs-calc-open { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--kcs-a) 70%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--kcs-a) 28%, transparent); color: var(--kcs-fg); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.kx .kcs-calc-open:hover { border-color: var(--kcs-text); }
+.kx .kcs-calc-open svg { width: 16px; height: 16px; color: var(--kcs-text); }
+.kx .kcs-calc-open em { padding: 1px 6px; border-radius: 8px; background: var(--kcs-bg); color: var(--kcs-text); font-size: 11px; font-style: normal; }
+.kcs-cmodal { position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: rgba(4, 7, 10, 0.72); backdrop-filter: blur(3px); animation: kcs-modal-in 0.15s ease-out; }
+.kcs-cmodal .kcs-calc-box { width: min(820px, 100%); height: min(820px, 92vh); }
+.kcs-calc-close { width: 32px; height: 32px; border: 1px solid var(--kcs-line); border-radius: 8px; background: var(--kcs-panel); color: var(--kcs-fg); font: inherit; font-size: 20px; line-height: 1; cursor: pointer; }
+.kcs-calc-close:hover { border-color: var(--kcs-text); color: var(--kcs-text); }
+.kcs-calc-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(122, 165, 255, 0.28) transparent; }
+.kcs-calc.kx-multi { margin: 0; padding: 0; border: 0; background: transparent; }
+.kcs-calc-sub { margin: 14px 0 8px; color: var(--kcs-fg); font-size: 13px; font-weight: 800; }
+.kcs-calc-sub:first-child { margin-top: 0; }
+.kcs-calc-sub small { margin-left: 6px; color: var(--kcs-muted); font-size: 11.5px; font-weight: 600; }
+.kcs-calc-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: var(--kcs-muted); font-size: 12px; }
+.kcs-calc-tools span { margin-right: auto; }
+.kcs-calc-tools button { height: 28px; padding: 0 10px; border: 1px solid var(--kcs-line); border-radius: 7px; background: var(--kcs-panel); color: var(--kcs-fg); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.kcs-calc-tools button:hover { border-color: var(--kcs-text); }
+.kcs-calc-list { display: flex; flex-direction: column; gap: 6px; }
+.kcs-calc-item { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto 64px; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 1px solid var(--kcs-line); border-radius: 10px; background: var(--kcs-panel); color: var(--kcs-muted); font: inherit; text-align: left; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+.kcs-calc-item:hover { border-color: color-mix(in srgb, var(--kcs-text) 60%, transparent); }
+.kcs-calc-item.is-on { border-color: color-mix(in srgb, var(--kcs-a) 80%, transparent); background: color-mix(in srgb, var(--kcs-a) 18%, var(--kcs-panel)); color: var(--kcs-fg); }
+.kcs-calc-check { width: 18px; height: 18px; border: 2px solid var(--kcs-muted); border-radius: 5px; }
+.kcs-calc-item.is-on .kcs-calc-check { border-color: var(--kcs-text); background: var(--kcs-text) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b0f14' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / 13px no-repeat; }
+.kcs-calc-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kcs-calc-name b { overflow: hidden; color: inherit; font-size: 12.5px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.kcs-calc-name small { color: var(--kcs-muted); font-size: 11.5px; }
+.kcs-calc-odds { color: var(--kcs-fg); font-size: 13px; font-weight: 800; }
+.kcs-calc-p { justify-self: end; padding: 2px 7px; border-radius: 7px; background: var(--kcs-bg); color: var(--kcs-text); font-size: 12px; font-weight: 800; }
+.kcs-calc-p.is-none { color: var(--kcs-muted); font-weight: 600; }
+.kcs-calc-item.is-nodata { opacity: 0.75; }
+.kcs-calc .kx-tiles { margin-top: 4px; }
