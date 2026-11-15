@@ -1366,3 +1366,21 @@ button.kcs-ci-title:hover .kcs-ci-name { color: var(--kcs-text); }
 .kcs-lg-sub { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; color: var(--kcs-muted); font-size: 11px; white-space: nowrap; }
 .kcs-lg-sub .kcs-left { margin: 0; }
 .kcs-lg-team > span { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* TAHMİN (YZ) VE DİĞER BİLGİLER: sade düzen. Üstte YZ tahmini, altında tek sütun bilgi listesi, en altta yorum. */
+.kcs-ci.kcs-ci--yz:not(.is-closed) > .kcs-ci-body { display: flex; flex-direction: column; gap: 0; padding-top: 4px; }
+.kcs-ci--yz .kcs-ai { order: -1; margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--kcs-line); border-radius: 8px; background: var(--kcs-panel); }
+.kcs-ci--yz .kcs-ai-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--kcs-muted); font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; }
+.kcs-ci--yz .kcs-ai-top > span { color: rgb(196, 181, 253); text-transform: uppercase; font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; }
+.kcs-ci--yz .kcs-ai-at { color: var(--kcs-muted); font-size: 11px; }
+.kcs-ci--yz .kcs-ai-main { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.kcs-ci--yz .kcs-ai-main > b { color: var(--kcs-fg); font-size: 24px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kcs-ci--yz .kcs-ai-meter { flex: 1; height: 6px; overflow: hidden; border-radius: 3px; background: rgba(140, 147, 168, 0.18); }
+.kcs-ci--yz .kcs-ai-meter > i { display: block; height: 100%; border-radius: 3px; background: rgb(167, 139, 250); }
+.kcs-ci.kcs-ci--yz .kcs-ci-row { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 0; padding: 7px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.kcs-ci.kcs-ci--yz .kcs-ci-row > span { flex: none; color: var(--kcs-muted); font-size: 12.5px; font-weight: 500; }
+.kcs-ci.kcs-ci--yz .kcs-ci-row > b { font-size: 13px; font-weight: 700; text-align: right; line-height: 1.35; }
+.kcs-ci.kcs-ci--yz .kcs-ci-row .kcs-ci-pct { margin-left: 4px; }
+.kcs-ci.kcs-ci--yz .kcs-ci-note { margin: 6px 0 0; }
+.kcs-ci.kcs-ci--yz .kcs-ci-comment { margin: 12px 0 2px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--kcs-fg); font-size: 13px; line-height: 1.6; }
+.kcs-ci.kcs-ci--yz .kcs-ci-comment > b { display: block; margin-bottom: 4px; color: var(--kcs-muted); font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.kcs-ci.kcs-ci--yz .kcs-ci-noteline + .kcs-ci-noteline { margin-top: 8px; }
