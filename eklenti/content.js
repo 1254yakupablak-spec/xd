@@ -1528,7 +1528,7 @@
     return { title: legs.map((x) => x.label).join(' | '), legs, odds: odds > 1 ? odds : null };
   }
 
-  function renderSbLegs(card, lc) {
+  function renderSbLegs(card, lc, alerts = '') {
     const res = siteResult(card);
     const evs = lc.legs.map((leg) => legEvent(leg));
     const starts = lc.legs.map((leg, i) => (evs[i]?.start ? evs[i].start * 1000 : leg.site.start)).filter(Boolean);
@@ -1546,7 +1546,7 @@
     });
     const key = lc.title;
     const html = poweredHtml() + (sbSort === 'manual' ? moveHtml('bets') : '') + (res ? `<div class="kcs-sb-status">${siteResultHtml(res, key)}</div>` : '')
-      + legsCardHtml(lc);
+      + alerts + legsCardHtml(lc);
     let box = card.querySelector(':scope > .kcs-legs');
     if (!box) {
       box = document.createElement('div');
@@ -1591,6 +1591,9 @@
     const evAlert = ev?.fresh ? `<div class="kcs-goal-alert"><span class="kcs-goal-tag kcs-goal-tag--${ev.fresh.cls}">${esc(ev.fresh.text.toLocaleUpperCase('tr-TR'))}</span></div>` : '';
     const goalAlert = flash ? (flash.cancel ? `<div class="kcs-goal-alert"><span class="kcs-goal-tag kcs-goal-tag--var">GOL İPTAL</span> Skor ${esc(digits[0])} - ${esc(digits[1])} oldu</div>`
       : `<div class="kcs-goal-alert"><span class="kcs-goal-tag">GOL</span> Skor ${esc(digits[0])} - ${esc(digits[1])} oldu</div>`) : '';
+    // Tek maçlık kart da Özel Oranlar'daki gibi çizilir: MAÇ TAKİP (takımlar yan yana, ortada skor ya da saat) ve TAHMİN (YZ).
+    const lc1 = leg ? readSbLegs(card, [leg]) : null;
+    if (lc1) { renderSbLegs(card, lc1, evAlert + goalAlert); return; }
     const reds = '' && ev && (ev.reds.home || ev.reds.away) ? `<div class="kcs-evs"><span class="kcs-ev kcs-ev--red">Kırmızı kart: ${esc(teams[0])} ${ev.reds.home} · ${esc(teams[1])} ${ev.reds.away}</span></div>` : '';
     const legStartMs = parseLegDate(leg?.querySelector('.sb-mb-leg-date')?.textContent || '');
     const countdown = !leg?.matches('.is-live') && !hasGoal && legStartMs ? countdownHtml(legStartMs / 1000) : '';
@@ -2848,8 +2851,7 @@
     if (!ai) return '';
     const p = Number(ai.prob);
     const sum = p > 0 && p < 100 ? `%${p}` : '';
-    const written = ai.at ? infoRow('Yazıldığı saat', esc(noteTime(ai.at))) : '';
-    return sectionHtml('info', key, 'Yapay zeka tahmini', sum, probRow(ai) + written + commentHtml(ai.comment));
+    return sectionHtml('bilgi', key, 'TAHMİN (YZ) VE DİĞER BİLGİLER', sum && `YZ ${sum}`, aiBlock(ai) + commentHtml(ai.comment), 'info kcs-ci--yz');
   }
 
   const noteTime = (iso) => new Date(iso).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -3029,8 +3031,9 @@
     if (!ai) return '';
     const p = Number(ai.prob);
     const ok = p > 0 && p < 100;
+    if (!ok) return '';
     return `<div class="kcs-ai" title="Tahmindir, garanti değildir."><div class="kcs-ai-top"><span>Yapay zeka tahmini</span>${ai.at ? `<small class="kcs-ai-at">${esc(noteTime(ai.at))}</small>` : ''}</div>`
-      + (ok ? `<div class="kcs-ai-main"><b>%${p}</b><span class="kcs-ai-meter"><i style="width:${p}%"></i></span></div>` : '<div class="kcs-ai-main"><b>—</b></div>') + '</div>';
+      + (ok ? `<div class="kcs-ai-main"><b>%${p}</b><span class="kcs-ai-meter"><i style="width:${p}%"></i></span></div>` : '') + '</div>';
   }
 
   // Kartta tek yorum: önce güncel not dosyası, yoksa saklanan YZ yorumu, o da yoksa otomatik yorum.
