@@ -21,7 +21,7 @@ async function renderStatus() {
   const meta = s.skMeta || {};
   const foot = ev.filter((e) => e.sport !== 'basketball');
   const bk = ev.filter((e) => e.sport === 'basketball');
-  setStat('st-foot', meta.error && Date.now() - (meta.liveAt || 0) > 3 * 60 * 1000 ? 'alınamadı' : `${foot.length} maç · ${ago(meta.liveAt)}`, meta.error && Date.now() - (meta.liveAt || 0) > 3 * 60 * 1000 ? 'bad' : foot.length ? 'ok' : '');
+  setStat('st-foot', meta.error && Date.now() - (meta.liveAt || 0) > 3 * 60 * 1000 ? 'alınamadı' : `${foot.length} maç · ${ago(meta.liveAt)}${meta.fbMode ? ' · yedek kaynak' : ''}`, meta.error && Date.now() - (meta.liveAt || 0) > 3 * 60 * 1000 ? 'bad' : foot.length ? 'ok' : '');
   setStat('st-bk', meta.bkError ? 'alınamadı' : `${bk.length} maç · ${ago(meta.bkLiveAt || meta.bkListAt)}`, meta.bkError ? 'bad' : bk.length ? 'ok' : '');
   if (meta.bkError) $('st-bk').title = meta.bkError;
   const lf = foot.filter((e) => LIVE.has(e.status)).length;
