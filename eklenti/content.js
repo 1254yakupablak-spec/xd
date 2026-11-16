@@ -211,8 +211,12 @@
     for (let i = start; i <= arr.length - (k - pre.length); i++) yield* combos(arr, k, i + 1, [...pre, arr[i]]);
   }
 
+  // Sıralama puanı. Olasılık modunda değeri eksi olmayan kuponlar önce gelir, aralarında tutma olasılığı
+  // yüksek olan öne geçer; değeri eksi olanlar en sona (kendi değerlerine göre) kalır.
+  const score = (p, ev, sort) => (sort === 'EV' ? ev : ev >= 0 ? 1 + p : ev);
+
   // Bir kombinasyonun her çizgisi için değer: adil olasılık × sitenin oranı − 1.
-  function bestLine(lines, lamFair, sides, minOdds, maxOdds) {
+  function bestLine(lines, lamFair, sides, minOdds, maxOdds, sort) {
     let best = null;
     for (const l of lines) {
       const pu = cdf(Math.floor(l.line), lamFair);
@@ -221,7 +225,8 @@
         if (!(odds >= minOdds) || odds > maxOdds) continue;
         const p = side === 'OVER' ? 1 - pu : pu;
         const ev = p * odds - 1;
-        if (!best || ev > best.ev) best = { line: l.line, side, odds, p, fair: 1 / p, ev };
+        const sc = score(p, ev, sort);
+        if (!best || sc > best.sc) best = { line: l.line, side, odds, p, fair: 1 / p, ev, sc };
       }
     }
     return best;
@@ -240,14 +245,14 @@
     const pairs = pairUp(gm, await loadBook())
       .sort((a, b) => Date.parse(a.g.startsAt) - Date.parse(b.g.startsAt))
       .slice(0, MAX_EVENTS);
-    if (pairs.length < 2) throw new Error('Maçlar sitenin bülteninde bulunamadı.');
+    if (pairs.length < 2) throw new Error('Bu saat aralığındaki maçlar sitenin bülteninde bulunamadı. Başlama aralığını genişlet (24 ya da 48 sa).');
     let n = 0;
     await pool(pairs, 6, async (x) => {
       x.fair = await fairOf(x.e.id);
       say(`Maç oranları okunuyor… ${++n}/${pairs.length}`);
     });
     const priced = pairs.filter((x) => x.fair?.lam);
-    if (priced.length < 3) throw new Error('Alt/Üst oranı olan yeterli maç yok.');
+    if (priced.length < 3) throw new Error('Bu saat aralığında Alt/Üst oranı olan yeterli maç yok. Başlama aralığını genişlet (24 ya da 48 sa).');
     await siteLambdas(priced, (i, t) => say(`Goal Mix fiyatları okunuyor… ${i}/${t}`));
     const items = priced.filter((x) => x.site != null && x.site > 0.2);
     for (const x of items) x.edge = x.fair.lam - x.site;
@@ -269,8 +274,9 @@
             const odds = 1 / (ps * MARGIN);
             if (odds < opts.minOdds || odds > opts.maxOdds) continue;
             const pfU = cdf(Math.floor(line), lf);
-            const ev = (side === 'OVER' ? 1 - pfU : pfU) * odds - 1;
-            if (!best || ev > best) best = ev;
+            const pf = side === 'OVER' ? 1 - pfU : pfU;
+            const sc = score(pf, pf * odds - 1, opts.sort);
+            if (best == null || sc > best) best = sc;
           }
           if (best != null) cands.push({ c, side, est: best });
         }
@@ -293,11 +299,11 @@
       say(`Kuponların oranı soruluyor… ${++n}/${pick.length}`);
       if (!q) return null;
       const lf = x.c.reduce((s, m) => s + m.fair.lam, 0);
-      const b = bestLine(q.lines, lf, [x.side], opts.minOdds, opts.maxOdds);
+      const b = bestLine(q.lines, lf, [x.side], opts.minOdds, opts.maxOdds, opts.sort);
       return b ? { ...b, legs: x.c, lamFair: lf, lamSite: q.lam } : null;
     });
     const seen = new Set();
-    const list = res.filter(Boolean).sort((a, b) => b.ev - a.ev).filter((x) => {
+    const list = res.filter(Boolean).sort((a, b) => b.sc - a.sc).filter((x) => {
       const k = `${x.side}|${x.line}|${x.legs.map((m) => m.g.id).sort().join(',')}`;
       if (seen.has(k)) return false;
       seen.add(k);
@@ -310,7 +316,7 @@
   let fab = null;
   let modal = null;
   let busy = false;
-  const state = { side: 'OVER', minOdds: 1.5, maxOdds: 4, sizes: [2, 3, 4, 5], hours: 24, count: 10 };
+  const state = { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, sizes: [2, 3, 4, 5], hours: 24, count: 10 };
   try { Object.assign(state, JSON.parse(localStorage.getItem('kkGoalMixOpts') || '{}')); } catch { /* yok */ }
 
   function legHtml(m) {
@@ -327,8 +333,8 @@
     return `<article class="kk-card${good ? ' is-good' : ''}">`
       + `<header class="kk-card-head"><span class="kk-card-no">${i + 1}</span>`
       + `<span class="kk-card-pick"><b>${c.legs.length} maç · Toplam ${c.line} ${side}</b><small>Beklenen toplam gol ${f2(c.lamFair)} · sitenin hesabı ${f2(c.lamSite)}</small></span>`
-      + `<span class="kk-card-odds">${c.odds.toFixed(2)}</span></header>`
-      + `<div class="kk-card-stats"><span>Adil oran <b>${c.fair.toFixed(2)}</b></span><span>Olasılık <b>%${(c.p * 100).toFixed(1)}</b></span>`
+      + `<span class="kk-card-prob"><b>%${(c.p * 100).toFixed(0)}</b><small>tutma</small></span><span class="kk-card-odds">${c.odds.toFixed(2)}</span></header>`
+      + `<div class="kk-card-stats"><span>Adil oran <b>${c.fair.toFixed(2)}</b></span>`
       + `<span class="kk-ev">Değer <b>${pct(c.ev)}</b></span>`
       + `<button type="button" class="kk-copy" data-copy="${esc(copy)}">Kopyala</button></div>`
       + `<ol class="kk-legs">${c.legs.map(legHtml).join('')}</ol></article>`;
@@ -341,6 +347,7 @@
   function renderForm() {
     const body = modal.querySelector('.kk-form');
     body.innerHTML = `<label class="kk-field"><span>Alt / Üst</span>${seg('side', state.side, [['OVER', 'Üst'], ['UNDER', 'Alt'], ['BOTH', 'İkisi']])}</label>`
+      + `<label class="kk-field"><span>Öncelik</span>${seg('sort', state.sort, [['PROB', 'Tutma olasılığı'], ['EV', 'Değer']])}</label>`
       + `<label class="kk-field"><span>En az oran</span><input class="kk-input" name="minOdds" type="number" min="1.01" step="0.05" value="${state.minOdds}"></label>`
       + `<label class="kk-field"><span>En çok oran</span><input class="kk-input" name="maxOdds" type="number" min="1.05" step="0.25" value="${state.maxOdds}"></label>`
       + `<label class="kk-field"><span>Maç sayısı</span><div class="kk-seg kk-seg--multi" data-name="sizes">${[2, 3, 4, 5].map((k) => `<button type="button" data-v="${k}" class="${state.sizes.includes(k) ? 'is-on' : ''}">${k}</button>`).join('')}</div></label>`
@@ -409,7 +416,7 @@
           state.sizes = state.sizes.includes(k) ? state.sizes.filter((x) => x !== k) : [...state.sizes, k];
           if (!state.sizes.length) state.sizes = [k];
         } else {
-          state[name] = name === 'side' ? b.dataset.v : Number(b.dataset.v);
+          state[name] = name === 'side' || name === 'sort' ? b.dataset.v : Number(b.dataset.v);
         }
         readInputs();
         save();
