@@ -12,33 +12,15 @@
     <span id="version"></span>
   </header>
   <button id="open-update" class="btn btn--wide update-btn">Güncellemeleri denetle</button>
-
   <section>
-    <h2>Durum</h2>
-    <div class="stat"><i id="st-foot-dot" class="dot"></i><span>Futbol maçları</span><b id="st-foot">…</b></div>
-    <div class="stat"><i id="st-bk-dot" class="dot"></i><span>NBA maçları</span><b id="st-bk">…</b></div>
-    <div class="stat"><i id="st-live-dot" class="dot"></i><span>Şu an canlı</span><b id="st-live">…</b></div>
-    <div class="stat"><i id="st-xbet-dot" class="dot"></i><span>1xBet oranları</span><b id="st-xbet">…</b></div>
-    <div class="stat"><i id="st-stake-dot" class="dot"></i><span>Stake oranları</span><b id="st-stake">…</b></div>
-    <div class="stat"><i id="st-notes-dot" class="dot"></i><span>Maç notları</span><b id="st-notes">…</b></div>
-    <div class="stat"><i class="dot dot--info"></i><span>Saklanan YZ tahmini</span><b id="st-ai">…</b></div>
-    <button id="refresh-data" class="btn btn--wide btn--sm">Maç verisini şimdi yenile</button>
-    <p id="refresh-note" class="note"></p>
+    <h2>Sürüm</h2>
+    <div class="line"><span>Yüklü</span><b id="cur">…</b></div>
+    <div class="line"><span>Son sürüm</span><b id="latest">…</b></div>
   </section>
-
-  <details>
-    <summary>Ayarlar</summary>
-
-    <label class="field-label" for="xbet-host">1xBet adresi</label>
-    <div class="line">
-      <input id="xbet-host" class="input" type="text" placeholder="1xbet.com" spellcheck="false">
-      <button id="xbet-host-save" class="btn">Kaydet</button>
-    </div>
-    <p id="xbet-host-note" class="note"></p>
-
-    <p class="note">Özellikleri (canlı skor, arbitraj, bilgiler, kâr/zarar) 6q sayfasındaki panelin "Özellikler" listesinden açıp kapat.</p>
-  </details>
-
+  <section>
+    <h2>Kupon oluşturucu</h2>
+    <p class="note">6q'da Spor › Özel Oranlar (Goal Mix) sayfasını aç; sağ alttaki <b>Kupon oluşturucu</b> düğmesine bas.</p>
+  </section>
   <script src="popup.js"></script>
 </body>
 </html>
