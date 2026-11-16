@@ -85,3 +85,4 @@
 .kk-card-prob { display: flex; flex: none; flex-direction: column; align-items: flex-end; line-height: 1.1; }
 .kk-card-prob b { color: var(--kk-ok); font-size: 18px; font-weight: 900; }
 .kk-card-prob small { color: var(--kk-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.kk-note { margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--kk-line); color: #c9cede; font-size: 12px; line-height: 1.5; }
