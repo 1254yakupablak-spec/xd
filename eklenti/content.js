@@ -788,7 +788,8 @@
     const text = card.querySelector('.sb-mb-textbet')?.textContent || '';
     const { title, line } = splitTextBet(text);
     const rows = [];
-    for (const pair of title.split(/\s+[I|]\s+|\s{2,}|\s*\|\s*/)) {
+    for (const raw of title.split(/\s+[I|]\s+|\s{2,}|\s*\|\s*/)) {
+      const pair = raw.trim() ? fixPair(raw) : '';
       if (!pair.includes('-')) continue;
       const auto = overrides[rowKey(pair)] != null ? null : matchPair(pair, list);
       rows.push({ label: pair.trim(), ...resolve(pair, auto) });
@@ -2594,6 +2595,36 @@
     return { l: vals.length ? vals.reduce((n, x) => n + x, 0) / vals.length : null, show };
   }
 
+  // Kart başlığında bazen iki takımın arasına tire konmuyor ("ALMANYA HOLLANDA"). İki yanı da bilinen takım adı
+  // olan boşluktan bölünür; tek boşluk varsa oradan. Bulunamazsa olduğu gibi kalır.
+  const teamNameMemo = { v: -1, set: new Set() };
+  function knownTeam(x) {
+    const n = norm(x);
+    if (!n) return false;
+    if (aliasMap?.has(n)) return true;
+    if (teamNameMemo.v !== listVersion.sk) {
+      teamNameMemo.set = new Set(Object.values(skEvents || {}).flatMap((e) => [norm(e.home), norm(e.away)]));
+      teamNameMemo.v = listVersion.sk;
+    }
+    return teamNameMemo.set.has(n);
+  }
+  function fixPair(label) {
+    const s = label.trim();
+    if (s.includes('-')) return s;
+    const words = s.split(/\s+/);
+    if (words.length < 2) return s;
+    let best = null;
+    let bestScore = 0;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(' ');
+      const b = words.slice(i).join(' ');
+      const score = (knownTeam(a) ? 1 : 0) + (knownTeam(b) ? 1 : 0);
+      if (score > bestScore) { bestScore = score; best = `${a}-${b}`; }
+    }
+    if (bestScore === 2 || (best && words.length === 2)) return best;
+    return words.length === 2 ? `${words[0]}-${words[1]}` : s;
+  }
+
   function readMulti(card) {
     const block = card.querySelector('.sb-cbt-textblock');
     const title = card.querySelector('.sb-cbt-team')?.textContent.trim();
@@ -2601,7 +2632,7 @@
     if (!block || !title || !odds || OTHER_MARKET.test(block.textContent)) return null;
     const m = GOAL_LINE.exec(block.textContent);
     if (!m) return null;
-    const legs = title.split(/\s+[I|]\s+|\s{2,}|\s*\|\s*/).filter((x) => x.includes('-')).map((label) => {
+    const legs = title.split(/\s+[I|]\s+|\s{2,}|\s*\|\s*/).filter((x) => x.trim()).map(fixPair).filter((x) => x.includes('-')).map((label) => {
       const pair = label.trim().split(/\s*-\s*/);
       const match = pair.join(' ');
       return { label: label.trim(), key: `leg|${norm(match)}`, match, pair: pair.length === 2 ? pair : null, time: '', odds, side: 'under', line: 2.5, team: null };
