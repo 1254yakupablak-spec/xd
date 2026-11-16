@@ -52,8 +52,9 @@
   };
 
   const MIN_SIDE_SCORE = 0.6;
-  // Yedek/altyapı takımları: "PSV II", "Jong AZ", "Braga B", "Benfica U23".
-  const RESERVE_RE = /\b(ii|u19|u20|u21|u23|jong)\b|\sb$/;
+  // Yedek/altyapı takımları: "PSV II", "Jong AZ", "Braga B", "Benfica U23". Kendine özel adı olan yedek takımlar da:
+  // Celta Fortuna (Celta Vigo II), Real Madrid Castilla, Barcelona Atlètic, Bilbao Athletic.
+  const RESERVE_RE = /\b(ii|u19|u20|u21|u23|jong|castilla|celta fortuna|barcelona atletic|barca atletic|bilbao athletic)\b|\sb$/;
   const WOMEN_RE = /\b(women|womens|w|wfc|ladies|kadin|femenino|feminin|frauen)\b/;
 
   // ---------- yardımcılar ----------
@@ -2267,10 +2268,15 @@
     const n = norm(sp.match);
     const cardReserve = RESERVE_RE.test(n);
     const cardWomen = WOMEN_RE.test(n);
+    // Yedeklik takım takım bakılır: "ALBACETE-CELTA VIGO II" maçında yalnız Celta yedek takımdır (kupa maçları).
+    const sideRes = sp.pair?.length === 2 ? sp.pair.map((x) => RESERVE_RE.test(norm(x))) : null;
+    const reserveOk = (h, a) => (sideRes
+      ? (h === sideRes[0] && a === sideRes[1]) || (h === sideRes[1] && a === sideRes[0])
+      : h === cardReserve && a === cardReserve);
     let best = null;
     const loose = [];
     for (const x of index.byPre ? candidates2(index, toks) : index) {
-      if (x.h.reserve !== cardReserve || x.a.reserve !== cardReserve) continue;
+      if (!reserveOk(x.h.reserve, x.a.reserve)) continue;
       if (x.h.women !== cardWomen || x.a.women !== cardWomen) continue;
       if (x.e.start && !inWindow(x.e.start)) continue;
       const ch = coverage(x.h, toks);
