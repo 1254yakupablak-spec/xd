@@ -326,6 +326,31 @@
       + `<span class="kk-leg-xg" title="Adil gol beklentisi · Goal Mix'in varsaydığı">${f2(m.fair.lam)}<small>site ${f2(m.site)}</small></span></li>`;
   }
 
+  // Kuponun olasılığının nereden geldiğini anlatan kısa yorum (sayılardan üretilir).
+  function commentText(c) {
+    const over = c.side === 'OVER';
+    const need = over ? Math.ceil(c.line) : Math.floor(c.line);
+    const gap = c.lamFair - c.line;
+    const legs = [...c.legs].sort((a, b) => b.fair.lam - a.fair.lam);
+    const name = (m) => `${m.g.home}-${m.g.away}`;
+    const s = [];
+    s.push(`Bu ${c.legs.length} maçta toplam yaklaşık ${c.lamFair.toFixed(1)} gol bekleniyor; kupon ${over ? `en az ${need}` : `en fazla ${need}`} gol istiyor.`);
+    const side = over ? (gap > 0 ? 'üstünde' : 'altında') : (gap < 0 ? 'altında' : 'üstünde');
+    const helps = over ? gap > 0 : gap < 0;
+    s.push(`Beklenen gol çizginin ${Math.abs(gap).toFixed(1)} ${side}; ${helps ? 'bu kuponun lehine' : 'bu kuponun aleyhine'}, tutma olasılığı bu yüzden %${(c.p * 100).toFixed(0)}.`);
+    if (over) {
+      s.push(`En çok gol beklenen maç ${name(legs[0])} (${legs[0].fair.lam.toFixed(1)}). En zayıf halka ${name(legs[legs.length - 1])} (${legs[legs.length - 1].fair.lam.toFixed(1)} gol).`);
+    } else {
+      s.push(`En büyük risk ${name(legs[0])}: tek başına ${legs[0].fair.lam.toFixed(1)} gol bekleniyor.`);
+    }
+    const diff = c.lamFair - c.lamSite;
+    if (Math.abs(diff) >= 0.1) {
+      const lehine = over ? diff > 0 : diff < 0;
+      s.push(`Site bu maçlara ${c.lamSite.toFixed(1)} gol biçmiş, normal maç oranları ${c.lamFair.toFixed(1)} gösteriyor; ${lehine ? 'bu fark oranı adil orandan yükseltiyor' : 'bu fark oranı adil orandan düşürüyor'} (değer ${pct(c.ev)}).`);
+    }
+    return s.join(' ');
+  }
+
   function cardHtml(c, i) {
     const side = c.side === 'OVER' ? 'ÜST' : 'ALT';
     const good = c.ev > 0;
@@ -337,6 +362,7 @@
       + `<div class="kk-card-stats"><span>Adil oran <b>${c.fair.toFixed(2)}</b></span>`
       + `<span class="kk-ev">Değer <b>${pct(c.ev)}</b></span>`
       + `<button type="button" class="kk-copy" data-copy="${esc(copy)}">Kopyala</button></div>`
+      + `<p class="kk-note">${esc(commentText(c))}</p>`
       + `<ol class="kk-legs">${c.legs.map(legHtml).join('')}</ol></article>`;
   }
 
