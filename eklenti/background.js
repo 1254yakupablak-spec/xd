@@ -29,8 +29,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 chrome.runtime.onStartup?.addListener(() => checkUpdate(true));
 chrome.runtime.onInstalled.addListener(async () => {
   // Eski sürümlerin kayıtları (canlı skor, oranlar, notlar) artık kullanılmıyor.
-  const { updateInfo } = await chrome.storage.local.get('updateInfo');
+  // 1xBet verisi, adresi ve kupon verisi korunur.
+  const KEEP = ['updateInfo', 'xbetHost', 'xbetEvents', 'xbetOdds', 'xbetMeta', 'kkData'];
+  const keep = await chrome.storage.local.get(KEEP);
   await chrome.storage.local.clear();
-  if (updateInfo) await chrome.storage.local.set({ updateInfo });
+  await chrome.storage.local.set(keep);
   checkUpdate(true);
 });
