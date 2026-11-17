@@ -7,7 +7,7 @@ Bu eklenti 6q'da **Spor › Özel Oranlar (Goal Mix)** sayfasına bir kupon olu�
 6q'nun herhangi bir sayfası açıkken eklenti 10 dakikada bir arka planda önümüzdeki 48 saatteki bütün Goal Mix maçlarını toplar. Her maçın adil gol beklentisini ve Goal Mix'in varsaydığı gol beklentisini kendi içinde saklar. Kupon penceresi bu hazır veriyi seçimlerine göre filtreler. O an sadece seçilen kombinasyonların gerçek oranını sorar, bu yüzden kuponlar birkaç saniyede çıkar. Pencerede **Verileri yenile** düğmesi toplamayı hemen yeniden başlatır.
 
 1. Goal Mix listesindeki maçları sitenin normal futbol bültenindeki maçlarla eşleştirir. Eşleştirmede maç saatine ve takım adlarına bakar.
-2. Her maçın adil gol beklentisini **1xBet**'in Toplam Gol Alt/Üst oranlarından, payı çıkararak bulur. 1xBet sekmesi (1xbet.com/tr/line/football) açık olmalı. 1xBet'te henüz görünmeyen maçlar 1xBet'in kendi aramasıyla otomatik aranır; bunun için 1xBet'te bir kez arama yap ve bir maç sayfası aç. 1xBet'te bulunamayan maçta 6q'nun normal bülteninin Alt/Üst oranları kullanılır.
+2. Her maçın normal "Alt/Üst" oranlarından (6q'nun bülteni) site payını çıkarır ve maçın adil gol beklentisini bulur: 1.5–4.5 arası dengeli çizgilerin her birinden Poisson ile beklenti çıkar, ortancası alınır.
 3. Goal Mix'in fiyat servisinden, sitenin aynı maç için varsaydığı gol beklentisini çıkarır.
 4. Bu iki beklenti arasındaki farkın en büyük olduğu maçlardan kombinasyonlar kurar. Her kombinasyonun gerçek Goal Mix oranını sorar. Toplam gol için Poisson dağılımı varsayarak bu oranı adil olasılıkla karşılaştırır.
 5. Seçilen oran aralığında değeri en yüksek kuponları gösterir. Değer şöyle hesaplanır: adil olasılık × sitenin oranı − 1.
