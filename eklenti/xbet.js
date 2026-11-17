@@ -1,7 +1,7 @@
 // 1xBet sekmesinde çalışır. 1xBet'in kendi sitesinin aldığı maç listesi ve maç oranı yanıtlarını
 // (xbet-hook.js iletir) okuyup maçları ve Toplam Gol Alt/Üst oranlarını chrome.storage'a yazar.
 // Kendisi 1xBet'e istek atmaz; ne kadar maç görünürse o kadarı bilinir. Eşleştirmeyi ve kâr
-// hesabını özel oranlar sayfasındaki content.js yapar.
+// hesabını Goal Mix sayfasındaki content.js yapar (adil oran).
 (async () => {
   if (window.top !== window || window.__kcsXbet) return;
   // 1xBet'in ayna adresleri: adında "1xbet" geçenler ya da menüden seçilen adres (xbetHost).
@@ -228,8 +228,8 @@
   // (xbetWant); burada 1xBet'in kendi arama isteğiyle (kullanıcı bir kez arama yapınca feed-hook.js
   // kalıbını öğrenir) aranır. Bulunan ama oranı olmayan maçın oranları maç isteğiyle (bir maç sayfası
   // açılınca öğrenilir) çekilir. Stake'teki gibi yavaş: 20 sn'de en çok 2 istek.
-  const SEARCH_LOOP_MS = 20 * 1000;
-  const PER_LOOP = 4;
+  const SEARCH_LOOP_MS = 15 * 1000;
+  const PER_LOOP = 5;
   const REFRESH_MS = 3 * 60 * 1000;
   const RETRY_MS = 10 * 60 * 1000;
   let auto = { search: false, game: false };
@@ -297,116 +297,5 @@
     if (area === 'local' && changes.xbetWant) searchLoop().catch(() => {});
     // Sayfadaki "Yenile": bütün maçlar yeniden sorgulanır (hız sınırı aynı kalır).
     if (area === 'local' && changes.refreshReq) { tries.clear(); searchLoop().catch(() => {}); }
-  });
-
-  // ---------- "Aç": maçı sitenin aramasıyla açma ----------
-  // 1xBet'te maç numarasıyla kısa adres açılmıyor, ama numara arama kutusuna yazılınca maç çıkıyor. Özel oranlar
-  // sayfası xbetOpen bırakır; burada numara arama kutusuna yazılır, çıkan maç linkine tıklanır. Kutu ya da maç
-  // bulunamazsa üstteki çubukta numarayı kopyalama düğmesi çıkar.
-  const OPEN_TTL_MS = 30 * 1000;
-  const OPEN_WAIT_MS = 8000;
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const visible = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-
-  function searchInput() {
-    const sel = '.ui-search-default__input, input[type="search"], input[placeholder*="Ara" i], input[placeholder*="search" i], input[class*="search" i], [class*="search" i] input';
-    return [...document.querySelectorAll(sel)].find(visible) || null;
-  }
-
-  // Arama kutusu kapalıysa açan düğme: adında ya da etiketinde "search"/"ara" geçen ilk görünür düğme.
-  function searchOpener() {
-    const sel = 'button[aria-label*="search" i], button[aria-label*="ara" i], button[class*="search" i], [class*="search" i][role="button"], a[class*="search" i], [class*="search" i] button';
-    return [...document.querySelectorAll(sel)].find(visible) || null;
-  }
-
-  function typeInto(input, text) {
-    input.focus();
-    input.value = text;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    // Bazı arama kutuları sonucu Enter ile getirir.
-    for (const type of ['keydown', 'keypress', 'keyup']) {
-      input.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-    }
-  }
-
-  function openFailed(id, why) {
-    bar.show([
-      bar.text(`Maç ${bar.esc(id)} açılamadı (${bar.esc(why)}). Numarayı sitenin arama kutusuna yapıştır.`),
-      bar.button('Numarayı kopyala', true, async () => {
-        try { await navigator.clipboard.writeText(id); } catch { /* izin yok */ }
-        bar.show([bar.text(`Kopyalandı: ${bar.esc(id)}. Arama kutusuna yapıştır.`), bar.button('Kapat', false, bar.close)]);
-      }),
-      bar.button('Kapat', false, bar.close),
-    ]);
-  }
-
-  async function openById(id) {
-    bar.show([bar.text(`Maç ${bar.esc(id)} aranıyor…`)]);
-    let input = searchInput();
-    if (!input) {
-      searchOpener()?.click();
-      await sleep(600);
-      input = searchInput();
-    }
-    if (!input) { openFailed(id, 'arama kutusu bulunamadı'); return; }
-    typeInto(input, id);
-    const until = Date.now() + OPEN_WAIT_MS;
-    while (Date.now() < until) {
-      const link = [...document.querySelectorAll(`a[href*="${id}"]`)].find(visible);
-      if (link) {
-        link.click();
-        bar.close();
-        return;
-      }
-      await sleep(300);
-    }
-    openFailed(id, 'sonuç gelmedi');
-  }
-
-  async function checkOpen() {
-    const { xbetOpen } = await chrome.storage.local.get('xbetOpen');
-    if (!xbetOpen || Date.now() - xbetOpen.at > OPEN_TTL_MS) return;
-    await chrome.storage.local.remove('xbetOpen');
-    await openById(String(xbetOpen.id));
-  }
-
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.xbetOpen?.newValue) checkOpen().catch(() => {});
-  });
-  // Sekme yeni açıldıysa istek çoktan yazılmıştır; sayfa yüklensin diye biraz bekle.
-  setTimeout(() => checkOpen().catch(() => {}), 3000);
-
-  // ---------- özel orandan "1xBet'e git": maç sayfasında "bu maç mı?" çubuğu (bar.js) ----------
-  const bar = window.__kcsBar;
-  const { slugify, guessEvent } = bar;
-
-  // Maç sayfası: .../line/football/<lig>/<maç no>-<ev>-<deplasman>. Önce maç numarasıyla, olmazsa
-  // adresteki takım adlarıyla bilinen maçlardan bul.
-  // Maç listede hiç yoksa (asıl eksik maçlar bunlar) birkaç saniye verisi beklenir, gelmezse maç adresten
-  // tanınır: böylece çubuk her maç sayfasında çıkar. Gerçek veri gelince bu kayıt kendiliğinden yenilenir.
-  const GUESS_AFTER_MS = 4000;
-  let pagePath = '';
-  let pageAt = 0;
-
-  function pageEvent() {
-    const m = location.pathname.match(/\/football\/[^/]+\/(\d{5,})-([^/]+)\/?$/);
-    if (!m) return { onMatch: false };
-    const e = events[m[1]];
-    if (e) return { onMatch: true, e };
-    const slug = m[2];
-    const found = Object.values(events).find((v) => slug === slugify(`${v.home} ${v.away}`)
-      || (slug.includes(slugify(v.home)) && slug.includes(slugify(v.away))));
-    if (found) return { onMatch: true, e: found };
-    if (location.pathname !== pagePath) { pagePath = location.pathname; pageAt = Date.now(); }
-    if (Date.now() - pageAt < GUESS_AFTER_MS) return { onMatch: true, e: null };
-    events[m[1]] = guessEvent(m[1], slug);
-    dirty = true;
-    return { onMatch: true, e: events[m[1]] };
-  }
-
-  bar.watchPick({
-    book: 'xbet', name: '1xBet', pageEvent, oddsOf: (id) => odds[id],
-    flush: async () => { dirty = true; await save(); },
   });
 })();
