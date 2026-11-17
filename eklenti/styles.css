@@ -89,3 +89,63 @@
 .kk-seg button:not(.is-on):hover { background: rgba(255, 255, 255, 0.06); color: var(--kk-text); }
 .kk-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .kk-refresh { margin-left: auto; padding: 6px 12px; border: 1px solid var(--kk-line); border-radius: 8px; background: var(--kk-panel2); color: var(--kk-text); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+
+/* ---------- tek ekran düzeni (4.3) ---------- */
+.kk-box { width: min(1280px, calc(100vw - 24px)); height: calc(100vh - 24px); max-height: none; }
+.kk-head { padding: 10px 16px 8px; }
+.kk-head h2 { font-size: 15px; }
+.kk-head p { font-size: 11px; }
+.kk-x { width: 28px; height: 28px; font-size: 18px; }
+.kk-form { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 12px; padding: 10px 16px; }
+.kk-field { gap: 4px; }
+.kk-field > span { font-size: 10px; }
+.kk-seg { gap: 3px; padding: 3px; border-radius: 10px; }
+.kk-seg button { min-height: 30px; padding: 5px 8px; font-size: 12px; }
+.kk-input { min-height: 36px; padding: 6px 10px; }
+.kk-field--go { justify-content: flex-end; }
+.kk-go { min-height: 36px; margin: 0; padding: 8px; font-size: 13px; }
+.kk-out { padding: 8px 16px 10px; }
+.kk-meta { margin: 0 0 8px; }
+.kk-meta-btns { display: flex; gap: 6px; margin-left: auto; }
+.kk-meta .kk-refresh { margin-left: 0; }
+.kk-all { padding: 6px 12px; border: 1px solid var(--kk-line); border-radius: 8px; background: var(--kk-panel2); color: var(--kk-text); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.kk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); align-items: start; gap: 8px; }
+.kk-grid .kk-card { margin: 0; }
+.kk-card-head { gap: 8px; padding: 8px 10px; cursor: pointer; user-select: none; }
+.kk-card-head:hover { background: rgba(255, 255, 255, 0.03); }
+.kk-card-no { width: 22px; height: 22px; font-size: 11px; }
+.kk-card-pick b { font-size: 13px; white-space: nowrap; }
+.kk-card-pick small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kk-card-prob b { font-size: 16px; }
+.kk-card-odds { padding: 4px 9px; font-size: 15px; }
+.kk-chev { flex: none; width: 8px; height: 8px; margin: 0 2px 3px 2px; border-right: 2px solid var(--kk-muted); border-bottom: 2px solid var(--kk-muted); transform: rotate(45deg); transition: transform 0.15s ease; }
+.kk-card.is-open .kk-chev { margin-bottom: -3px; transform: rotate(-135deg); }
+.kk-card-body { display: none; }
+.kk-card.is-open .kk-card-body { display: block; }
+.kk-card-body .kk-card-stats { border-bottom: 1px solid var(--kk-line); }
+.kk-note { padding: 8px 10px; font-size: 11.5px; }
+.kk-legs { padding: 2px 10px; }
+.kk-leg { padding: 5px 0; }
+.kk-foot { padding: 6px 16px; font-size: 10.5px; }
+@media (max-width: 760px) { .kk-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Açılan kupon tam genişlikte: yorum solda, maçlar sağda yan yana; diğer kuponları aşağı itmesin diye kısa tutulur. */
+.kk-grid .kk-card.is-open { grid-column: 1 / -1; order: -1; }
+.kk-card.is-open .kk-card-body { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; grid-template-rows: auto 1fr; }
+.kk-card.is-open .kk-card-stats { grid-column: 1 / -1; }
+.kk-card.is-open .kk-note { border-bottom: 0; border-right: 1px solid var(--kk-line); }
+.kk-card.is-open .kk-legs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 12px; align-content: start; padding: 4px 10px; }
+.kk-card.is-open .kk-leg + .kk-leg { border-top: 0; }
+.kk-card.is-open .kk-leg { border-bottom: 1px solid var(--kk-line); }
+/* ⓘ açıklama düğmesi ve balonu */
+.kk-i {
+  display: inline-grid; place-items: center; width: 14px; height: 14px; margin-left: 3px; vertical-align: 1px; box-sizing: border-box;
+  border: 1px solid currentColor; border-radius: 50%; color: var(--kk-muted); font: italic 700 9px/1 Georgia, serif;
+  text-transform: none; letter-spacing: 0; cursor: help; opacity: 0.85;
+}
+.kk-i:hover, .kk-i:focus { color: var(--kk-acc); opacity: 1; outline: none; }
+.kk-tip {
+  position: fixed; z-index: 2147483002; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px;
+  background: #2a2e42; color: #fff; font: 500 11.5px/1.45 Inter, system-ui, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); pointer-events: none;
+}
+.kk-tip[hidden] { display: none; }
