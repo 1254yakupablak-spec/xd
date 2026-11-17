@@ -404,14 +404,47 @@
       siteAt: cache.site.get(x.g.id)?.at || now,
     }));
     const xbetOpen = Date.now() - (xbetMeta.updatedAt || 0) < 2 * 60 * 1000;
+    // Günlük eşleştirme görevi için: 1xBet'te eşi bulunamayan maçlar ve ±30 dk içindeki 1xBet maçları.
+    const unmatched = [];
+    for (const it of items) {
+      if (it.x) continue;
+      const t = Date.parse(it.g.startsAt) / 1000;
+      const cands = xEvents
+        .filter((e) => e.start && Math.abs(e.start - t) <= 30 * 60)
+        .map((e) => ({ e, s: nameScore(it.g.home, [e.home, e.homeEng]) + nameScore(it.g.away, [e.away, e.awayEng]) }))
+        .sort((a, b) => b.s - a.s)
+        .slice(0, 8)
+        .map(({ e }) => ({ id: e.id, home: e.home, away: e.away, homeEng: e.homeEng || '', awayEng: e.awayEng || '', start: new Date(e.start * 1000).toISOString(), league: e.league || '' }));
+      unmatched.push({ id: it.g.id, home: it.g.home, away: it.g.away, startsAt: it.g.startsAt, league: it.g.league?.name || '', candidates: cands });
+    }
     data = {
       at: Date.now(), total: gm.length,
       xbetFound: xm.size, xbetPriced: events.filter((e) => e.src === 'xbet').length,
       sixqPriced: events.filter((e) => e.src === '6q').length, matched6q, xbetOpen, xbetLearned: !!xbetMeta.auto?.search,
+      xbetEvents: xEvents.length,
       events,
+      unmatched,
     };
     await store.set(DATA_KEY, data);
+    publishUnmatched();
     return data;
+  }
+
+  // Eşleşmeyen maçlar sayfada gizli bir JSON olarak durur (#kk-unmatched): günlük eşleştirme görevi okur.
+  // Sadece maç ve takım adları içerir.
+  function publishUnmatched() {
+    if (!data || !document.body) return;
+    let el = document.getElementById('kk-unmatched');
+    if (!el) {
+      el = document.createElement('script');
+      el.type = 'application/json';
+      el.id = 'kk-unmatched';
+      document.body.appendChild(el);
+    }
+    el.textContent = JSON.stringify({
+      at: new Date(data.at).toISOString(), total: data.total, xbetOpen: !!data.xbetOpen, xbetEvents: data.xbetEvents || 0,
+      xbetFound: data.xbetFound || 0, unmatched: data.unmatched || [],
+    });
   }
 
   // Tek seferde bir toplama; force değilse veri tazeyse ya da başka sekme topluyorsa beklenmez.
@@ -431,6 +464,7 @@
       if (collecting) return;
       data = (await store.get(DATA_KEY)) || data;
       seed(data);
+      publishUnmatched();
       if (data && Date.now() - data.at < DATA_FRESH) return;
       const lock = await store.get(LOCK_KEY);
       if (lock && Date.now() - lock < 3 * 60 * 1000) return; // başka sekme topluyor
