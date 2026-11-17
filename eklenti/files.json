@@ -1,5 +1,5 @@
 {
- "version": "4.5.0",
+ "version": "4.5.1",
  "files": [
   "BENIOKU.md",
   "background.js",
@@ -24,7 +24,7 @@
  ],
  "hashes": {
   "BENIOKU.md": "dafed069407e220eb982eca5482b30e82f7955e2",
-  "background.js": "3146f9d4428abe975aeded3d749e61926a549a2c",
+  "background.js": "49a6afd7173bb0b3f78a598be142eb6b1a076d64",
   "content.js": "fdc5fe5c5cb405d2b6f968bf96ddfcb90b773264",
   "feed-hook.js": "73c6e2f8797b445befadbb150a9881ab569d1b6e",
   "icons/1xbet.png": "d87b5da1756a6df0aae43d64e550533a253e2f4e",
@@ -33,7 +33,7 @@
   "icons/icon32.png": "f7458ff7d8e9d9920235686bb2b882ae12645b1e",
   "icons/icon48.png": "0b0255c08909759294514c14c865ec16ac42d8b1",
   "icons/stake.ico": "ecb0f7645b970de493e3bd1239e21a580925d894",
-  "manifest.json": "ca36ff6014f00295a2dc73f63952c12e1c9cfd99",
+  "manifest.json": "dbbc8fabac1cefb67b134b0ac1c9607c00f8835e",
   "popup.css": "3d7196c2aa4bbc100beffd165f551eeb04816b91",
   "popup.html": "88dfffcc8b21f64fc36a708c87210e2798efa0de",
   "popup.js": "a46ad32aa5090048ccea2ba242ae6cc7dabca2ac",
