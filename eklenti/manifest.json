@@ -1,13 +1,16 @@
 {
   "manifest_version": 3,
   "name": "KOKLEYİCİ SPORTS",
-  "version": "4.3.1",
-  "description": "6q Özel Oranlar (Goal Mix): sitenin maç oranlarından adil oran hesaplayıp kupon önerir.",
+  "version": "4.4.0",
+  "description": "6q Özel Oranlar (Goal Mix): 1xBet ve sitenin maç oranlarından adil oran hesaplayıp kupon önerir.",
   "permissions": [
-    "storage"
+    "storage",
+    "unlimitedStorage"
   ],
   "host_permissions": [
-    "https://raw.githubusercontent.com/*"
+    "https://raw.githubusercontent.com/*",
+    "https://1xbet.com/*",
+    "https://*.1xbet.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -23,6 +26,25 @@
       ],
       "css": [
         "styles.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*/*"
+      ],
+      "js": [
+        "feed-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://*/*"
+      ],
+      "js": [
+        "xbet.js"
       ],
       "run_at": "document_idle"
     }
@@ -42,5 +64,16 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "teams.json"
+      ],
+      "matches": [
+        "https://6q.net/*",
+        "https://*.6q.net/*"
+      ]
+    }
+  ]
 }
