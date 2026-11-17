@@ -18,7 +18,12 @@
   const FOOTBALL = 6046;
   const OU_MARKET = 2; // sitenin "Under/Over" (maç sonu toplam gol) pazarı
   const PAGE_RE = /\/sportsbook\/goal-mix/;
-  const MAX_EVENTS = 140; // en yakın saatteki bu kadar maçın oranı okunur
+  const COLLECT_HOURS = 48; // arka planda bu kadar saat içinde başlayacak bütün maçlar toplanır
+  const MAX_EVENTS = 600;
+  const DATA_KEY = 'kkData';
+  const LOCK_KEY = 'kkLock';
+  const DATA_FRESH = 10 * 60 * 1000; // arka plan toplama aralığı
+  const SITE_FRESH = 60 * 60 * 1000; // Goal Mix'in maç başı gol beklentisi bu kadar süre geçerli sayılır
   const TOP_PICK = 10; // kombinasyonlar en iyi bu kadar maçtan kurulur
   const MAX_QUOTES = 36; // gerçek oranı sorulan kombinasyon sayısı
 
@@ -155,7 +160,7 @@
 
   async function fairOf(bookId) {
     const hit = cache.detail.get(bookId);
-    if (hit && Date.now() - hit.at < FRESH) return hit.v;
+    if (hit && Date.now() - hit.at < 20 * 60 * 1000) return hit.v; // maç oranları 20 dk geçerli
     const d = await getJ(`/events/${bookId}`);
     const m = (d.markets || []).find((x) => x.marketTypeId === OU_MARKET && x.status === 'OPEN');
     const by = {};
@@ -184,7 +189,9 @@
   // Sitenin Goal Mix'te her maç için varsaydığı gol beklentisi: üç maçlık bir üçgenden referans maçın
   // beklentisi bulunur, sonra her maç referansla birlikte sorulur (λ toplanır).
   async function siteLambdas(items, onStep) {
-    const need = items.filter((x) => !cache.site.has(x.g.id));
+    const has = (id) => { const h = cache.site.get(id); return !!h && Date.now() - h.at < SITE_FRESH; };
+    const put = (id, v) => cache.site.set(id, { v, at: Date.now() });
+    const need = items.filter((x) => !has(x.g.id));
     if (need.length) {
       const pool3 = items.slice(0, 3);
       if (pool3.length < 3) return;
@@ -192,18 +199,18 @@
       const [ab, ac, bc] = await Promise.all([quote([a.g.id, b.g.id]), quote([a.g.id, c.g.id]), quote([b.g.id, c.g.id])]);
       if (!ab?.lam || !ac?.lam || !bc?.lam) throw new Error('Goal Mix fiyatı alınamadı');
       const la = (ab.lam + ac.lam - bc.lam) / 2;
-      cache.site.set(a.g.id, la);
-      cache.site.set(b.g.id, ab.lam - la);
-      cache.site.set(c.g.id, ac.lam - la);
-      const rest = items.filter((x) => !cache.site.has(x.g.id));
+      put(a.g.id, la);
+      put(b.g.id, ab.lam - la);
+      put(c.g.id, ac.lam - la);
+      const rest = items.filter((x) => !has(x.g.id));
       let done = 0;
       await pool(rest, 4, async (x) => {
         const q = await quote([a.g.id, x.g.id]);
-        if (q?.lam) cache.site.set(x.g.id, q.lam - la);
+        if (q?.lam) put(x.g.id, q.lam - la);
         onStep(++done, rest.length);
       });
     }
-    for (const x of items) x.site = cache.site.get(x.g.id) ?? null;
+    for (const x of items) x.site = cache.site.get(x.g.id)?.v ?? null;
   }
 
   function* combos(arr, k, start = 0, pre = []) {
@@ -232,30 +239,100 @@
     return best;
   }
 
-  // ---------- ana hesap ----------
-  async function build(opts, say) {
+  // ---------- arka planda toplama ----------
+  // 6q'nun herhangi bir sayfası açıkken 10 dakikada bir, önümüzdeki 48 saatteki bütün Goal Mix maçlarının adil
+  // gol beklentisi (normal Alt/Üst oranlarından) ve Goal Mix'in varsaydığı gol beklentisi hesaplanıp eklentinin
+  // deposuna yazılır. Birden çok 6q sekmesi açıksa sadece biri toplar (kilit). Kupon penceresi bu veriden
+  // anında filtreler; sadece seçilen kombinasyonların gerçek oranı o an sorulur.
+  const store = {
+    get: (k) => new Promise((r) => { try { chrome.storage.local.get(k, (x) => r(x?.[k] ?? null)); } catch { r(null); } }),
+    set: (k, v) => new Promise((r) => { try { chrome.storage.local.set({ [k]: v }, () => r()); } catch { r(); } }),
+  };
+  let data = null;
+  let collecting = null;
+
+  // Kayıttaki değerler belleğe alınır: sayfa yenilense de aynı maçlar baştan sorulmaz.
+  function seed(d) {
+    for (const e of d?.events || []) {
+      if (e.siteAt && !cache.site.has(e.id)) cache.site.set(e.id, { v: e.site, at: e.siteAt });
+      if (e.lamAt && !cache.detail.has(e.bookId)) cache.detail.set(e.bookId, { v: { lam: e.lam }, at: e.lamAt });
+    }
+  }
+
+  async function collect(say = () => {}) {
     const now = Date.now();
     say('Goal Mix maç listesi alınıyor…');
     const gm = (await loadGoalMix()).filter((g) => {
       const t = Date.parse(g.startsAt);
-      return t > now + 3 * 60 * 1000 && t < now + opts.hours * 3600 * 1000;
+      return t > now + 3 * 60 * 1000 && t < now + COLLECT_HOURS * 3600 * 1000;
     });
-    if (gm.length < 2) throw new Error('Seçilen saat aralığında yeterli maç yok.');
     say(`${gm.length} maç. Sitenin bülteni alınıyor…`);
     const pairs = pairUp(gm, await loadBook())
       .sort((a, b) => Date.parse(a.g.startsAt) - Date.parse(b.g.startsAt))
       .slice(0, MAX_EVENTS);
-    if (pairs.length < 2) throw new Error('Bu saat aralığındaki maçlar sitenin bülteninde bulunamadı. Başlama aralığını genişlet (24 ya da 48 sa).');
     let n = 0;
     await pool(pairs, 6, async (x) => {
       x.fair = await fairOf(x.e.id);
       say(`Maç oranları okunuyor… ${++n}/${pairs.length}`);
     });
     const priced = pairs.filter((x) => x.fair?.lam);
-    if (priced.length < 3) throw new Error('Bu saat aralığında Alt/Üst oranı olan yeterli maç yok. Başlama aralığını genişlet (24 ya da 48 sa).');
-    await siteLambdas(priced, (i, t) => say(`Goal Mix fiyatları okunuyor… ${i}/${t}`));
-    const items = priced.filter((x) => x.site != null && x.site > 0.2);
-    for (const x of items) x.edge = x.fair.lam - x.site;
+    if (priced.length >= 3) await siteLambdas(priced, (i, t) => say(`Goal Mix fiyatları okunuyor… ${i}/${t}`));
+    const events = priced.filter((x) => x.site != null && x.site > 0.2).map((x) => ({
+      id: x.g.id,
+      bookId: x.e.id,
+      home: x.g.home,
+      away: x.g.away,
+      league: x.g.league?.name || '',
+      startsAt: x.g.startsAt,
+      lam: x.fair.lam,
+      lamAt: cache.detail.get(x.e.id)?.at || now,
+      site: x.site,
+      siteAt: cache.site.get(x.g.id)?.at || now,
+    }));
+    data = { at: Date.now(), total: gm.length, matched: pairs.length, events };
+    await store.set(DATA_KEY, data);
+    return data;
+  }
+
+  // Tek seferde bir toplama; force değilse veri tazeyse ya da başka sekme topluyorsa beklenmez.
+  async function ensureData(force, say) {
+    if (collecting) return collecting;
+    if (!data) { data = await store.get(DATA_KEY); seed(data); }
+    if (!force && data && Date.now() - data.at < DATA_FRESH) return data;
+    collecting = (async () => {
+      await store.set(LOCK_KEY, Date.now());
+      try { return await collect(say); } finally { collecting = null; }
+    })();
+    return collecting;
+  }
+
+  async function backgroundTick() {
+    try {
+      if (collecting) return;
+      data = (await store.get(DATA_KEY)) || data;
+      seed(data);
+      if (data && Date.now() - data.at < DATA_FRESH) return;
+      const lock = await store.get(LOCK_KEY);
+      if (lock && Date.now() - lock < 3 * 60 * 1000) return; // başka sekme topluyor
+      await ensureData(true);
+    } catch {
+      // Ağ hatası: bir sonraki turda tekrar denenir.
+    }
+  }
+
+  // ---------- ana hesap ----------
+  async function build(opts, say, force = false) {
+    const now = Date.now();
+    await ensureData(force, say);
+    if (!data?.events?.length) throw new Error('Maç verisi toplanamadı. Biraz sonra tekrar dene.');
+    const items = data.events
+      .filter((e) => {
+        const t = Date.parse(e.startsAt);
+        return t > now + 3 * 60 * 1000 && t < now + opts.hours * 3600 * 1000;
+      })
+      .map((e) => ({ g: { id: e.id, home: e.home, away: e.away, startsAt: e.startsAt, league: { name: e.league } }, fair: { lam: e.lam }, site: e.site, edge: e.lam - e.site }));
+    if (items.length < 2) throw new Error('Bu saat aralığında adil oranı hesaplanmış yeterli maç yok. Başlama aralığını genişlet (24 ya da 48 sa).');
+    let n = 0;
 
     const sides = opts.side === 'BOTH' ? ['OVER', 'UNDER'] : [opts.side];
     // Kombinasyonları önce yerel tahminle sırala (sitenin oranı ≈ kendi λ'sıyla Poisson + pay), en iyileri sor.
@@ -309,7 +386,7 @@
       seen.add(k);
       return true;
     });
-    return { list: list.slice(0, opts.count), stats: { gm: gm.length, matched: pairs.length, priced: items.length } };
+    return { list: list.slice(0, opts.count), stats: { gm: data.total, matched: data.matched, priced: data.events.length, window: items.length, at: data.at } };
   }
 
   // ---------- arayüz ----------
@@ -395,7 +472,7 @@
     state.maxOdds = xo > state.minOdds ? xo : Math.max(state.minOdds + 0.5, 4);
   }
 
-  async function run() {
+  async function run(force = false) {
     if (busy) return;
     readInputs();
     if (!state.sizes.length) state.sizes = [2, 3, 4, 5];
@@ -406,8 +483,9 @@
     go.disabled = true;
     const say = (t) => { out.innerHTML = `<div class="kk-wait"><i></i>${esc(t)}</div>`; };
     try {
-      const { list, stats } = await build({ ...state, sizes: [...state.sizes].sort() }, say);
-      const info = `<p class="kk-meta">${stats.gm} Goal Mix maçı · ${stats.matched} bültende bulundu · ${stats.priced} maçın adil oranı hesaplandı</p>`;
+      const { list, stats } = await build({ ...state, sizes: [...state.sizes].sort() }, say, force);
+      const mins = Math.round((Date.now() - stats.at) / 60000);
+      const info = `<p class="kk-meta">Toplanan veri (48 sa): ${stats.gm} Goal Mix maçı · ${stats.matched} bültende bulundu · ${stats.priced} maçın adil oranı hazır · seçilen aralıkta ${stats.window} maç · ${mins < 1 ? 'az önce' : `${mins} dk önce`} toplandı <button type="button" class="kk-refresh">Verileri yenile</button></p>`;
       out.innerHTML = info + (list.length
         ? list.map(cardHtml).join('')
         : '<div class="kk-empty">Bu ayarlarla kupon bulunamadı. En az oranı düşür ya da saat aralığını genişlet.</div>');
@@ -425,7 +503,7 @@
     modal.className = 'kk-modal';
     modal.innerHTML = '<div class="kk-backdrop"></div><section class="kk-box" role="dialog" aria-label="Kupon oluşturucu">'
       + '<header class="kk-head"><div><h2>Kupon oluşturucu</h2><p>Goal Mix · sitenin maç oranlarından adil oran</p></div><button type="button" class="kk-x" aria-label="Kapat">×</button></header>'
-      + '<div class="kk-form"></div><div class="kk-out"><div class="kk-empty">Ayarları seçip <b>Kuponları oluştur</b>a bas. Hesaplama 20–40 saniye sürebilir.</div></div>'
+      + '<div class="kk-form"></div><div class="kk-out"><div class="kk-empty">Ayarları seçip <b>Kuponları oluştur</b>a bas. Maçlar 6q açıkken arka planda toplanıyor; veri hazırsa kuponlar birkaç saniyede çıkar.</div></div>'
       + '<footer class="kk-foot">Adil oran, sitenin normal Alt/Üst oranlarından pay çıkarılarak hesaplanan tahmindir; kazanç garantisi değildir. Eklenti bahis yapmaz, maçları Goal Mix listesinden kendin eklersin.</footer>'
       + '</section>';
     document.body.appendChild(modal);
@@ -450,6 +528,7 @@
         return;
       }
       if (t.closest('.kk-go')) { run(); return; }
+      if (t.closest('.kk-refresh')) { run(true); return; }
       const cp = t.closest('.kk-copy');
       if (cp) {
         navigator.clipboard?.writeText(cp.dataset.copy).then(() => {
@@ -476,4 +555,7 @@
   }
   sync();
   setInterval(sync, 1000);
+  // Arka plan toplama: 6q açıkken dakikada bir bakılır, veri 10 dakikadan eskiyse yeniden toplanır.
+  setTimeout(backgroundTick, 5000);
+  setInterval(backgroundTick, 60 * 1000);
 })();
