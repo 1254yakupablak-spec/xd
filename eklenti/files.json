@@ -1,16 +1,13 @@
 {
- "version": "4.5.2",
+ "version": "4.6.0",
  "files": [
   "BENIOKU.md",
   "background.js",
   "content.js",
-  "feed-hook.js",
-  "icons/1xbet.png",
   "icons/icon128.png",
   "icons/icon16.png",
   "icons/icon32.png",
   "icons/icon48.png",
-  "icons/stake.ico",
   "manifest.json",
   "popup.css",
   "popup.html",
@@ -19,29 +16,24 @@
   "teams.json",
   "update.css",
   "update.html",
-  "update.js",
-  "xbet.js"
+  "update.js"
  ],
  "hashes": {
-  "BENIOKU.md": "dafed069407e220eb982eca5482b30e82f7955e2",
-  "background.js": "49a6afd7173bb0b3f78a598be142eb6b1a076d64",
-  "content.js": "fdc5fe5c5cb405d2b6f968bf96ddfcb90b773264",
-  "feed-hook.js": "29887b44ea7a1d4eceb8f468ddc14127593c98f2",
-  "icons/1xbet.png": "d87b5da1756a6df0aae43d64e550533a253e2f4e",
+  "BENIOKU.md": "f36884087d0865e3380126ede68224e52257b3ff",
+  "background.js": "dbc5d7bc681e29f1ef3bd3fde939a45af1e96bea",
+  "content.js": "f72c454620bf6a050c7b4dd74e97806eedb951f4",
   "icons/icon128.png": "500dbc3a25638fdadfb8627e5cfbaddfef66439e",
   "icons/icon16.png": "64d4c9b6afdaea94dbcf1e1419135c805f725acd",
   "icons/icon32.png": "f7458ff7d8e9d9920235686bb2b882ae12645b1e",
   "icons/icon48.png": "0b0255c08909759294514c14c865ec16ac42d8b1",
-  "icons/stake.ico": "ecb0f7645b970de493e3bd1239e21a580925d894",
-  "manifest.json": "9aed05d0ec7f5872c7a451fec92785d0002e6034",
+  "manifest.json": "b89933b66b8ee68646cb213a92461c1e91479cd8",
   "popup.css": "3d7196c2aa4bbc100beffd165f551eeb04816b91",
-  "popup.html": "88dfffcc8b21f64fc36a708c87210e2798efa0de",
-  "popup.js": "a46ad32aa5090048ccea2ba242ae6cc7dabca2ac",
+  "popup.html": "7b5a629a2223e6363bfe76a00aad889eb2a5fe77",
+  "popup.js": "a28155764a9b4603f5d0e7c072e9aab0aaf43d17",
   "styles.css": "b404702889b1bb9ece3a1ffc951a2c62fb0f1821",
   "teams.json": "18a0dd814f5a0d54311be4dcc656978f92e17b8b",
   "update.css": "07cd06f5f68d360e488e515f69e3103231cd9bca",
   "update.html": "0bc3e46772901f05a32a9ab976344eb69c12d03a",
-  "update.js": "24b0577c2e6e6ca2bee35820222d33df4183f514",
-  "xbet.js": "9141f41d11da2f3a75734a8189fee09bd23ec6e8"
+  "update.js": "24b0577c2e6e6ca2bee35820222d33df4183f514"
  }
 }
