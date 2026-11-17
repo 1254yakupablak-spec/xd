@@ -101,3 +101,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   }
   return false;
 });
+
+// Eklenti kurulunca/güncellenince açık 1xBet sekmelerindeki okuyucu ölür (sayfaya baştan eklenmesi gerekir):
+// o sekmeler bir kez yenilenir. Ayna adres (xbetHost) seçildiyse onun sekmeleri de.
+chrome.runtime.onInstalled.addListener(async () => {
+  try {
+    const { xbetHost } = await chrome.storage.local.get('xbetHost');
+    const urls = ['https://1xbet.com/*', 'https://*.1xbet.com/*'];
+    if (xbetHost) urls.push(`https://${xbetHost}/*`, `https://*.${xbetHost}/*`);
+    const tabs = await chrome.tabs.query({ url: urls }).catch(() => []);
+    for (const t of tabs) chrome.tabs.reload(t.id).catch(() => {});
+  } catch {
+    // Sekmelere erişilemedi: kullanıcı kendisi yeniler.
+  }
+});
