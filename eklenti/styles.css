@@ -149,3 +149,13 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); pointer-events: none;
 }
 .kk-tip[hidden] { display: none; }
+/* 4.4: kaynak etiketi, uyarı, sıralama çubuğu */
+.kk-src { margin-right: 4px; padding: 0 4px; border-radius: 4px; font-style: normal; font-weight: 800; font-size: 9px; }
+.kk-src--xbet { background: rgba(53, 132, 228, 0.25); color: #8fc0ff; }
+.kk-src--6q { background: rgba(255, 255, 255, 0.08); color: var(--kk-muted); }
+.kk-warn { padding: 2px 8px; border-radius: 6px; background: rgba(248, 113, 113, 0.12); color: var(--kk-bad); font-weight: 700; }
+.kk-meta b { color: var(--kk-text); }
+.kk-order { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; }
+.kk-order > span { flex: none; color: var(--kk-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+.kk-order .kk-seg { flex: 1; max-width: 640px; }
+.kk-order .kk-seg button { min-height: 26px; padding: 3px 8px; font-size: 11.5px; }
