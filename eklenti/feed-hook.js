@@ -7,52 +7,6 @@
 // xbet.js isteyince (Özel Oranlar'daki maçları aramak için) bu kalıpla, sayfanın yapacağı isteğin
 // aynısını atar; yanıtı da diğerleri gibi kopyalanıp xbet.js'e gider.
 
-// 6q'da sadece sitenin kendi özel oran yanıtının kopyasına bakar (yeni istek atmaz, yanıtı değiştirmez): çok maçlı
-// kuponların "TOPLAM GOL 8.5 ALT" çizgisi Bahislerim'de yazmadığı için content.js'e buradan iletilir.
-(() => {
-  if (!/(^|\.)6q[\w-]*\./i.test(location.hostname) || window.__kcsLineHook) return;
-  window.__kcsLineHook = true;
-  // Basketbol çizgisi üç hanelidir ("455.5"): önünde rakam olmamalı, yoksa "55.5" okunur.
-  const LINE = /(?<![\d.,])(\d{1,3}[.,]5)\s*(?:(?:GOL|SAY[IİıiI])\s*)?(ALT|ÜST|UST)(?![A-ZÇĞİÖŞÜa-zçğıöşü])/i;
-  const URL_RE = /\/custom-bets(\/|\?|$)/;
-  const found = [];
-  const clean = (t) => t.replace(/\s*(\S+\s+MA[CÇ]\s+)?(TOPLAM\s+)?((GOL|SAY[IİıiI])\s+)?(?<![\d.,])\d{1,3}[.,]5.*$/is, '')
-    .replace(/\s*(\S+\s+MA[CÇ]\s+)?TOPLAM\s+(GOL|SAY[IİıiI]).*$/is, '').trim();
-  const isMatches = (t) => (t.match(/\S-\S/g) || []).length >= 2;
-
-  function walk(v, depth) {
-    if (!v || typeof v !== 'object' || depth > 8) return;
-    const strs = Object.values(v).filter((x) => typeof x === 'string');
-    const title = strs.map(clean).find(isMatches);
-    // Çizgi kuponun herhangi bir alanında olabilir (açıklama, seçenekler, ayaklar).
-    const all = title ? JSON.stringify(v) : '';
-    const m = title && !/KORNER|CORNER|KART/i.test(all) ? LINE.exec(all) : null;
-    if (m) found.push({ title, line: m[1], side: m[2] });
-    for (const x of Object.values(v)) walk(x, depth + 1);
-  }
-  const post = () => window.postMessage({ __kcsLines: found }, location.origin);
-  function take(text) {
-    try { walk(JSON.parse(text), 0); post(); } catch { /* JSON değil */ }
-  }
-
-  const realFetch = window.fetch;
-  window.fetch = function (...args) {
-    const p = realFetch.apply(this, args);
-    const url = String(args[0]?.url || args[0]);
-    if (URL_RE.test(url)) p.then((res) => res.clone().text()).then(take).catch(() => {});
-    return p;
-  };
-  const realOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-    if (URL_RE.test(String(url))) this.addEventListener('load', () => take(this.responseText));
-    return realOpen.call(this, method, url, ...rest);
-  };
-  // content.js sayfa yüklendikten sonra başlar; kaçırdığını ister.
-  window.addEventListener('message', (ev) => {
-    if (ev.source === window && ev.data?.__kcsLinesReq && found.length) post();
-  });
-})();
-
 (() => {
   if (window.__kcsFeedHook) return;
   // Bilinen adresler hemen; menüden seçilen 1xBet adresinde xbet.js haber verince (ve sonraki
