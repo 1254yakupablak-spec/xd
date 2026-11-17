@@ -76,6 +76,25 @@
   }
   // Alt/Üst çizgilerinden gol beklentisi: her çizgide pay çıkarılır (oranlar orantılı), %50'ye yakın çizgiler
   // daha ağır sayılır. Yalnızca çeyrek olmayan (x.5) çizgiler kullanılır.
+  // Maçın beklenen golü (eski yöntem): 1.5–4.5 arası x.5 çizgiler, payı orantılı atılır; olasılığı %20–80 arası
+  // (dengeli) çizgilerin her birinden çıkan beklentinin ortancası, dengeli çizgi yoksa en dengeli çizgi.
+  // Ortanca: tek bozuk çizgi sonucu kaydırmasın. Yüksek çizgiler beklentiyi şişirebildiği için alınmaz.
+  function matchLambda(lines) {
+    const all = [];
+    for (const { line, over, under } of lines) {
+      if (!(line >= 1.5) || line > 4.5 || (line * 2) % 2 !== 1 || !(over > 1) || !(under > 1)) continue;
+      const p = (1 / over) / (1 / over + 1 / under); // üst olasılığı
+      all.push({ line, p, off: Math.abs(p - 0.5) });
+    }
+    if (!all.length) return null;
+    all.sort((a, b) => a.off - b.off);
+    const near = all.filter((x) => x.off <= 0.3);
+    const vals = (near.length ? near : all.slice(0, 1)).map((x) => lamFor(Math.floor(x.line), 1 - x.p)).sort((a, b) => a - b);
+    const m = vals.length >> 1;
+    return vals.length % 2 ? vals[m] : (vals[m - 1] + vals[m]) / 2;
+  }
+
+  // Goal Mix fiyatlarından sitenin varsaydığı toplam beklenti (çok maçlı çizgiler, 5.5–15.5 gibi).
   function fitLambda(lines) {
     let w = 0;
     let s = 0;
@@ -176,7 +195,7 @@
       if (/^under$/i.test(o.name)) by[k].under = Number(o.price);
     }
     const lines = Object.values(by);
-    const lam = fitLambda(lines);
+    const lam = matchLambda(lines);
     const near = lines.filter((x) => x.over && x.under).sort((a, b) => Math.abs(a.over - a.under) - Math.abs(b.over - b.under))[0] || null;
     const v = lam ? { lam, near } : null;
     cache.detail.set(bookId, { v, at: Date.now() });
@@ -264,14 +283,7 @@
     }
   }
 
-  // ---------- 1xBet ----------
-  // 1xBet sekmesi açıkken xbet.js, sitenin kendi maç listesi ve maç oranı yanıtlarını okuyup depoya yazar
-  // (xbetEvents, xbetOdds). Burada Goal Mix maçları bu maçlarla eşleştirilir; adil gol beklentisi 1xBet'in
-  // Toplam Gol Alt/Üst çizgilerinden hesaplanır. 1xBet'te bulunamayan maç için 1xBet'in kendi aramasıyla
-  // aranması istenir (xbetWant); 1xBet'te hiç yoksa 6q'nun normal bülteninin Alt/Üst oranlarına düşülür.
-  const XBET_STALE = 30 * 60 * 1000; // 1xBet oranı bundan eskiyse yenisi istenir (yine de kullanılır)
-  const XBET_MAX_AGE = 3 * 3600 * 1000; // bundan eski 1xBet oranı kullanılmaz
-
+  // ---------- takım adları ----------
   // Takım adları tablosu (teams.json): aynı kulübün farklı dillerdeki ve kısaltılmış adları aynı satırda.
   let aliasMap = null;
   async function loadAliases() {
@@ -313,7 +325,8 @@
   const sameKind = (a, b) => ageTag(a) === ageTag(b) && reserve(a) === reserve(b);
   const nameScore = (g, names) => Math.max(0, ...names.filter(Boolean).map((x) => (sameClub(g, x) ? 1 : sim(g, x))));
 
-  function matchXbet(gm, xEvents) {
+  // Goal Mix maçlarını başka bir listeyle (form için veri servisi) saat ±15 dk ve takım adlarıyla eşleştirir.
+  function matchEvents(gm, xEvents) {
     const byMin = new Map();
     for (const e of xEvents) {
       if (!e.start) continue;
@@ -338,12 +351,6 @@
     return out;
   }
 
-  // 1xBet'in Toplam çizgileri: { "2.5": { over, under } }.
-  function xbetLambda(rec) {
-    if (!rec?.lines || !rec.at || Date.now() - rec.at > XBET_MAX_AGE) return null;
-    return fitLambda(Object.entries(rec.lines).map(([k, v]) => ({ line: Number(k), over: Number(v.over), under: Number(v.under) })));
-  }
-
   // ---------- form (son 5 maç) ----------
   // Veri servisinin maç listesi (büyük ligler) Goal Mix maçlarıyla eşleştirilir; eşleşen maçta iki takımın son 5
   // maçının attığı/yediği gol ortalaması alınır. Formdan beklenen toplam gol:
@@ -359,7 +366,7 @@
   async function loadForms(gm, say) {
     const r = await ask({ type: 'formEvents', days: Math.ceil(COLLECT_HOURS / 24) });
     if (!r?.ok || !r.v?.length) return new Map();
-    const fm = matchXbet(gm, r.v);
+    const fm = matchEvents(gm, r.v);
     const out = new Map();
     let n = 0;
     await pool([...fm.entries()], 4, async ([gid, e]) => {
@@ -381,41 +388,19 @@
       return t > now + 3 * 60 * 1000 && t < now + COLLECT_HOURS * 3600 * 1000;
     }).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)).slice(0, MAX_EVENTS);
 
-    // 1) 1xBet
-    say('1xBet maçları eşleştiriliyor…');
+    // Her maçın beklentisi 6q'nun normal bültenindeki Alt/Üst oranlarından.
     await loadAliases();
-    const xEvents = (await store.get('xbetEvents')) || [];
-    const xOdds = (await store.get('xbetOdds')) || {};
-    const xbetMeta = (await store.get('xbetMeta')) || {};
-    const xm = matchXbet(gm, xEvents);
-    const want = [];
-    const items = gm.map((g) => ({ g, x: xm.get(g.id) || null, fair: null }));
-    for (const it of items) {
-      const rec = it.x ? xOdds[it.x.id] : null;
-      const lam = xbetLambda(rec);
-      if (lam) it.fair = { lam, src: 'xbet', at: rec.at };
-      // 1xBet'ten iste: bulunamadıysa adlarla ara, bulunduysa oranlarını getir/tazele.
-      if (!it.x) want.push({ key: `gm|${it.g.id}`, terms: [it.g.home, it.g.away].map((s) => s.replace(/\s+(U\d\d|II|B)$/i, '')).filter((s) => s.length >= 3) });
-      else want.push({ key: `gm|${it.g.id}`, terms: [], id: it.x.id, found: !!lam && now - rec.at < XBET_STALE });
-    }
-    await store.set('xbetWant', want);
-
-    // 2) 1xBet'te oranı olmayanlar için 6q'nun normal bülteni.
-    const rest = items.filter((it) => !it.fair);
-    let matched6q = 0;
-    if (rest.length) {
-      say('Sitenin bülteni alınıyor…');
-      const pairs = pairUp(rest.map((it) => it.g), await loadBook());
-      matched6q = pairs.length;
-      const byId = new Map(pairs.map((p) => [p.g.id, p.e]));
-      let n = 0;
-      await pool(rest.filter((it) => byId.has(it.g.id)), 6, async (it) => {
-        const e = byId.get(it.g.id);
-        const v = await fairOf(e.id);
-        if (v?.lam) it.fair = { lam: v.lam, src: '6q', at: cache.detail.get(e.id)?.at || now, bookId: e.id };
-        say(`Sitenin maç oranları okunuyor… ${++n}`);
-      });
-    }
+    const items = gm.map((g) => ({ g, fair: null }));
+    say('Sitenin bülteni alınıyor…');
+    const pairs = pairUp(gm, await loadBook());
+    const byId = new Map(pairs.map((p) => [p.g.id, p.e]));
+    let n = 0;
+    await pool(items.filter((it) => byId.has(it.g.id)), 6, async (it) => {
+      const e = byId.get(it.g.id);
+      const v = await fairOf(e.id);
+      if (v?.lam) it.fair = { lam: v.lam, src: '6q', at: cache.detail.get(e.id)?.at || now, bookId: e.id };
+      say(`Sitenin maç oranları okunuyor… ${++n}/${byId.size}`);
+    });
 
     let forms = new Map();
     try { forms = await loadForms(items.map((it) => it.g), say); } catch { /* form yoksa da devam */ }
@@ -435,49 +420,9 @@
       site: x.site,
       siteAt: cache.site.get(x.g.id)?.at || now,
     }));
-    const xbetOpen = Date.now() - (xbetMeta.updatedAt || 0) < 2 * 60 * 1000;
-    // Günlük eşleştirme görevi için: 1xBet'te eşi bulunamayan maçlar ve ±30 dk içindeki 1xBet maçları.
-    const unmatched = [];
-    for (const it of items) {
-      if (it.x) continue;
-      const t = Date.parse(it.g.startsAt) / 1000;
-      const cands = xEvents
-        .filter((e) => e.start && Math.abs(e.start - t) <= 30 * 60)
-        .map((e) => ({ e, s: nameScore(it.g.home, [e.home, e.homeEng]) + nameScore(it.g.away, [e.away, e.awayEng]) }))
-        .sort((a, b) => b.s - a.s)
-        .slice(0, 8)
-        .map(({ e }) => ({ id: e.id, home: e.home, away: e.away, homeEng: e.homeEng || '', awayEng: e.awayEng || '', start: new Date(e.start * 1000).toISOString(), league: e.league || '' }));
-      unmatched.push({ id: it.g.id, home: it.g.home, away: it.g.away, startsAt: it.g.startsAt, league: it.g.league?.name || '', candidates: cands });
-    }
-    data = {
-      at: Date.now(), total: gm.length,
-      xbetFound: xm.size, xbetPriced: events.filter((e) => e.src === 'xbet').length,
-      sixqPriced: events.filter((e) => e.src === '6q').length, matched6q, xbetOpen, xbetLearned: !!xbetMeta.auto?.search,
-      xbetEvents: xEvents.length,
-      formFound: forms.size,
-      events,
-      unmatched,
-    };
+    data = { at: Date.now(), total: gm.length, matched: pairs.length, formFound: forms.size, events };
     await store.set(DATA_KEY, data);
-    publishUnmatched();
     return data;
-  }
-
-  // Eşleşmeyen maçlar sayfada gizli bir JSON olarak durur (#kk-unmatched): günlük eşleştirme görevi okur.
-  // Sadece maç ve takım adları içerir.
-  function publishUnmatched() {
-    if (!data || !document.body) return;
-    let el = document.getElementById('kk-unmatched');
-    if (!el) {
-      el = document.createElement('script');
-      el.type = 'application/json';
-      el.id = 'kk-unmatched';
-      document.body.appendChild(el);
-    }
-    el.textContent = JSON.stringify({
-      at: new Date(data.at).toISOString(), total: data.total, xbetOpen: !!data.xbetOpen, xbetEvents: data.xbetEvents || 0,
-      xbetFound: data.xbetFound || 0, unmatched: data.unmatched || [],
-    });
   }
 
   // Tek seferde bir toplama; force değilse veri tazeyse ya da başka sekme topluyorsa beklenmez.
@@ -497,7 +442,6 @@
       if (collecting) return;
       data = (await store.get(DATA_KEY)) || data;
       seed(data);
-      publishUnmatched();
       if (data && Date.now() - data.at < DATA_FRESH) return;
       const lock = await store.get(LOCK_KEY);
       if (lock && Date.now() - lock < 3 * 60 * 1000) return; // başka sekme topluyor
@@ -517,12 +461,8 @@
         const t = Date.parse(e.startsAt);
         return t > now + 3 * 60 * 1000 && t < now + opts.hours * 3600 * 1000;
       })
-      .map((e) => {
-        // Form etkisi açıksa beklenen gol, oranlardan çıkanla formdan çıkanın karışımı olur.
-        const w = e.form?.lam ? (Number(opts.formW) || 0) : 0;
-        const lam = (1 - w) * e.lam + w * (e.form?.lam || 0);
-        return { g: { id: e.id, home: e.home, away: e.away, startsAt: e.startsAt, league: { name: e.league } }, fair: { lam, mkt: e.lam, src: e.src || '6q' }, form: e.form || null, site: e.site, edge: lam - e.site };
-      });
+      // Yüzdeler sadece oranlardan: oranlar formu zaten içerir. Form kartta bilgi olarak gösterilir.
+      .map((e) => ({ g: { id: e.id, home: e.home, away: e.away, startsAt: e.startsAt, league: { name: e.league } }, fair: { lam: e.lam, mkt: e.lam }, form: e.form || null, site: e.site, edge: e.lam - e.site }));
     if (items.length < 2) throw new Error('Bu saat aralığında adil oranı hesaplanmış yeterli maç yok. Başlama aralığını genişlet (24 ya da 48 sa).');
     let n = 0;
 
@@ -585,8 +525,8 @@
   let fab = null;
   let modal = null;
   let busy = false;
-  const state = { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, sizes: [2, 3, 4, 5], hours: 24, count: 10, formW: 0 };
-  try { Object.assign(state, JSON.parse(localStorage.getItem('kkGoalMixOpts') || '{}')); } catch { /* yok */ }
+  const state = { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, sizes: [2, 3, 4, 5], hours: 24, count: 10 };
+  try { Object.assign(state, JSON.parse(localStorage.getItem('kkGoalMixOpts') || '{}')); delete state.formW; } catch { /* yok */ }
 
   const trRes = (r) => String(r || '').replace(/W/g, 'G').replace(/D/g, 'B').replace(/L/g, 'M');
   function formHtml(f) {
@@ -599,7 +539,7 @@
     const t = Date.parse(m.g.startsAt);
     return `<li class="kk-leg"><span class="kk-leg-time"><small>${esc(day(t))}</small><b>${esc(hm(t))}</b></span>`
       + `<span class="kk-leg-teams"><b>${esc(m.g.home)}</b><b>${esc(m.g.away)}</b><small>${esc(m.g.league?.name || '')}</small>${formHtml(m.form)}</span>`
-      + `<span class="kk-leg-xg" title="Adil gol beklentisi (kaynağı) · Goal Mix'in varsaydığı">${f2(m.fair.lam)}<small><em class="kk-src kk-src--${m.fair.src}">${m.fair.src === 'xbet' ? '1xBet' : '6q'}</em> site ${f2(m.site)}</small></span></li>`;
+      + `<span class="kk-leg-xg" title="Adil gol beklentisi · Goal Mix'in varsaydığı">${f2(m.fair.lam)}<small>site ${f2(m.site)}</small></span></li>`;
   }
 
   // Kuponun olasılığının nereden geldiğini anlatan kısa yorum (sayılardan üretilir).
@@ -631,8 +571,7 @@
     if (Math.abs(diff) >= 0.1) {
       const lehine = over ? diff > 0 : diff < 0;
       const effect = !lehine ? 'bu fark oranı aleyhine çeviriyor' : c.ev > 0 ? 'bu fark oranı adil orandan yükseltiyor' : 'fark lehine ama sitenin payını karşılamaya yetmiyor';
-      const ours = c.legs.some((m) => m.fair.mkt != null && Math.abs(m.fair.mkt - m.fair.lam) > 1e-6) ? 'bizim hesap (oranlar + form)' : 'normal maç oranları';
-      s.push(`Site bu maçlara ${c.lamSite.toFixed(1)} gol biçmiş, ${ours} ${c.lamFair.toFixed(1)} gösteriyor; ${effect} (değer ${pct(c.ev)}).`);
+      s.push(`Site bu maçlara ${c.lamSite.toFixed(1)} gol biçmiş, normal maç oranları ${c.lamFair.toFixed(1)} gösteriyor; ${effect} (değer ${pct(c.ev)}).`);
     }
     return s.join(' ');
   }
@@ -658,10 +597,9 @@
     ev: 'Değer = tutma olasılığı × oran − 1. Örnek: %60 olasılık ve 1.80 oran → 0.60 × 1.80 − 1 = +%8. Artı ise site adil orandan yüksek oran veriyor (uzun vadede lehine), eksi ise düşük veriyor. Tek kuponun tutacağını göstermez.',
     fair: 'Adil oran = 1 ÷ tutma olasılığı. Sitenin payı olmasaydı bu kupona verilmesi gereken oran.',
     prob: 'Tutma olasılığı: maçların normal Alt/Üst oranlarından payı çıkarılarak bulunan gol beklentisiyle hesaplanır. Oran yükseldikçe olasılık düşer (yaklaşık 1 ÷ oran).',
-    data: 'Ekranda görünenler değil, önümüzdeki 48 saatteki bütün Goal Mix maçları okunur. Adil oran önce 1xBet\'in Toplam Gol Alt/Üst oranlarından hesaplanır (1xBet sekmesi açık olmalı); 1xBet\'te bulunamayan maçta 6q\'nun normal bülteni kullanılır. İkisinde de yoksa maç kuponlara girmez.',
+    data: 'Ekranda görünenler değil, önümüzdeki 48 saatteki bütün Goal Mix maçları okunur. Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez.',
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
-    form: 'Kapalı: yüzdeler sadece oranlardan hesaplanır (oranlar formu zaten içerir). %20 / %40: maçın beklenen golü, iki takımın son 5 maçından çıkan gol beklentisiyle bu oranda karıştırılır. Form bilgisi sadece veri servisinde bulunan maçlarda vardır (çoğunlukla büyük ligler).',
-    formLeg: 'Son 5 maç: attığı–yediği gol ortalaması, 2.5 üst biten maç sayısı ve sonuçlar (G galibiyet, B beraberlik, M mağlubiyet).',
+    formLeg: 'Sadece bilgi, yüzdeye katılmaz (oranlar formu zaten içerir). Son 5 maç: attığı–yediği gol ortalaması, 2.5 üst biten maç sayısı ve sonuçlar (G galibiyet, B beraberlik, M mağlubiyet).',
   };
   const info = (text) => `<span class="kk-i" tabindex="0" role="button" aria-label="Açıklama" data-tip="${esc(text)}">i</span>`;
 
@@ -702,7 +640,7 @@
       + `<div class="kk-field"><span>En çok oran</span><input class="kk-input" name="maxOdds" type="number" min="1.05" step="0.25" value="${state.maxOdds}"></div>`
       + `<div class="kk-field"><span>Maç sayısı</span><div class="kk-seg kk-seg--multi" data-name="sizes">${[2, 3, 4, 5].map((k) => `<button type="button" data-v="${k}" class="${state.sizes.includes(k) ? 'is-on' : ''}">${k}</button>`).join('')}</div></div>`
       + `<div class="kk-field"><span>Başlama</span>${seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']])}</div>`
-      + `<div class="kk-field"><span>Form etkisi ${info(TIP.form)}</span>${seg('formW', state.formW, [[0, 'Kapalı'], [0.2, '%20'], [0.4, '%40']])}</div>`
+
       + `<div class="kk-field"><span>Kupon</span>${seg('count', state.count, [[5, '5'], [10, '10'], [20, '20']])}</div>`
       + '<div class="kk-field kk-field--go"><span>&nbsp;</span><button type="button" class="kk-go">Kuponları oluştur</button></div>';
   }
@@ -733,13 +671,8 @@
     try {
       const { list, stats } = await build({ ...state, sizes: [...state.sizes].sort() }, say, force);
       const mins = Math.round((Date.now() - stats.at) / 60000);
-      const xb = !stats.xbetOpen
-        ? '<span class="kk-warn">1xBet sekmesi kapalı: 1xbet.com/tr/line/football sayfasını açık tut</span>'
-        : !stats.xbetLearned
-          ? '<span class="kk-warn">1xBet\'te bir kez arama yap ve bir maç sayfası aç: eksik maçlar o zaman kendiliğinden aranır</span>'
-          : '';
       const ago = mins < 1 ? 'az önce' : `${mins} dk önce`;
-      const infoLine = `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · <b>1xBet</b> ${stats.xbetFound || 0} eşleşti, ${stats.xbetPriced || 0} adil oran · <b>6q bülteni</b> ${stats.sixqPriced || 0} adil oran · seçilen aralıkta ${stats.window} maç · ${ago} ${xb}<span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
+      const infoLine = `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · seçilen aralıkta ${stats.window} maç · ${ago} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
       lastList = list;
       out.innerHTML = infoLine + (list.length
         ? orderBar() + `<div class="kk-grid">${sortList(list).map(cardHtml).join('')}</div>`
