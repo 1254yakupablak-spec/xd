@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KOKLEYİCİ SPORTS",
-  "version": "4.4.1",
+  "version": "4.5.0",
   "description": "6q Özel Oranlar (Goal Mix): 1xBet ve sitenin maç oranlarından adil oran hesaplayıp kupon önerir.",
   "permissions": [
     "storage",
@@ -10,7 +10,8 @@
   "host_permissions": [
     "https://raw.githubusercontent.com/*",
     "https://1xbet.com/*",
-    "https://*.1xbet.com/*"
+    "https://*.1xbet.com/*",
+    "https://site.web.api.espn.com/*"
   ],
   "background": {
     "service_worker": "background.js"
