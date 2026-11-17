@@ -29,8 +29,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 chrome.runtime.onStartup?.addListener(() => checkUpdate(true));
 chrome.runtime.onInstalled.addListener(async () => {
   // Eski sürümlerin kayıtları (canlı skor, oranlar, notlar) artık kullanılmıyor.
-  // 1xBet verisi, adresi ve kupon verisi korunur.
-  const KEEP = ['updateInfo', 'xbetHost', 'xbetEvents', 'xbetOdds', 'xbetMeta', 'kkData'];
+  // Güncelleme bilgisi ve kupon verisi korunur; eski sürümlerin kayıtları (1xBet vb.) silinir.
+  const KEEP = ['updateInfo', 'kkData'];
   const keep = await chrome.storage.local.get(KEEP);
   await chrome.storage.local.clear();
   await chrome.storage.local.set(keep);
@@ -102,16 +102,3 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   return false;
 });
 
-// Eklenti kurulunca/güncellenince açık 1xBet sekmelerindeki okuyucu ölür (sayfaya baştan eklenmesi gerekir):
-// o sekmeler bir kez yenilenir. Ayna adres (xbetHost) seçildiyse onun sekmeleri de.
-chrome.runtime.onInstalled.addListener(async () => {
-  try {
-    const { xbetHost } = await chrome.storage.local.get('xbetHost');
-    const urls = ['https://1xbet.com/*', 'https://*.1xbet.com/*'];
-    if (xbetHost) urls.push(`https://${xbetHost}/*`, `https://*.${xbetHost}/*`);
-    const tabs = await chrome.tabs.query({ url: urls }).catch(() => []);
-    for (const t of tabs) chrome.tabs.reload(t.id).catch(() => {});
-  } catch {
-    // Sekmelere erişilemedi: kullanıcı kendisi yeniler.
-  }
-});
