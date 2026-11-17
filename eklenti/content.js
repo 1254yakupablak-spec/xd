@@ -24,7 +24,7 @@
   const LOCK_KEY = 'kkLock';
   const DATA_FRESH = 10 * 60 * 1000; // arka plan toplama aralığı
   const SITE_FRESH = 60 * 60 * 1000; // Goal Mix'in maç başı gol beklentisi bu kadar süre geçerli sayılır
-  const TOP_PICK = 10; // kombinasyonlar en iyi bu kadar maçtan kurulur
+  const TOP_PICK = 20; // kombinasyonlar (her taraf için) en iyi bu kadar maçtan kurulur
   const MAX_QUOTES = 36; // gerçek oranı sorulan kombinasyon sayısı
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
