@@ -26,7 +26,7 @@
 .kk-modal[hidden] { display: none; }
 .kk-backdrop { position: absolute; inset: 0; background: rgba(5, 6, 10, 0.7); backdrop-filter: blur(2px); }
 .kk-box {
-  position: relative; display: flex; flex-direction: column; width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 32px);
+  position: relative; display: flex; flex-direction: column; width: min(820px, calc(100vw - 24px)); max-height: calc(100vh - 32px);
   border: 1px solid var(--kk-line); border-radius: 18px; background: var(--kk-bg); box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6); overflow: hidden;
 }
 .kk-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px 12px; border-bottom: 1px solid var(--kk-line); }
@@ -34,16 +34,16 @@
 .kk-head p { margin: 2px 0 0; color: var(--kk-muted); font-size: 12px; }
 .kk-x { width: 32px; height: 32px; border: 0; border-radius: 10px; background: var(--kk-panel2); color: var(--kk-text); font-size: 20px; line-height: 1; cursor: pointer; }
 
-.kk-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 14px; padding: 14px 18px; border-bottom: 1px solid var(--kk-line); }
-.kk-field { display: flex; flex-direction: column; gap: 6px; }
+.kk-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px 18px; padding: 16px 18px; border-bottom: 1px solid var(--kk-line); }
+.kk-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .kk-field > span { color: var(--kk-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
-.kk-seg { display: flex; padding: 3px; border-radius: 10px; background: var(--kk-panel2); }
-.kk-seg button { flex: 1; padding: 7px 6px; border: 0; border-radius: 8px; background: transparent; color: var(--kk-muted); font: inherit; font-weight: 700; cursor: pointer; }
+.kk-seg { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--kk-panel2); }
+.kk-seg button { flex: 1 1 0; min-width: 0; min-height: 36px; padding: 8px 12px; border: 0; border-radius: 9px; white-space: nowrap; background: transparent; color: var(--kk-muted); font: inherit; font-weight: 700; cursor: pointer; }
 .kk-seg button.is-on { background: var(--kk-acc); color: #12141d; }
-.kk-input { padding: 8px 10px; border: 1px solid var(--kk-line); border-radius: 10px; background: var(--kk-panel2); color: var(--kk-text); font: inherit; font-weight: 700; }
+.kk-input { min-height: 44px; padding: 10px 12px; box-sizing: border-box; border: 1px solid var(--kk-line); border-radius: 10px; background: var(--kk-panel2); color: var(--kk-text); font: inherit; font-weight: 700; }
 .kk-input:focus { outline: 2px solid var(--kk-acc); outline-offset: -1px; }
 .kk-go {
-  grid-column: 1 / -1; padding: 11px; border: 0; border-radius: 12px; background: var(--kk-acc); color: #12141d;
+  grid-column: 1 / -1; margin-top: 2px; padding: 13px; border: 0; border-radius: 12px; background: var(--kk-acc); color: #12141d;
   font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
 }
 .kk-go:disabled { opacity: 0.55; cursor: progress; }
@@ -68,7 +68,7 @@
 .kk-card-stats b { color: var(--kk-text); }
 .kk-ev b { color: var(--kk-bad); }
 .kk-card.is-good .kk-ev b { color: var(--kk-ok); }
-.kk-copy { margin-left: auto; padding: 5px 10px; border: 0; border-radius: 8px; background: var(--kk-panel2); color: var(--kk-text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.kk-copy { margin-left: auto; padding: 7px 14px; border: 0; border-radius: 8px; background: var(--kk-panel2); color: var(--kk-text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 
 .kk-legs { margin: 0; padding: 4px 12px; list-style: none; }
 .kk-leg { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 0; }
@@ -86,3 +86,6 @@
 .kk-card-prob b { color: var(--kk-ok); font-size: 18px; font-weight: 900; }
 .kk-card-prob small { color: var(--kk-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .kk-note { margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--kk-line); color: #c9cede; font-size: 12px; line-height: 1.5; }
+.kk-seg button:not(.is-on):hover { background: rgba(255, 255, 255, 0.06); color: var(--kk-text); }
+.kk-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.kk-refresh { margin-left: auto; padding: 6px 12px; border: 1px solid var(--kk-line); border-radius: 8px; background: var(--kk-panel2); color: var(--kk-text); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
