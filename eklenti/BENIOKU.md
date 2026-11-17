@@ -4,6 +4,8 @@ Bu eklenti 6q'da **Spor › Özel Oranlar (Goal Mix)** sayfasına bir kupon olu�
 
 ## Nasıl hesaplar
 
+6q'nun herhangi bir sayfası açıkken eklenti 10 dakikada bir arka planda önümüzdeki 48 saatteki bütün Goal Mix maçlarını toplar. Her maçın adil gol beklentisini ve Goal Mix'in varsaydığı gol beklentisini kendi içinde saklar. Kupon penceresi bu hazır veriyi seçimlerine göre filtreler. O an sadece seçilen kombinasyonların gerçek oranını sorar, bu yüzden kuponlar birkaç saniyede çıkar. Pencerede **Verileri yenile** düğmesi toplamayı hemen yeniden başlatır.
+
 1. Goal Mix listesindeki maçları sitenin normal futbol bültenindeki maçlarla eşleştirir. Eşleştirmede maç saatine ve takım adlarına bakar.
 2. Her maçın normal "Alt/Üst" oranlarından site payını çıkarır ve maçın adil gol beklentisini bulur.
 3. Goal Mix'in fiyat servisinden, sitenin aynı maç için varsaydığı gol beklentisini çıkarır.
@@ -22,7 +24,7 @@ Eklenti bahis yapmaz ve siteye hiçbir şey göndermez. Önerilen maçları Goal
    - **Maç sayısı:** 2–5
    - **Başlama aralığı:** 6–48 saat
    - **Kupon sayısı**
-4. **Kuponları oluştur**a bas. Hesaplama 10–40 saniye sürer.
+4. **Kuponları oluştur**a bas. Veri hazırsa kuponlar birkaç saniyede çıkar; ilk açılışta toplama 10–30 saniye sürer.
 
 ## Kurulum
 
