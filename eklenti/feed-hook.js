@@ -13,7 +13,7 @@
   // açılışlarda, o sitede bıraktığı işaretle hemen) devreye girer.
   let flagged = false;
   try { flagged = localStorage.getItem('kcsFeedHook') === '1'; } catch { /* erişim yok */ }
-  if (flagged || /(^|\.)(1xbet|stake)[\w-]*\./i.test(location.hostname)) {
+  if (flagged || /(^|\.)(1xbet|1xlite|stake)[\w-]*\./i.test(location.hostname)) {
     install();
   } else {
     window.addEventListener('message', (ev) => {
