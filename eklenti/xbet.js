@@ -4,9 +4,9 @@
 // hesabını Goal Mix sayfasındaki content.js yapar (adil oran).
 (async () => {
   if (window.top !== window || window.__kcsXbet) return;
-  // 1xBet'in ayna adresleri: adında "1xbet" geçenler ya da menüden seçilen adres (xbetHost).
+  // 1xBet'in ayna adresleri: adında "1xbet" / "1xlite" geçenler ya da menüden seçilen adres (xbetHost).
   const host = location.hostname;
-  const known = /(^|\.)1xbet[\w-]*\./i.test(host);
+  const known = /(^|\.)1x(bet|lite)[\w-]*\./i.test(host);
   let chosen = false;
   if (!known) {
     try {
