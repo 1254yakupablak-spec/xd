@@ -34,9 +34,13 @@
   const pct = (x) => `${x >= 0 ? '+' : '−'}%${Math.abs(x * 100).toFixed(1)}`;
 
   async function getJ(path) {
-    const res = await fetch(API + path, { credentials: 'omit' });
-    if (!res.ok) throw new Error(`${res.status}`);
-    return res.json();
+    // Site çok sık istekte 429 dönebiliyor: kısa bekleyip iki kez daha denenir.
+    for (let i = 0; ; i++) {
+      const res = await fetch(API + path, { credentials: 'omit' });
+      if (res.ok) return res.json();
+      if (i >= 2 || (res.status !== 429 && res.status < 500)) throw new Error(`${res.status}`);
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+    }
   }
 
   async function pool(items, n, fn) {
@@ -220,7 +224,8 @@
 
   // Sıralama puanı. Olasılık modunda değeri eksi olmayan kuponlar önce gelir, aralarında tutma olasılığı
   // yüksek olan öne geçer; değeri eksi olanlar en sona (kendi değerlerine göre) kalır.
-  const score = (p, ev, sort) => (sort === 'EV' ? ev : ev >= 0 ? 1 + p : ev);
+  // Olasılık modunda sadece tutma olasılığına bakılır; değeri sitenin payından (yaklaşık %8) daha kötü olanlar elenir.
+  const score = (p, ev, sort) => (sort === 'EV' ? ev : ev >= -0.08 ? 1 + p : ev);
 
   // Bir kombinasyonun her çizgisi için değer: adil olasılık × sitenin oranı − 1.
   function bestLine(lines, lamFair, sides, minOdds, maxOdds, sort) {
@@ -423,7 +428,8 @@
     const diff = c.lamFair - c.lamSite;
     if (Math.abs(diff) >= 0.1) {
       const lehine = over ? diff > 0 : diff < 0;
-      s.push(`Site bu maçlara ${c.lamSite.toFixed(1)} gol biçmiş, normal maç oranları ${c.lamFair.toFixed(1)} gösteriyor; ${lehine ? 'bu fark oranı adil orandan yükseltiyor' : 'bu fark oranı adil orandan düşürüyor'} (değer ${pct(c.ev)}).`);
+      const effect = !lehine ? 'bu fark oranı aleyhine çeviriyor' : c.ev > 0 ? 'bu fark oranı adil orandan yükseltiyor' : 'fark lehine ama sitenin payını karşılamaya yetmiyor';
+      s.push(`Site bu maçlara ${c.lamSite.toFixed(1)} gol biçmiş, normal maç oranları ${c.lamFair.toFixed(1)} gösteriyor; ${effect} (değer ${pct(c.ev)}).`);
     }
     return s.join(' ');
   }
@@ -432,16 +438,26 @@
     const side = c.side === 'OVER' ? 'ÜST' : 'ALT';
     const good = c.ev > 0;
     const copy = c.legs.map((m) => `${m.g.home} - ${m.g.away}`).join('\n') + `\nToplam ${c.line} ${side} · ${c.odds.toFixed(2)}`;
+    // Kapalıyken sadece başlık satırı görünür; başlığa basınca maçlar, yorum ve ayrıntılar açılır.
     return `<article class="kk-card${good ? ' is-good' : ''}">`
-      + `<header class="kk-card-head"><span class="kk-card-no">${i + 1}</span>`
-      + `<span class="kk-card-pick"><b>${c.legs.length} maç · Toplam ${c.line} ${side}</b><small>Beklenen toplam gol ${f2(c.lamFair)} · sitenin hesabı ${f2(c.lamSite)}</small></span>`
-      + `<span class="kk-card-prob"><b>%${(c.p * 100).toFixed(0)}</b><small>tutma</small></span><span class="kk-card-odds">${c.odds.toFixed(2)}</span></header>`
-      + `<div class="kk-card-stats"><span>Adil oran <b>${c.fair.toFixed(2)}</b></span>`
-      + `<span class="kk-ev">Değer <b>${pct(c.ev)}</b></span>`
+      + `<header class="kk-card-head" title="Aç / kapat"><span class="kk-card-no">${i + 1}</span>`
+      + `<span class="kk-card-pick"><b>${c.legs.length} maç · ${c.line} ${side}</b><small>Değer ${pct(c.ev)} · beklenen ${f2(c.lamFair)} gol</small></span>`
+      + `<span class="kk-card-prob"><b>%${(c.p * 100).toFixed(0)}</b><small>tutma</small></span><span class="kk-card-odds">${c.odds.toFixed(2)}</span><i class="kk-chev" aria-hidden="true"></i></header>`
+      + `<div class="kk-card-body"><div class="kk-card-stats"><span>Adil oran <b>${c.fair.toFixed(2)}</b> ${info(TIP.fair)}</span><span>Tutma <b>%${(c.p * 100).toFixed(1)}</b> ${info(TIP.prob)}</span>`
+      + `<span class="kk-ev">Değer <b>${pct(c.ev)}</b> ${info(TIP.ev)}</span>`
       + `<button type="button" class="kk-copy" data-copy="${esc(copy)}">Kopyala</button></div>`
       + `<p class="kk-note">${esc(commentText(c))}</p>`
-      + `<ol class="kk-legs">${c.legs.map(legHtml).join('')}</ol></article>`;
+      + `<ol class="kk-legs">${c.legs.map(legHtml).join('')}</ol></div></article>`;
   }
+
+  const TIP = {
+    sort: 'Olasılık: tutma ihtimali en yüksek kuponlar önce gelir (sitenin payından kötü olanlar elenir). Değer: sitenin oranının adil orandan en yüksek olduğu kuponlar önce gelir.',
+    ev: 'Değer = tutma olasılığı × oran − 1. Örnek: %60 olasılık ve 1.80 oran → 0.60 × 1.80 − 1 = +%8. Artı ise site adil orandan yüksek oran veriyor (uzun vadede lehine), eksi ise düşük veriyor. Tek kuponun tutacağını göstermez.',
+    fair: 'Adil oran = 1 ÷ tutma olasılığı. Sitenin payı olmasaydı bu kupona verilmesi gereken oran.',
+    prob: 'Tutma olasılığı: maçların normal Alt/Üst oranlarından payı çıkarılarak bulunan gol beklentisiyle hesaplanır. Oran yükseldikçe olasılık düşer (yaklaşık 1 ÷ oran).',
+    data: 'Ekranda görünenler değil, önümüzdeki 48 saatteki bütün Goal Mix maçları okunur. Sitenin normal bülteninde Alt/Üst oranı bulunan maçların adil oranı hesaplanır; bulunamayanlar kuponlara girmez.',
+  };
+  const info = (text) => `<span class="kk-i" tabindex="0" role="button" aria-label="Açıklama" data-tip="${esc(text)}">i</span>`;
 
   function seg(name, value, opts) {
     return `<div class="kk-seg" data-name="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${String(v) === String(value) ? 'is-on' : ''}">${l}</button>`).join('')}</div>`;
@@ -449,14 +465,14 @@
 
   function renderForm() {
     const body = modal.querySelector('.kk-form');
-    body.innerHTML = `<label class="kk-field"><span>Alt / Üst</span>${seg('side', state.side, [['OVER', 'Üst'], ['UNDER', 'Alt'], ['BOTH', 'İkisi']])}</label>`
-      + `<label class="kk-field"><span>Öncelik</span>${seg('sort', state.sort, [['PROB', 'Tutma olasılığı'], ['EV', 'Değer']])}</label>`
-      + `<label class="kk-field"><span>En az oran</span><input class="kk-input" name="minOdds" type="number" min="1.01" step="0.05" value="${state.minOdds}"></label>`
-      + `<label class="kk-field"><span>En çok oran</span><input class="kk-input" name="maxOdds" type="number" min="1.05" step="0.25" value="${state.maxOdds}"></label>`
-      + `<label class="kk-field"><span>Maç sayısı</span><div class="kk-seg kk-seg--multi" data-name="sizes">${[2, 3, 4, 5].map((k) => `<button type="button" data-v="${k}" class="${state.sizes.includes(k) ? 'is-on' : ''}">${k}</button>`).join('')}</div></label>`
-      + `<label class="kk-field"><span>Başlama</span>${seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']])}</label>`
-      + `<label class="kk-field"><span>Kupon sayısı</span>${seg('count', state.count, [[5, '5'], [10, '10'], [20, '20']])}</label>`
-      + '<button type="button" class="kk-go">Kuponları oluştur</button>';
+    body.innerHTML = `<div class="kk-field"><span>Alt / Üst</span>${seg('side', state.side, [['OVER', 'Üst'], ['UNDER', 'Alt'], ['BOTH', 'İkisi']])}</div>`
+      + `<div class="kk-field"><span>Öncelik ${info(TIP.sort)}</span>${seg('sort', state.sort, [['PROB', 'Olasılık'], ['EV', 'Değer']])}</div>`
+      + `<div class="kk-field"><span>En az oran</span><input class="kk-input" name="minOdds" type="number" min="1.01" step="0.05" value="${state.minOdds}"></div>`
+      + `<div class="kk-field"><span>En çok oran</span><input class="kk-input" name="maxOdds" type="number" min="1.05" step="0.25" value="${state.maxOdds}"></div>`
+      + `<div class="kk-field"><span>Maç sayısı</span><div class="kk-seg kk-seg--multi" data-name="sizes">${[2, 3, 4, 5].map((k) => `<button type="button" data-v="${k}" class="${state.sizes.includes(k) ? 'is-on' : ''}">${k}</button>`).join('')}</div></div>`
+      + `<div class="kk-field"><span>Başlama</span>${seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']])}</div>`
+      + `<div class="kk-field"><span>Kupon</span>${seg('count', state.count, [[5, '5'], [10, '10'], [20, '20']])}</div>`
+      + '<div class="kk-field kk-field--go"><span>&nbsp;</span><button type="button" class="kk-go">Kuponları oluştur</button></div>';
   }
 
   function save() {
@@ -485,9 +501,9 @@
     try {
       const { list, stats } = await build({ ...state, sizes: [...state.sizes].sort() }, say, force);
       const mins = Math.round((Date.now() - stats.at) / 60000);
-      const info = `<p class="kk-meta">Toplanan veri (48 sa): ${stats.gm} Goal Mix maçı · ${stats.matched} bültende bulundu · ${stats.priced} maçın adil oranı hazır · seçilen aralıkta ${stats.window} maç · ${mins < 1 ? 'az önce' : `${mins} dk önce`} toplandı <button type="button" class="kk-refresh">Verileri yenile</button></p>`;
-      out.innerHTML = info + (list.length
-        ? list.map(cardHtml).join('')
+      const infoLine = `<p class="kk-meta">${info(TIP.data)} Toplanan veri (48 sa): ${stats.gm} Goal Mix maçı · ${stats.matched} bültende bulundu · ${stats.priced} maçın adil oranı hazır · seçilen aralıkta ${stats.window} maç · ${mins < 1 ? 'az önce' : `${mins} dk önce`} toplandı <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
+      out.innerHTML = infoLine + (list.length
+        ? `<div class="kk-grid">${list.map(cardHtml).join('')}</div>`
         : '<div class="kk-empty">Bu ayarlarla kupon bulunamadı. En az oranı düşür ya da saat aralığını genişlet.</div>');
     } catch (err) {
       out.innerHTML = `<div class="kk-empty is-bad">Hesaplanamadı: ${esc(err?.message || err)}</div>`;
@@ -497,6 +513,24 @@
     }
   }
 
+  // Küçük açıklama balonu: ⓘ'nin üstünde (yer yoksa altında) çıkar; kaydırma alanına kırpılmasın diye sabit konumlu.
+  let tip = null;
+  let tipPinned = false;
+  function showTip(el, pin = false) {
+    if (!tip) { tip = document.createElement('div'); tip.className = 'kk-tip'; modal.appendChild(tip); }
+    if (pin) tipPinned = !(tipPinned && tip.dataset.for === el.dataset.tip);
+    tip.dataset.for = el.dataset.tip;
+    tip.textContent = el.dataset.tip;
+    tip.hidden = pin && !tipPinned;
+    const r = el.getBoundingClientRect();
+    const w = 280;
+    tip.style.width = `${w}px`;
+    tip.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2))}px`;
+    const h = tip.offsetHeight;
+    tip.style.top = `${r.top - h - 8 > 8 ? r.top - h - 8 : r.bottom + 8}px`;
+  }
+  function hideTip() { if (tip) tip.hidden = true; }
+
   function openModal() {
     if (modal) { modal.hidden = false; return; }
     modal = document.createElement('div');
@@ -504,10 +538,14 @@
     modal.innerHTML = '<div class="kk-backdrop"></div><section class="kk-box" role="dialog" aria-label="Kupon oluşturucu">'
       + '<header class="kk-head"><div><h2>Kupon oluşturucu</h2><p>Goal Mix · sitenin maç oranlarından adil oran</p></div><button type="button" class="kk-x" aria-label="Kapat">×</button></header>'
       + '<div class="kk-form"></div><div class="kk-out"><div class="kk-empty">Ayarları seçip <b>Kuponları oluştur</b>a bas. Maçlar 6q açıkken arka planda toplanıyor; veri hazırsa kuponlar birkaç saniyede çıkar.</div></div>'
-      + '<footer class="kk-foot">Adil oran, sitenin normal Alt/Üst oranlarından pay çıkarılarak hesaplanan tahmindir; kazanç garantisi değildir. Eklenti bahis yapmaz, maçları Goal Mix listesinden kendin eklersin.</footer>'
+      + '<footer class="kk-foot">Adil oran tahmindir, kazanç garantisi değildir. Eklenti bahis yapmaz; maçları Goal Mix listesinden kendin eklersin. Kupona basınca maçları ve yorumu açılır.</footer>'
       + '</section>';
     document.body.appendChild(modal);
     renderForm();
+    modal.addEventListener('mouseover', (ev) => { const ib = ev.target.closest?.('.kk-i'); if (ib) showTip(ib); });
+    modal.addEventListener('mouseout', (ev) => { if (ev.target.closest?.('.kk-i') && !tipPinned) hideTip(); });
+    modal.addEventListener('focusin', (ev) => { if (ev.target.classList?.contains('kk-i')) showTip(ev.target); });
+    modal.addEventListener('focusout', (ev) => { if (ev.target.classList?.contains('kk-i')) { tipPinned = false; hideTip(); } });
     modal.addEventListener('click', (ev) => {
       const t = ev.target;
       if (t.closest('.kk-x') || t.classList.contains('kk-backdrop')) { modal.hidden = true; return; }
@@ -529,6 +567,17 @@
       }
       if (t.closest('.kk-go')) { run(); return; }
       if (t.closest('.kk-refresh')) { run(true); return; }
+      const ib = t.closest('.kk-i');
+      if (ib) { showTip(ib, true); return; }
+      // Aynı anda tek kupon açık: pencere tek ekrana sığsın.
+      const head = t.closest('.kk-card-head');
+      if (head) {
+        const card = head.parentElement;
+        const open = !card.classList.contains('is-open');
+        modal.querySelectorAll('.kk-card.is-open').forEach((x) => x.classList.remove('is-open'));
+        card.classList.toggle('is-open', open);
+        return;
+      }
       const cp = t.closest('.kk-copy');
       if (cp) {
         navigator.clipboard?.writeText(cp.dataset.copy).then(() => {
