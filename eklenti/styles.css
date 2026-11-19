@@ -213,3 +213,6 @@
 .kk-r--G { background: #2f9e44; }
 .kk-r--B { background: #5c6378; }
 .kk-r--M { background: #c92a2a; }
+/* 4.8: "Aynı maç" alanı eklendi; ikinci satır 4 alan + düğme */
+.kk-form .kk-field--go { grid-column: span 2; }
+@media (max-width: 1100px) { .kk-form .kk-field--go { grid-column: span 3; } }
