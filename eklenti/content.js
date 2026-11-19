@@ -523,24 +523,29 @@
     // Tekrarsız: kuponlar sırayla kurulur. Her adımda kalan maçlardan en iyi birkaç aday sorulur, en iyisi alınır,
     // maçları havuzdan çıkarılır. Böylece her maç en fazla bir kuponda olur.
     if (opts.repeat === 0) {
+      // Kurulamayan aday (gerçek oran aralık dışında) "denendi" diye işaretlenir ve atlanır; maçları havuzda kalır.
+      // Böylece uzak saatteki çok sayıda aday soru hakkını bitirip iyi kuponları engellemez.
       const usedIds = new Set();
+      const failed = new Set();
+      const ck = (x) => `${x.side}|${x.c.map((m) => m.g.id).sort().join(',')}`;
       const out = [];
       let asked = 0;
-      while (out.length < opts.count && asked < opts.count * 6) {
+      const BUDGET = Math.max(60, opts.count * 10);
+      while (out.length < opts.count && asked < BUDGET) {
         const avail = items.filter((x) => !usedIds.has(x.g.id));
-        const cands = localCands(avail);
-        if (!cands.length) break;
-        const tries = cands.slice(0, 3);
+        const tries = localCands(avail).filter((x) => !failed.has(ck(x))).slice(0, 4);
+        if (!tries.length) break;
         asked += tries.length;
         say(`Tekrarsız kuponlar kuruluyor… ${out.length + 1}/${opts.count}`);
-        const got = (await Promise.all(tries.map((x) => priceOf(x).catch(() => null)))).filter(Boolean).sort((x, y) => y.sc - x.sc);
-        if (!got.length) {
-          // Üç aday da kurulamadı: en iyi adayın ilk maçı havuzdan çıkarılıp devam edilir (sonsuz döngü olmasın).
-          usedIds.add(tries[0].c[0].g.id);
-          continue;
-        }
+        const got = (await Promise.all(tries.map((x) => priceOf(x).catch(() => null))))
+          .map((r, i) => (r ? r : (failed.add(ck(tries[i])), null)))
+          .filter(Boolean)
+          .sort((x, y) => y.sc - x.sc);
+        if (!got.length) continue;
         out.push(got[0]);
         got[0].legs.forEach((m) => usedIds.add(m.g.id));
+        // Bu turda kurulup seçilmeyenler sonraki turlarda yeniden sorulmasın diye değil, maçları değiştiği için
+        // zaten elenir (kullanılan maç içeriyorlarsa).
       }
       if (!out.length) throw new Error(NONE);
       return { list: out, stats: { ...stats, short: out.length < opts.count } };
@@ -549,29 +554,37 @@
     const cands = localCands(items);
     if (!cands.length) throw new Error(NONE);
     // Aynı maç çok fazla kuponda tekrar etmesin (çok maçlı kuponlarda havuz küçük olduğundan sınır büyür).
+    // Sorulan kombinasyonların bir kısmı gerçek oranda aralık dışına düşebilir ya da aynı kupon çıkabilir: istenen
+    // sayıya ulaşılamazsa sıradaki adaylar da sorulur (en çok 3 tur).
     const maxUse = Math.max(4, Math.ceil((MAX_QUOTES * Math.max(...opts.sizes)) / poolSize(opts.sizes) / 2));
     const used = new Map();
-    const pick = [];
-    for (const x of cands) {
-      if (pick.length >= MAX_QUOTES) break;
-      if (x.c.some((m) => (used.get(m.g.id) || 0) >= maxUse)) continue;
-      pick.push(x);
-      for (const m of x.c) used.set(m.g.id, (used.get(m.g.id) || 0) + 1);
-    }
-    n = 0;
-    const res = await pool(pick, 4, async (x) => {
-      const r = await priceOf(x);
-      say(`Kuponların oranı soruluyor… ${++n}/${pick.length}`);
-      return r;
-    });
     const seen = new Set();
-    const list = res.filter(Boolean).sort((x, y) => y.sc - x.sc).filter((x) => {
-      const k = `${x.side}|${x.line}|${x.legs.map((m) => m.g.id).sort().join(',')}`;
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-    return { list: list.slice(0, opts.count), stats };
+    const list = [];
+    let from = 0;
+    n = 0;
+    for (let round = 0; round < 3 && list.length < opts.count && from < cands.length; round++) {
+      const pick = [];
+      while (from < cands.length && pick.length < MAX_QUOTES) {
+        const x = cands[from++];
+        if (x.c.some((m) => (used.get(m.g.id) || 0) >= maxUse * (round + 1))) continue;
+        pick.push(x);
+        for (const m of x.c) used.set(m.g.id, (used.get(m.g.id) || 0) + 1);
+      }
+      const res = await pool(pick, 4, async (x) => {
+        const r = await priceOf(x);
+        say(`Kuponların oranı soruluyor… ${++n}`);
+        return r;
+      });
+      for (const x of res) {
+        if (!x) continue;
+        const k = `${x.side}|${x.line}|${x.legs.map((m) => m.g.id).sort().join(',')}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        list.push(x);
+      }
+    }
+    list.sort((x, y) => y.sc - x.sc);
+    return { list: list.slice(0, opts.count), stats: { ...stats, short: list.length < opts.count } };
   }
 
   // ---------- arayüz ----------
@@ -816,7 +829,7 @@
       const { list, stats } = await build({ ...state, sizes: [...state.sizes].sort() }, say, force);
       const mins = Math.round((Date.now() - stats.at) / 60000);
       const ago = mins < 1 ? 'az önce' : `${mins} dk önce`;
-      const infoLine = `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · seçilen aralıkta ${stats.window} maç · ${ago}${stats.short && state.repeat === 0 ? ' · <span class="kk-warn">tekrarsız: istenenden az kupon kurulabildi</span>' : ''} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
+      const infoLine = `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · seçilen aralıkta ${stats.window} maç · ${ago}${stats.short ? ` · <span class="kk-warn">${state.repeat === 0 ? 'tekrarsız: ' : ''}istenenden az kupon kurulabildi (bu oran/çizgi aralığında yeterli uygun kombinasyon yok)</span>` : ''} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
       lastList = list;
       offSet.clear();
       out.innerHTML = infoLine + (list.length
