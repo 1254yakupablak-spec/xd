@@ -267,3 +267,5 @@
 @media (max-width: 900px) { .kk-split { grid-template-columns: 1fr; } .kk-out { overflow-y: auto; } }
 .kk-form .kk-field--go { grid-column: span 1; }
 @media (max-width: 1100px) { .kk-form .kk-field--go { grid-column: span 3; } }
+.kk-left .kk-grid { align-items: stretch; }
+.kk-left .kk-card { width: 100%; box-sizing: border-box; }
