@@ -585,23 +585,23 @@
     // maçları havuzdan çıkarılır. Böylece her maç en fazla bir kuponda olur.
     // 0: tekrarsız (her maç en fazla bir kuponda). 2: ters yönde tekrar (bir maç en fazla bir Üst ve bir Alt kuponda;
     // aynı yönde iki kez girmez).
-    if (opts.repeat === 0 || opts.repeat === 2) {
+    async function seqBuild(want, mode) {
       // Kurulamayan aday (gerçek oran aralık dışında) "denendi" diye işaretlenir ve atlanır; maçları havuzda kalır.
       // Böylece uzak saatteki çok sayıda aday soru hakkını bitirip iyi kuponları engellemez.
       const usedOver = new Set();
-      const usedUnder = opts.repeat === 2 ? new Set() : usedOver;
+      const usedUnder = mode === 2 ? new Set() : usedOver;
       const usedOf = (side) => (side === 'OVER' ? usedOver : usedUnder);
       const failed = new Set();
       const ck = (x) => `${x.side}|${x.c.map((m) => m.g.id).sort().join(',')}`;
       const out = [];
       let asked = 0;
-      const BUDGET = Math.max(60, opts.count * 10);
-      while (out.length < opts.count && asked < BUDGET) {
+      const BUDGET = Math.max(60, want * 10);
+      while (out.length < want && asked < BUDGET) {
         const bySide = { OVER: items.filter((x) => !usedOver.has(x.g.id)), UNDER: items.filter((x) => !usedUnder.has(x.g.id)) };
         const tries = localCands(null, bySide).filter((x) => !failed.has(ck(x))).slice(0, 4);
         if (!tries.length) break;
         asked += tries.length;
-        say(`Tekrarsız kuponlar kuruluyor… ${out.length + 1}/${opts.count}`);
+        say(`Farklı maçlı kuponlar kuruluyor… ${out.length + 1}/${want}`);
         const got = (await Promise.all(tries.map((x) => priceOf(x).catch(() => null))))
           .map((r, i) => (r ? r : (failed.add(ck(tries[i])), null)))
           .filter(Boolean)
@@ -612,12 +612,19 @@
         // Bu turda kurulup seçilmeyenler sonraki turlarda yeniden sorulmasın diye değil, maçları değiştiği için
         // zaten elenir (kullanılan maç içeriyorlarsa).
       }
+      return out;
+    }
+    if (opts.repeat === 0 || opts.repeat === 2) {
+      const out = await seqBuild(opts.count, opts.repeat);
       if (!out.length) throw new Error(NONE);
       return { list: out, stats: { ...stats, short: out.length < opts.count } };
     }
 
+    // Tekrarlı: önce kuponların yarısı tamamen farklı maçlardan kurulur, kalan yarısı tekrara izin verilerek doldurulur.
+    const distinct = await seqBuild(Math.ceil(opts.count / 2), 0);
+
     const cands = localCands(items);
-    if (!cands.length) throw new Error(NONE);
+    if (!cands.length && !distinct.length) throw new Error(NONE);
     // Tekrarlı: tekrar zorunlu değil, serbest. En iyi kupondan başlanır; bir maç en fazla MAX_REP kupona girer, böylece
     // liste hem farklı maçlı kuponlardan hem de tekrar eden maçlı kuponlardan oluşur (hepsi aynı 5 maçın türevi olmaz).
     // Sorulan kombinasyonların bir kısmı gerçek oranda aralık dışına düşebilir ya da aynı kupon çıkabilir: istenen
@@ -626,8 +633,11 @@
     const maxUse = Math.max(MAX_REP, Math.ceil((MAX_QUOTES * Math.max(...opts.sizes)) / poolSize(opts.sizes, items.length) / 4));
     const pickDiverse = (all) => {
       const use = new Map();
-      const out = [];
+      const out = [...distinct];
+      const taken = new Set(distinct.map(keyOf));
+      distinct.forEach((x) => x.legs.forEach((m) => use.set(m.g.id, (use.get(m.g.id) || 0) + 1)));
       for (const x of [...all].sort((a, b) => b.sc - a.sc)) {
+        if (taken.has(keyOf(x))) continue;
         if (out.length >= opts.count) break;
         if (x.legs.some((m) => (use.get(m.g.id) || 0) >= MAX_REP)) continue;
         out.push(x);
@@ -660,7 +670,7 @@
         list.push(x);
       }
     }
-    const outList = pickDiverse(list);
+    const outList = pickDiverse(list).sort((a, b) => b.sc - a.sc);
     return { list: outList, stats: { ...stats, short: outList.length < opts.count } };
   }
 
@@ -774,7 +784,7 @@
     yz: 'Normal bültende Alt/Üst oranı olmayan maçlar için günde iki kez (00:00 ve 12:00) yapay zekâ beklenen gol tahmini yapar (son maçlar, lig ortalaması). Dahil: bu maçlar da kuponlara girer, maç satırında YZ etiketiyle. Tahmin, oranlardan çıkan beklentiden daha az isabetlidir; değeri de o kadar belirsizdir.',
     line: 'Kuponun toplam gol çizgisi sınırı. Örnek: Alt ve en az çizgi 5.5 → sadece 5.5, 6.5, 7.5… Alt kuponlar. Boş bırakılırsa sınır yok. Tam sayı yazılırsa .5\'e yuvarlanır (6 → 5.5).',
     xg: 'Maçın adil gol beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
-    repeat: 'Tekrarlı: tekrar serbest ama zorunlu değil; liste hem farklı maçlı hem de ortak maçlı kuponlardan oluşur, bir maç en fazla 3 kupona girer. Tekrarsız: her maç en fazla bir kuponda olur. Ters çizgi: bir maç en fazla bir Üst ve bir Alt kupona girebilir, aynı yönde iki kez girmez (Alt/Üst "İkisi" seçiliyken anlamlı; tek yönde tekrarsızla aynıdır). Tekrarsız ve ters çizgide kuponlar sırayla, kalan maçlardan kurulur; istenenden az kupon çıkabilir.',
+    repeat: 'Tekrarlı: kuponların yarısı tamamen farklı maçlardan, kalan yarısı tekrara izin verilerek kurulur (bir maç en fazla 3 kupona girer); yani tekrarlılar da dahil, ama hepsi tekrarlı değil. Tekrarsız: her maç en fazla bir kuponda olur. Ters çizgi: bir maç en fazla bir Üst ve bir Alt kupona girebilir, aynı yönde iki kez girmez (Alt/Üst "İkisi" seçiliyken anlamlı; tek yönde tekrarsızla aynıdır). Tekrarsız ve ters çizgide kuponlar sırayla, kalan maçlardan kurulur; istenenden az kupon çıkabilir.',
     set: 'Seçili kuponların birlikte hesabı: en az 1, en az 2… kuponun tutma olasılığı. Her kutunun altında tam o kadar kupon tutarsa net kâr/zarar: ortalama, en kötü (en düşük oranlılar tutarsa) … en iyi (en yüksek oranlılar tutarsa). Kâra geçiş: ortalamada artıya geçmek için gereken en az tutan kupon sayısı. Her maçın golü adil beklentiyle 20.000 kez denendi; aynı maç birden çok kuponda varsa o maçın sonucu hepsinde aynı sayıldı. Beklenen net: her kupona 1 birim yatırılırsa ortalama sonuç (oranlar × tutma − kupon sayısı). Tahmindir, garanti değildir.',
     formLeg: 'Sadece bilgi, yüzdeye katılmaz (oranlar formu zaten içerir). Son 5 maç: attığı–yediği gol ortalaması, 2.5 üst biten maç sayısı ve sonuçlar (G galibiyet, B beraberlik, M mağlubiyet).',
   };
