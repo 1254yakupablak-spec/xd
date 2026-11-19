@@ -1,6 +1,6 @@
 {
- "at": "2026-11-19T02:20:10.806Z",
- "count": 80,
+ "at": "2026-11-19T10:38:14.066Z",
+ "count": 82,
  "matches": {
   "01M7PAK150NVX202S7YWH3B27K": {
    "lam": 3,
@@ -641,6 +641,22 @@
    "away": "Jalapa",
    "startsAt": "2026-11-21T00:00:00.000Z",
    "at": "2026-11-19T02:20:10.265Z"
+  },
+  "01M7RTY7BG2GBJSF09TW9RHQAC": {
+   "lam": 2.85,
+   "note": "Malezya ligi gollü; ev sahibi formsuz, Kuching son 6 karşılaşmada yenilmedi; lig ortalaması ~3.0",
+   "home": "Negeri Sembilan",
+   "away": "Kuching City FC",
+   "startsAt": "2026-11-20T08:45:00.000Z",
+   "at": "2026-11-19T10:38:13.166Z"
+  },
+  "01M77A9Z5T8CQ5GCZZ7T23P714": {
+   "lam": 2.55,
+   "note": "Tijuana son maçlarda çok beraberlik ve az gol; Atlante de düşük skorlu; lig ortalaması ~2.8",
+   "home": "Club Tijuana",
+   "away": "Atlante",
+   "startsAt": "2026-11-21T03:10:00.000Z",
+   "at": "2026-11-19T10:38:13.167Z"
   }
  }
 }
