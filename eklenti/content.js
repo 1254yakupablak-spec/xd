@@ -238,8 +238,11 @@
 
   // Seçilen maç sayılarına göre aday havuzu: toplam kombinasyon ~60 bini geçmesin (10 maçlık kuponlarda havuz küçülür).
   const choose = (n, k) => { let r = 1; for (let i = 1; i <= k; i++) r = (r * (n - k + i)) / i; return r; };
-  function poolSize(sizes) {
-    for (let n = TOP_PICK; n > Math.max(...sizes); n--) {
+  // Az maçlı kuponlarda (ör. sadece 2 maç) kombinasyon sayısı küçük olduğu için havuz bütün maçlara kadar büyür:
+  // 2 maçta ~340 maç bile 60 bin kombinasyon eder. Böylece oran/çizgi sınırına uyan maçlar (ör. 2 maç 6.5 üst
+  // 5–10 oran için düşük gollü maçlar) en iyi 20'nin dışında kalsa da bulunur.
+  function poolSize(sizes, avail = TOP_PICK) {
+    for (let n = Math.min(Math.max(avail, TOP_PICK), 400); n > Math.max(...sizes); n--) {
       if (sizes.reduce((t, k) => t + choose(n, k), 0) <= 60000) return n;
     }
     return Math.max(...sizes) + 1;
@@ -486,7 +489,7 @@
     function localCands(avail) {
       const cands = [];
       for (const side of sides) {
-        const top = [...avail].sort((x, y) => (side === 'OVER' ? y.edge - x.edge : x.edge - y.edge)).slice(0, poolSize(opts.sizes));
+        const top = [...avail].sort((x, y) => (side === 'OVER' ? y.edge - x.edge : x.edge - y.edge)).slice(0, poolSize(opts.sizes, avail.length));
         for (const k of opts.sizes) {
           if (k > top.length) continue;
           for (const c of combos(top, k)) {
@@ -556,7 +559,7 @@
     // Aynı maç çok fazla kuponda tekrar etmesin (çok maçlı kuponlarda havuz küçük olduğundan sınır büyür).
     // Sorulan kombinasyonların bir kısmı gerçek oranda aralık dışına düşebilir ya da aynı kupon çıkabilir: istenen
     // sayıya ulaşılamazsa sıradaki adaylar da sorulur (en çok 3 tur).
-    const maxUse = Math.max(4, Math.ceil((MAX_QUOTES * Math.max(...opts.sizes)) / poolSize(opts.sizes) / 2));
+    const maxUse = Math.max(4, Math.ceil((MAX_QUOTES * Math.max(...opts.sizes)) / poolSize(opts.sizes, items.length) / 2));
     const used = new Map();
     const seen = new Set();
     const list = [];
