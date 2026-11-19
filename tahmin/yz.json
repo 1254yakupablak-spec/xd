@@ -1,5 +1,646 @@
 {
- "at": "2026-11-19T01:58:22.459Z",
- "count": 0,
- "matches": {}
+ "at": "2026-11-19T02:14:20.507Z",
+ "count": 80,
+ "matches": {
+  "01M7PAK150NVX202S7YWH3B27K": {
+   "lam": 2.8,
+   "note": "ASEAN kulüp turnuvası; Port FC deplasmanda da üretken, orta-yüksek tempo",
+   "home": "Svay Rieng",
+   "away": "Port FC",
+   "startsAt": "2026-11-19T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.997Z"
+  },
+  "01M7PBCN04TEJV8B9V6TETDQ2H": {
+   "lam": 3.1,
+   "note": "Persib evinde belirgin favori; güç farkı gol beklentisini artırıyor",
+   "home": "Persib Bandung",
+   "away": "Shan Utd",
+   "startsAt": "2026-11-19T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7Q8C6R9Q9PYXQHC55QH4JTS": {
+   "lam": 3.4,
+   "note": "Kupa maçı, alt lig takımı üst lig Kosice'yi ağırlıyor; güç farkı büyük",
+   "home": "Zvolen",
+   "away": "Kosice",
+   "startsAt": "2026-11-19T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7PAK150KWJW3E633CVRBWJK": {
+   "lam": 2.9,
+   "note": "Johor DT hücumu güçlü; ASEAN kulüp turnuvası ortalamasının biraz üstü",
+   "home": "Cong An Ha Noi",
+   "away": "Johor DT",
+   "startsAt": "2026-11-19T12:30:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7Q8798TS60XMC5TZ8MYYH57": {
+   "lam": 3.5,
+   "note": "Kupa maçı, Celje çok daha güçlü; tek taraflı ve gollü maç beklentisi",
+   "home": "Beltinci",
+   "away": "Celje",
+   "startsAt": "2026-11-19T12:30:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7QJAXTG1D1YR3E9TPZFEM67": {
+   "lam": 2.8,
+   "note": "Kupa maçı, alt lig takımları arasında dengeli eşleşme",
+   "home": "Dob",
+   "away": "NK Bistrica",
+   "startsAt": "2026-11-19T12:30:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7GEADVR6GPZWFSAAGVJ1YX4": {
+   "lam": 3,
+   "note": "Hazırlık maçı; rotasyon ve açık oyun beklentisi",
+   "home": "Norrkoping",
+   "away": "KuPS",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7HGXNGT6G3TYY6A8HD4GX96": {
+   "lam": 2.1,
+   "note": "İran ligi düşük skorlu; dengeli eşleşme",
+   "home": "Malavan",
+   "away": "Gol Gohar",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7HGXNGT8H82C1EWG1EKFTCV": {
+   "lam": 2.2,
+   "note": "İran ligi düşük skorlu; Esteghlal favori ama ligde gol az",
+   "home": "Kheybar Khorramabad",
+   "away": "Esteghlal F.C.",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7PBCN04B7AJYCZ5243PXM88": {
+   "lam": 2.4,
+   "note": "Özbekistan ligi ortalaması ~2.4; dengeli eşleşme",
+   "home": "Termez Surkhon",
+   "away": "Andijan",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7PJJXJ7QYZQBMTM1SV42VHK": {
+   "lam": 2.1,
+   "note": "Zambiya ligi düşük skorlu; lig ortalamasına yakın",
+   "home": "Mufulira",
+   "away": "Kabwe",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7QKPCSX41X2C4Y8HN0QGYK1": {
+   "lam": 2.1,
+   "note": "Zambiya ligi düşük skorlu; lig ortalamasına yakın",
+   "home": "Nkwazi",
+   "away": "Mutondo Stars",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7QKYTD5P6N38VT4JMZA0JWZ": {
+   "lam": 2.1,
+   "note": "Zambiya ligi üst sıra takımları; temkinli maç beklentisi",
+   "home": "ZESCO",
+   "away": "Red Arrows",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RJVN3MT662SX7JP8GSCB3M": {
+   "lam": 2.1,
+   "note": "Uganda ligi düşük skorlu; lig ortalamasına yakın",
+   "home": "Kigezi HomeBoyz",
+   "away": "Express",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RK187SFH6BKPY8X55FHHAM": {
+   "lam": 2.2,
+   "note": "Uganda ligi düşük skorlu; lig ortalamasına yakın",
+   "home": "Entebbe UPPC",
+   "away": "Kataka",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RM20QX7V468DTBJ37H5TKH": {
+   "lam": 2.2,
+   "note": "Uganda ligi düşük skorlu; lig ortalamasına yakın",
+   "home": "Maroons",
+   "away": "NEC FC",
+   "startsAt": "2026-11-19T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7GZMJZNQA912PHF763TCN1Q": {
+   "lam": 2.3,
+   "note": "İran ligi düşük skorlu; Tractor favori, hafif artış",
+   "home": "Mes Shahr Babak",
+   "away": "Tractor",
+   "startsAt": "2026-11-19T13:45:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7PAXM2MH513C256DGTC33Z0": {
+   "lam": 2.3,
+   "note": "Irak ligi ortalaması ~2.3; dengeli eşleşme",
+   "home": "Diyala",
+   "away": "Al Kahraba",
+   "startsAt": "2026-11-19T13:45:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7PBCN04GEEJRFVS982RJD7P": {
+   "lam": 2.7,
+   "note": "Kuveyt 2. ligi, savunmalar zayıf; lig ortalamasına yakın",
+   "home": "Khaitan",
+   "away": "Yarmouk",
+   "startsAt": "2026-11-19T14:20:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7MZCX8AFAEB5QXZKKW8F3H3": {
+   "lam": 2,
+   "note": "Kamerun ligi düşük skorlu; temkinli oyun beklentisi",
+   "home": "Aigle Royal",
+   "away": "Colombe",
+   "startsAt": "2026-11-19T14:30:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7MYR9SFT29PWJ3SJXTFA0M5": {
+   "lam": 2.2,
+   "note": "Mısır kupası, takımlar temkinli; düşük skorlu eğilim",
+   "home": "Arab Contractors",
+   "away": "Al Qanah",
+   "startsAt": "2026-11-19T15:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7KY83GGKKTQS6Z9YMZ793QF": {
+   "lam": 2.3,
+   "note": "Cezayir ligi düşük skorlu; Belouizdad favori, hafif artış",
+   "home": "Rouisset",
+   "away": "CR Belouizdad",
+   "startsAt": "2026-11-19T16:45:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7Q654QHKH3TPCYXW1CM7TYF": {
+   "lam": 2.9,
+   "note": "Litvanya düşme grubu, savunmalar zayıf; orta-yüksek beklenti",
+   "home": "Sveikata",
+   "away": "Hegelmann Litauen 2",
+   "startsAt": "2026-11-19T17:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7QFD2KAXFHRRB85E9PBCDX9": {
+   "lam": 3.3,
+   "note": "Kadın ligi; Rosengard çok güçlü, güç farkı büyük",
+   "home": "KIF Orebro W",
+   "away": "Rosengard W",
+   "startsAt": "2026-11-19T17:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RM20QXC1Q0SV1N30TG2JEX": {
+   "lam": 2.1,
+   "note": "Moritanya ligi düşük skorlu; lig ortalamasına yakın",
+   "home": "Douane",
+   "away": "Kaedi",
+   "startsAt": "2026-11-19T17:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7KYT4HHGGFEPXBDX43FGN87": {
+   "lam": 2.6,
+   "note": "Arjantin rezerv ligi; ana lige göre biraz daha açık oyun",
+   "home": "Racing Club 2",
+   "away": "Talleres Cordoba 2",
+   "startsAt": "2026-11-19T18:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7QP7XP92N0MFTQDDSQ75YDV": {
+   "lam": 2.9,
+   "note": "U20 play-off maçı; gençlik maçlarında gol beklentisi yüksek",
+   "home": "Madureira U20",
+   "away": "Bangu U20",
+   "startsAt": "2026-11-19T18:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RJVN3MEWG94X00JR8YS178": {
+   "lam": 2.5,
+   "note": "Moritanya ligi; Nouadhibou belirgin favori",
+   "home": "Nouadhibou",
+   "away": "Chemal",
+   "startsAt": "2026-11-19T19:50:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7G159ZGARDQ2HNNB1SKN70H": {
+   "lam": 2.8,
+   "note": "Kadınlar Şampiyonlar Ligi, iki güçlü takım; dengeli ama kaliteli hücum",
+   "home": "Arsenal W",
+   "away": "OL Lyonnes W",
+   "startsAt": "2026-11-19T20:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7QEQ8EX63JFATCJZR90JQ41": {
+   "lam": 2.5,
+   "note": "Bölgesel kupa maçı; ev sahibi favori, orta düzey beklenti",
+   "home": "Treze PB",
+   "away": "Serra Branca",
+   "startsAt": "2026-11-19T23:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7AFQPGJ2NVZ9M71E2T6DFQ0": {
+   "lam": 2.8,
+   "note": "Endonezya ligi ortalaması ~2.8; dengeli eşleşme",
+   "home": "PSS Sleman",
+   "away": "Arema FC",
+   "startsAt": "2026-11-20T08:30:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7AFQPGJ90P7T4Y0TJ7W613Z": {
+   "lam": 2.7,
+   "note": "Endonezya ligi; dengeli eşleşme",
+   "home": "Garudayaksa",
+   "away": "Madura United",
+   "startsAt": "2026-11-20T08:30:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RQRWZ7VYENDG8N3H1TE54H": {
+   "lam": 3,
+   "note": "Ermenistan 2. ligi, rezerv takım var; savunmalar zayıf",
+   "home": "Avshar Ararat",
+   "away": "Sardarapat 2",
+   "startsAt": "2026-11-20T10:30:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7N4QVSDS2AA0KQF9BWPJ2DF": {
+   "lam": 3,
+   "note": "Çin kupası, iki güçlü takım; hücum kalitesi yüksek",
+   "home": "Beijing Guoan",
+   "away": "Shanghai Port",
+   "startsAt": "2026-11-20T11:35:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7AS3CRZM7ZEHGVYHF5DDGRE": {
+   "lam": 2.7,
+   "note": "Endonezya ligi; dengeli eşleşme",
+   "home": "Dewa United",
+   "away": "Persita",
+   "startsAt": "2026-11-20T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7GZTYTW28B36NMN6CJZ3XDN": {
+   "lam": 2,
+   "note": "İran ligi düşük skorlu; temkinli maç",
+   "home": "Zob Ahan",
+   "away": "Shams Azar Qazvin",
+   "startsAt": "2026-11-20T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7GZTYTWD6HX34VRBPHAXGYD": {
+   "lam": 2,
+   "note": "İran ligi düşük skorlu; temkinli maç",
+   "home": "Fajr Sepasi",
+   "away": "Chadormalu",
+   "startsAt": "2026-11-20T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7QFF4PAEYDPM74JC1W05WBD": {
+   "lam": 2.7,
+   "note": "Tayland 2. ligi ortalaması ~2.7",
+   "home": "Police Tero",
+   "away": "Chanthaburi",
+   "startsAt": "2026-11-20T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RRRZNGEVJTFJJG169KCCPA": {
+   "lam": 2.4,
+   "note": "Endonezya 2. ligi, daha temkinli; lig ortalamasına yakın",
+   "home": "PSMS Medan",
+   "away": "Sumsel United",
+   "startsAt": "2026-11-20T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RRRZNGPYAJV7BJRGEN9MTV": {
+   "lam": 2.4,
+   "note": "Endonezya 2. ligi, daha temkinli; lig ortalamasına yakın",
+   "home": "Balikpapan",
+   "away": "Barito Putera",
+   "startsAt": "2026-11-20T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RRRZNGTRSBXD1JM3939DXR": {
+   "lam": 2.5,
+   "note": "Makedonya ligi ortalaması ~2.5",
+   "home": "Shkendija Haracine",
+   "away": "Bashkimi",
+   "startsAt": "2026-11-20T12:00:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7RPMM4VJY9KGSWKC4B8A0RH": {
+   "lam": 2.6,
+   "note": "Lübnan ligi ortalamasına yakın",
+   "home": "Al Hikma",
+   "away": "Al Sahel",
+   "startsAt": "2026-11-20T12:15:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7MYZM7GH3GPVZPJZSDH1D9S": {
+   "lam": 2.7,
+   "note": "Hırvatistan 2. ligi, rezerv takım; orta düzey beklenti",
+   "home": "Opatija",
+   "away": "NK Dinamo Zagreb 2",
+   "startsAt": "2026-11-20T12:30:00.000Z",
+   "at": "2026-11-19T02:14:19.998Z"
+  },
+  "01M7GZTYTWNP4VK3S2YF6MBM25": {
+   "lam": 2.3,
+   "note": "İran ligi düşük skorlu; Persepolis favori, hafif artış",
+   "home": "Persepolis",
+   "away": "Paykan",
+   "startsAt": "2026-11-20T12:45:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7RR6SR3QWVKCTGK5AGZ02KV": {
+   "lam": 2.9,
+   "note": "Malezya ligi gollü; Terengganu evinde favori",
+   "home": "Terengganu",
+   "away": "DPMM",
+   "startsAt": "2026-11-20T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7RRRZNG1XXD3G7E0VGSFHTN": {
+   "lam": 2.1,
+   "note": "Mozambik ligi düşük skorlu",
+   "home": "Black Bulls",
+   "away": "Ferroviario Maputo",
+   "startsAt": "2026-11-20T13:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QF0B784GEPEBC415RPGFQ0": {
+   "lam": 2,
+   "note": "Cezayir 2. ligi çok düşük skorlu",
+   "home": "Kolea",
+   "away": "Tlemcen",
+   "startsAt": "2026-11-20T14:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QF8NAGVPM6FASZSKPWSXCR": {
+   "lam": 2,
+   "note": "Cezayir 2. ligi çok düşük skorlu",
+   "home": "CA Batna",
+   "away": "Skikda",
+   "startsAt": "2026-11-20T14:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QFF4PAE7H1HD0HWV8CPAX5": {
+   "lam": 2,
+   "note": "Cezayir 2. ligi çok düşük skorlu",
+   "home": "Arba",
+   "away": "RC Kouba",
+   "startsAt": "2026-11-20T14:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QFF4PAGK3FB5QC4YNWGFC3": {
+   "lam": 1.9,
+   "note": "Cezayir 2. ligi, derbi havası; çok temkinli maç beklentisi",
+   "home": "Hussein Dey",
+   "away": "Harrach",
+   "startsAt": "2026-11-20T14:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QFF4PAJGFWN1C36AKB8VXS": {
+   "lam": 2.1,
+   "note": "Cezayir 2. ligi düşük skorlu",
+   "home": "El Bayadh",
+   "away": "Taghit",
+   "startsAt": "2026-11-20T14:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QFF4PANPH58M3E3F53RMF6": {
+   "lam": 2,
+   "note": "Cezayir 2. ligi çok düşük skorlu",
+   "home": "USM Blida",
+   "away": "JSM Tiaret",
+   "startsAt": "2026-11-20T14:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QFF4PAST5KPWGSMMMG7JM1": {
+   "lam": 2,
+   "note": "Cezayir 2. ligi çok düşük skorlu",
+   "home": "GC Mascara",
+   "away": "Saida",
+   "startsAt": "2026-11-20T14:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QFF4PAZCTR1BX1SA8NSY9D": {
+   "lam": 2,
+   "note": "Cezayir 2. ligi çok düşük skorlu",
+   "home": "Sidi Benali",
+   "away": "WA Mostaganem",
+   "startsAt": "2026-11-20T14:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7RRRZNGHTR9DNDF8FXC1695": {
+   "lam": 2,
+   "note": "Cezayir 2. ligi çok düşük skorlu",
+   "home": "Mostaganem",
+   "away": "ASM Oran",
+   "startsAt": "2026-11-20T14:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7RRRZNG9JPW05PFSZFQ2E3W": {
+   "lam": 2.9,
+   "note": "Kuveyt kupası; üst lig takımı alt lig rakibine karşı favori",
+   "home": "Al Salmiya",
+   "away": "Khaitan",
+   "startsAt": "2026-11-20T14:20:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7GZTYTW6DH6W84MY66KZABY": {
+   "lam": 2,
+   "note": "İran ligi düşük skorlu; temkinli maç",
+   "home": "Sanat Naft",
+   "away": "Esteghlal Khuzestan",
+   "startsAt": "2026-11-20T14:30:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7RRRZNGA64NT4XDWC456TG8": {
+   "lam": 2.3,
+   "note": "Arnavutluk ligi düşük skorlu; Egnatia favori",
+   "home": "Skenderbeu",
+   "away": "Egnatia",
+   "startsAt": "2026-11-20T15:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7GZTYTWXXESVFC21E64K2P3": {
+   "lam": 2.8,
+   "note": "Çekya 2. ligi, rezerv takım; açık oyun eğilimi",
+   "home": "Taborsko",
+   "away": "Slavia Prague B",
+   "startsAt": "2026-11-20T16:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7RRRZNGFZ1Z68K9FSTT9BKJ": {
+   "lam": 2.7,
+   "note": "Ürdün kupası; Al Wehdat favori",
+   "home": "Al Wehdat",
+   "away": "Al Arabi Irbid",
+   "startsAt": "2026-11-20T16:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7D2BMSWYHX4TAKGB4VZ06EZ": {
+   "lam": 2.7,
+   "note": "Türkiye 1. Lig ortalamasına yakın",
+   "home": "Igdir FK",
+   "away": "Umraniyespor",
+   "startsAt": "2026-11-20T17:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7GZTYTWMDZ1J3CQHBPY5CX0": {
+   "lam": 2.9,
+   "note": "Çekya 2. ligi, rezerv takıma karşı; orta-yüksek beklenti",
+   "home": "Karvina",
+   "away": "Ostrava B",
+   "startsAt": "2026-11-20T17:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7Q67JK1P0JAS4FY7YEPWNT4": {
+   "lam": 2.8,
+   "note": "Danimarka kadın ligi, iki üst sıra takımı",
+   "home": "Nordsjaelland W",
+   "away": "Fortuna Hjorring W",
+   "startsAt": "2026-11-20T17:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QK1PCE6R1KCBQJNN4ANZ0E": {
+   "lam": 2.6,
+   "note": "Kıbrıs 2. ligi ortalamasına yakın",
+   "home": "PAEEK",
+   "away": "Halkanoras",
+   "startsAt": "2026-11-20T17:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QPCPGFTBAG743T9BM0AD13": {
+   "lam": 2.9,
+   "note": "Almanya kadın ligi; Leverkusen favori",
+   "home": "Union Berlin W",
+   "away": "Bayer Leverkusen W",
+   "startsAt": "2026-11-20T17:30:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7RRRZNGJB1NGS6RNYJ171C1": {
+   "lam": 2.3,
+   "note": "Arnavutluk ligi düşük skorlu; Dinamo City favori",
+   "home": "AF Elbasani",
+   "away": "Dinamo City",
+   "startsAt": "2026-11-20T17:30:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7GZTYTWDS3SSB3W6VXNPSAR": {
+   "lam": 3,
+   "note": "Almanya 4. lig seviyesi, gollü maçlar; lig ortalaması ~3.0",
+   "home": "Lokomotive Leipzig",
+   "away": "RSV Eintracht",
+   "startsAt": "2026-11-20T18:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7GZTYTWFN6Z5J30S42SGJ4P": {
+   "lam": 3,
+   "note": "Almanya 4. lig seviyesi, rezerv takım; lig ortalaması ~3.0",
+   "home": "Magdeburg II",
+   "away": "Zwickau",
+   "startsAt": "2026-11-20T18:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7GZTYTWN9CB05KKPPVRGXKB": {
+   "lam": 3,
+   "note": "Almanya 4. lig seviyesi; lig ortalaması ~3.0",
+   "home": "Emden",
+   "away": "Bremer",
+   "startsAt": "2026-11-20T18:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7GZTYTWZK7KKCQBRZGN3BKN": {
+   "lam": 2.9,
+   "note": "Almanya 4. lig seviyesi; lig ortalamasına yakın",
+   "home": "Erfurt",
+   "away": "Altglienicke",
+   "startsAt": "2026-11-20T18:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7GZTYTWD0A2AGWS8K96ADXW": {
+   "lam": 3,
+   "note": "Almanya 4. lig seviyesi, rezerv takım; lig ortalaması ~3.0",
+   "home": "Dortmund II",
+   "away": "Lotte",
+   "startsAt": "2026-11-20T18:30:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7PKN88A100R4X842G0NBN7B": {
+   "lam": 3.3,
+   "note": "U21 ligi, gençlik maçlarında savunmalar zayıf",
+   "home": "Beveren U21",
+   "away": "K. Lierse S.K. U21",
+   "startsAt": "2026-11-20T18:30:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7CGDPX9A9B7RRNC6K870M30": {
+   "lam": 2.8,
+   "note": "Belçika 2. ligi ortalamasına yakın",
+   "home": "K. Lierse S.K.",
+   "away": "Sporting Lokeren",
+   "startsAt": "2026-11-20T19:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7CGDPX9XDVY5E9DG0Q8PEE5": {
+   "lam": 2.9,
+   "note": "Belçika 2. ligi, U23 takımı açık oynuyor",
+   "home": "Club Brugge KV U23",
+   "away": "Virton",
+   "startsAt": "2026-11-20T19:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7PKN88AZK4FSSNFQ9QNE6FX": {
+   "lam": 3.3,
+   "note": "U21 ligi, gençlik maçlarında savunmalar zayıf",
+   "home": "Beerschot VA U21",
+   "away": "Francs Borains U21",
+   "startsAt": "2026-11-20T19:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7N4QVSDMJFA4WTKD18GKVBN": {
+   "lam": 3.6,
+   "note": "TNS ligin açık ara en güçlüsü; tek taraflı maç beklentisi",
+   "home": "TNS",
+   "away": "Trefelin",
+   "startsAt": "2026-11-20T19:45:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QW67MZ27HX3MPY0QN2PVCJ": {
+   "lam": 3.4,
+   "note": "U19 ligi; Porto çok güçlü, güç farkı büyük",
+   "home": "Moreirense U19",
+   "away": "FC Porto U19",
+   "startsAt": "2026-11-20T20:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7PWBSG5X51Z7BBRXGG9NG1G": {
+   "lam": 2.4,
+   "note": "İspanya 3. seviye ligi düşük skorlu; temkinli maç",
+   "home": "Real Madrid B",
+   "away": "Murcia",
+   "startsAt": "2026-11-20T20:15:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7QV9QXK46RWC74H5ZG85PJG": {
+   "lam": 2.5,
+   "note": "Şili 2. ligi ortalamasına yakın",
+   "home": "Recoleta",
+   "away": "S. Wanderers",
+   "startsAt": "2026-11-20T21:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  },
+  "01M7RQESZBXAHDTK6WJ9TQ0GD7": {
+   "lam": 2.7,
+   "note": "Nikaragua ligi ortalamasına yakın",
+   "home": "Rancho Santana",
+   "away": "Jalapa",
+   "startsAt": "2026-11-21T00:00:00.000Z",
+   "at": "2026-11-19T02:14:19.999Z"
+  }
+ }
 }
