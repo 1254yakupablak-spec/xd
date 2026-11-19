@@ -25,9 +25,10 @@ Eklenti bahis yapmaz ve siteye hiçbir şey göndermez. Önerilen maçları Goal
    - **Maç sayısı:** en az – en çok (2–10, Goal Mix'in izin verdiği kadar)
    - **Başlama aralığı:** 6–48 saat
    - **Kupon sayısı**
-   - **Aynı maç:** Tekrar edebilir (bir maç birden çok kuponda olabilir) ya da Tekrarsız (her maç en fazla bir kuponda; kuponlar sırayla, kalan maçlardan kurulur)
+   - **Lig:** çoklu seçimli liste, aramalı (boş = bütün ligler)
+   - **Aynı maç:** Tekrarlı (bir maç birden çok kuponda olabilir), Tekrarsız (her maç en fazla bir kuponda) ya da Ters çizgi (bir maç en fazla bir Üst ve bir Alt kuponda, aynı yönde iki kez değil)
 4. **Kuponları oluştur**a bas. Kuponlar çıktıktan sonra üstteki **Sırala** çubuğuyla olasılığa, değere, orana, maç sayısına ya da saate göre sıralanır.
-5. Bir kupona basınca yorumu ve maç tablosu (saat, maç, beklenen gol, son 5 maç) açılır.
+5. Kuponlar solda liste halinde; bir kupona basınca sağ panelde yorumu ve maç tablosu (saat, maç, beklenen gol, son 5 maç) görünür.
 6. Üstteki **Kupon seti** paneli seçili kuponlardan en az 1, en az 2… tanesinin tutma olasılığını gösterir (ortak maçlar birlikte sayılır, 20.000 deneme). Kupondaki kutucukla kupon sete katılır / çıkarılır.
 
 Not: Veri hazırsa kuponlar birkaç saniyede çıkar; ilk açılışta toplama 10–30 saniye sürer.
