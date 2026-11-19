@@ -753,7 +753,7 @@
   let fab = null;
   let modal = null;
   let busy = false;
-  const state = { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, minLine: null, maxLine: null, minLegs: 2, maxLegs: 5, repeat: 1, stake: 1, leagues: [], useYz: 0, sizes: [2, 3, 4, 5], hours: 24, count: 10 };
+  const state = { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, minLine: null, maxLine: null, minLegs: 2, maxLegs: 5, repeat: 1, stake: 1, leagues: [], useYz: 0, auto: 0, sizes: [2, 3, 4, 5], hours: 24, count: 10 };
   try { Object.assign(state, JSON.parse(localStorage.getItem('kkGoalMixOpts') || '{}')); delete state.formW; } catch { /* yok */ }
   // Goal Mix'in izin verdiği en çok maç (sitenin ayarı; okunamazsa 10).
   let maxLegsAllowed = 10;
@@ -856,7 +856,7 @@
     prob: 'Tutma olasılığı: maçların normal Alt/Üst oranlarından payı çıkarılarak bulunan gol beklentisiyle hesaplanır. Oran yükseldikçe olasılık düşer (yaklaşık 1 ÷ oran).',
     data: 'Ekranda görünenler değil, önümüzdeki 48 saatteki bütün Goal Mix maçları okunur. Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez.',
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
-    auto: 'Senin oran ve maç sayısı aralığında Alt/Üst ve maç sayısı kombinasyonlarını tarar; Öncelik\'e göre (olasılık ya da değer) en iyi kupon setini veren ayarı forma doldurur ve kuponları oluşturur. Oran, maç sayısı aralığı, başlama, lig, YZ, kupon sayısı, tekrar modu ve tutar değişmez; çizgi sınırı kaldırılır.',
+    auto: 'İşaretliyken Kuponları oluştur önce senin oran ve maç sayısı aralığında Alt/Üst ve maç sayısı kombinasyonlarını tarar; Öncelik\'e göre (olasılık ya da değer) en iyi kupon setini veren ayarı seçer ve kuponları onunla oluşturur. Otomatik seçilen alanlar (Alt/Üst, çizgi) kilitlenir. Oran, maç sayısı aralığı, başlama, lig, YZ, kupon sayısı, tekrar modu ve tutar değişmez; çizgi sınırı kaldırılır.',
     yz: 'Normal bültende Alt/Üst oranı olmayan maçlar için günde iki kez (00:00 ve 12:00) yapay zekâ beklenen gol tahmini yapar (son maçlar, lig ortalaması). Dahil: bu maçlar da kuponlara girer, maç satırında YZ etiketiyle. Tahmin, oranlardan çıkan beklentiden daha az isabetlidir; değeri de o kadar belirsizdir.',
     line: 'Kuponun toplam gol çizgisi sınırı. Örnek: Alt, en az 5.5, en çok 8.5 → sadece 5.5, 6.5, 7.5, 8.5 Alt kuponlar. Boş bırakılırsa sınır yok. Tam sayı yazılırsa en az yukarı (6 → 6.5), en çok aşağı (6 → 5.5) yuvarlanır.',
     xg: 'Maçın adil gol beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
@@ -976,8 +976,8 @@
     showDetail();
   }
 
-  function seg(name, value, opts) {
-    return `<div class="kk-seg" data-name="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${String(v) === String(value) ? 'is-on' : ''}">${l}</button>`).join('')}</div>`;
+  function seg(name, value, opts, disabled = false) {
+    return `<div class="kk-seg" data-name="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${String(v) === String(value) ? 'is-on' : ''}"${disabled ? ' disabled' : ''}>${l}</button>`).join('')}</div>`;
   }
 
   const legSelect = (name, v) => `<select class="kk-input kk-select" name="${name}">${Array.from({ length: maxLegsAllowed - 1 }, (_, i) => i + 2).map((k) => `<option value="${k}"${k === v ? ' selected' : ''}>${k} maç</option>`).join('')}</select>`;
@@ -1018,12 +1018,15 @@
 
   function renderForm() {
     const body = modal.querySelector('.kk-form');
-    body.innerHTML = `<div class="kk-field"><span>Alt / Üst</span>${seg('side', state.side, [['OVER', 'Üst'], ['UNDER', 'Alt'], ['BOTH', 'İkisi']])}</div>`
+    const lock = state.auto === 1;
+    const off = lock ? ' is-locked' : '';
+    const dis = lock ? ' disabled' : '';
+    body.innerHTML = `<div class="kk-field${off}"><span>Alt / Üst${lock ? ' · otomatik' : ''}</span>${seg('side', state.side, [['OVER', 'Üst'], ['UNDER', 'Alt'], ['BOTH', 'İkisi']], lock)}</div>`
       + `<div class="kk-field"><span>Öncelik ${info(TIP.sort)}</span>${seg('sort', state.sort, [['PROB', 'Olasılık'], ['EV', 'Değer']])}</div>`
       + `<div class="kk-field"><span>En az oran</span><input class="kk-input" name="minOdds" type="number" min="1.01" step="0.05" value="${state.minOdds}"></div>`
       + `<div class="kk-field"><span>En çok oran</span><input class="kk-input" name="maxOdds" type="number" min="1.05" step="0.25" value="${state.maxOdds}"></div>`
-      + `<div class="kk-field"><span>En az çizgi ${info(TIP.line)}</span><input class="kk-input" name="minLine" type="number" min="0.5" step="1" placeholder="sınırsız" value="${state.minLine ?? ''}"></div>`
-      + `<div class="kk-field"><span>En çok çizgi</span><input class="kk-input" name="maxLine" type="number" min="0.5" step="1" placeholder="sınırsız" value="${state.maxLine ?? ''}"></div>`
+      + `<div class="kk-field${off}"><span>En az çizgi ${info(TIP.line)}</span><input class="kk-input" name="minLine" type="number" min="0.5" step="1" placeholder="${lock ? 'otomatik' : 'sınırsız'}" value="${lock ? '' : state.minLine ?? ''}"${dis}></div>`
+      + `<div class="kk-field${off}"><span>En çok çizgi</span><input class="kk-input" name="maxLine" type="number" min="0.5" step="1" placeholder="${lock ? 'otomatik' : 'sınırsız'}" value="${lock ? '' : state.maxLine ?? ''}"${dis}></div>`
       + `<div class="kk-field"><span>Maç sayısı</span><div class="kk-legs-sel">${legSelect('minLegs', state.minLegs)}<em>–</em>${legSelect('maxLegs', state.maxLegs)}</div></div>`
       + `<div class="kk-field"><span>Başlama</span>${seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']])}</div>`
 
@@ -1031,7 +1034,7 @@
       + `<div class="kk-field"><span>YZ tahmini ${info(TIP.yz)}</span>${seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])}</div>`
       + `<div class="kk-field"><span>Kupon sayısı</span><select class="kk-input kk-select" name="count">${COUNTS.map((k) => `<option value="${k}"${k === state.count ? ' selected' : ''}>${k} kupon</option>`).join('')}</select></div>`
       + `<div class="kk-field"><span>Aynı maç ${info(TIP.repeat)}</span>${seg('repeat', state.repeat, [[1, 'Tekrarlı'], [0, 'Tekrarsız'], [2, 'Ters çizgi']])}</div>`
-      + `<div class="kk-field kk-field--go"><span>&nbsp;</span><div class="kk-go-row"><button type="button" class="kk-auto" title="${esc(TIP.auto)}">En iyi ayarı bul</button><button type="button" class="kk-go">Kuponları oluştur</button></div></div>`;
+      + `<div class="kk-field kk-field--go"><label class="kk-autochk"><input type="checkbox" name="auto"${lock ? ' checked' : ''}> En iyi ayar (otomatik) ${info(TIP.auto)}</label><button type="button" class="kk-go">Kuponları oluştur</button></div>`;
   }
 
   function save() {
@@ -1062,8 +1065,10 @@
     state.maxLegs = sel('maxLegs') || state.maxLegs || 5;
     if (state.maxLegs < state.minLegs) [state.minLegs, state.maxLegs] = [state.maxLegs, state.minLegs];
     state.sizes = legRange();
-    state.minLine = ln('minLine', true);
-    state.maxLine = ln('maxLine', false);
+    if (state.auto !== 1) {
+      state.minLine = ln('minLine', true);
+      state.maxLine = ln('maxLine', false);
+    }
     if (state.minLine != null && state.maxLine != null && state.maxLine < state.minLine) [state.minLine, state.maxLine] = [state.maxLine, state.minLine];
   }
 
@@ -1173,6 +1178,14 @@
         btn.title = state.leagues.join(', ');
         return;
       }
+      if (ev.target.name === 'auto') {
+        readInputs();
+        state.auto = ev.target.checked ? 1 : 0;
+        if (state.auto === 1) { state.minLine = null; state.maxLine = null; }
+        save();
+        renderForm();
+        return;
+      }
       if (ev.target.name !== 'stake') return;
       const v = Number(String(ev.target.value).replace(',', '.'));
       state.stake = v > 0 ? v : 1;
@@ -1201,8 +1214,7 @@
         renderForm();
         return;
       }
-      if (t.closest('.kk-go')) { autoNote = ''; run(); return; }
-      if (t.closest('.kk-auto')) { runAuto(); return; }
+      if (t.closest('.kk-go')) { if (state.auto === 1) runAuto(); else { autoNote = ''; run(); } return; }
       if (t.closest('.kk-refresh')) { run(true); return; }
       const ib = t.closest('.kk-i');
       if (ib) { showTip(ib, true); return; }
