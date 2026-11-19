@@ -1034,7 +1034,7 @@
       + `<div class="kk-field"><span>YZ tahmini ${info(TIP.yz)}</span>${seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])}</div>`
       + `<div class="kk-field"><span>Kupon sayısı</span><select class="kk-input kk-select" name="count">${COUNTS.map((k) => `<option value="${k}"${k === state.count ? ' selected' : ''}>${k} kupon</option>`).join('')}</select></div>`
       + `<div class="kk-field"><span>Aynı maç ${info(TIP.repeat)}</span>${seg('repeat', state.repeat, [[1, 'Tekrarlı'], [0, 'Tekrarsız'], [2, 'Ters çizgi']])}</div>`
-      + `<div class="kk-field kk-field--go"><label class="kk-autochk"><input type="checkbox" name="auto"${lock ? ' checked' : ''}> En iyi ayar (otomatik) ${info(TIP.auto)}</label><button type="button" class="kk-go">Kuponları oluştur</button></div>`;
+      + `<div class="kk-field kk-field--go"><label class="kk-autochk${lock ? ' is-on' : ''}"><input type="checkbox" role="switch" name="auto"${lock ? ' checked' : ''}><i class="kk-switch" aria-hidden="true"></i><span>En iyi ayar</span>${info(TIP.auto)}</label><button type="button" class="kk-go">Kuponları oluştur</button></div>`;
   }
 
   function save() {
