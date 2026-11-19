@@ -66,6 +66,15 @@
     for (let i = 1; i <= k; i++) { t *= lam / i; s += t; }
     return Math.min(1, s);
   }
+  // P(X ≤ k), k = 0..K (tek geçişte).
+  function cumPois(lam, K) {
+    const out = new Array(K + 1);
+    let t = Math.exp(-lam);
+    let acc = t;
+    out[0] = acc;
+    for (let i = 1; i <= K; i++) { t *= lam / i; acc += t; out[i] = Math.min(1, acc); }
+    return out;
+  }
   // P(X ≤ k) = p olan λ (ikili arama).
   function lamFor(k, p) {
     let lo = 0.01;
@@ -552,13 +561,19 @@
             const lf = c.reduce((t, x) => t + x.fair.lam, 0);
             const ls = c.reduce((t, x) => t + x.site, 0);
             let best = null;
-            for (let line = Math.max(0.5, Math.floor(ls) - 4.5); line <= ls + 6; line += 1) {
-              if (!lineOk(line, opts)) continue;
-              const psU = cdf(Math.floor(line), ls);
+            // Bütün çizgiler (0.5'ten beklenen golün iki katına kadar) ya da kullanıcının çizgi aralığı taranır.
+            const K = Math.ceil(Math.max(ls, lf) * 2 + 12);
+            const cs = cumPois(ls, K);
+            const cf = cumPois(lf, K);
+            const lo = Math.max(0.5, opts.minLine ?? 0.5);
+            const hi = Math.min(K - 0.5, opts.maxLine ?? K - 0.5);
+            for (let line = lo; line <= hi + 1e-9; line += 1) {
+              const psU = cs[Math.floor(line)];
               const ps = side === 'OVER' ? 1 - psU : psU;
+              if (ps < 1e-4) continue;
               const odds = 1 / (ps * MARGIN);
               if (odds < opts.minOdds || odds > opts.maxOdds) continue;
-              const pfU = cdf(Math.floor(line), lf);
+              const pfU = cf[Math.floor(line)];
               const pf = side === 'OVER' ? 1 - pfU : pfU;
               const sc = score(pf, pf * odds - 1, opts.sort);
               if (best == null || sc > best) best = sc;
@@ -782,7 +797,7 @@
     data: 'Ekranda görünenler değil, önümüzdeki 48 saatteki bütün Goal Mix maçları okunur. Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez.',
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
     yz: 'Normal bültende Alt/Üst oranı olmayan maçlar için günde iki kez (00:00 ve 12:00) yapay zekâ beklenen gol tahmini yapar (son maçlar, lig ortalaması). Dahil: bu maçlar da kuponlara girer, maç satırında YZ etiketiyle. Tahmin, oranlardan çıkan beklentiden daha az isabetlidir; değeri de o kadar belirsizdir.',
-    line: 'Kuponun toplam gol çizgisi sınırı. Örnek: Alt ve en az çizgi 5.5 → sadece 5.5, 6.5, 7.5… Alt kuponlar. Boş bırakılırsa sınır yok. Tam sayı yazılırsa .5\'e yuvarlanır (6 → 5.5).',
+    line: 'Kuponun toplam gol çizgisi sınırı. Örnek: Alt, en az 5.5, en çok 8.5 → sadece 5.5, 6.5, 7.5, 8.5 Alt kuponlar. Boş bırakılırsa sınır yok. Tam sayı yazılırsa en az yukarı (6 → 6.5), en çok aşağı (6 → 5.5) yuvarlanır.',
     xg: 'Maçın adil gol beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
     repeat: 'Tekrarlı: kuponların yarısı tamamen farklı maçlardan, kalan yarısı tekrara izin verilerek kurulur (bir maç en fazla 3 kupona girer); yani tekrarlılar da dahil, ama hepsi tekrarlı değil. Tekrarsız: her maç en fazla bir kuponda olur. Ters çizgi: bir maç en fazla bir Üst ve bir Alt kupona girebilir, aynı yönde iki kez girmez (Alt/Üst "İkisi" seçiliyken anlamlı; tek yönde tekrarsızla aynıdır). Tekrarsız ve ters çizgide kuponlar sırayla, kalan maçlardan kurulur; istenenden az kupon çıkabilir.',
     set: 'Seçili kuponların birlikte hesabı: en az 1, en az 2… kuponun tutma olasılığı. Her kutunun altında tam o kadar kupon tutarsa net kâr/zarar: ortalama, en kötü (en düşük oranlılar tutarsa) … en iyi (en yüksek oranlılar tutarsa). Kâra geçiş: ortalamada artıya geçmek için gereken en az tutan kupon sayısı. Her maçın golü adil beklentiyle 20.000 kez denendi; aynı maç birden çok kuponda varsa o maçın sonucu hepsinde aynı sayıldı. Beklenen net: her kupona 1 birim yatırılırsa ortalama sonuç (oranlar × tutma − kupon sayısı). Tahmindir, garanti değildir.',
@@ -969,12 +984,16 @@
     state.minOdds = mo > 1 ? mo : 1.5;
     const xo = val('maxOdds');
     state.maxOdds = xo > state.minOdds ? xo : Math.max(state.minOdds + 0.5, 4);
-    // Çizgi: x.5'e yuvarlanır (5 → 5.5 değil 4.5 olmasın diye aşağı .5'e: 5 → 4.5, 5.5 → 5.5); boş = sınırsız.
-    const ln = (n) => {
-      const raw = String(modal.querySelector(`input[name="${n}"]`)?.value ?? '').trim();
+    // Çizgi: x.5'e yuvarlanır. En az yukarı (6 → 6.5, 5.5 → 5.5), en çok aşağı (6 → 5.5, 7.5 → 7.5); boş = sınırsız.
+    const ln = (n, up) => {
+      const el = modal.querySelector(`input[name="${n}"]`);
+      const raw = String(el?.value ?? '').trim();
       if (!raw) return null;
       const v = Number(raw.replace(',', '.'));
-      return Number.isFinite(v) && v > 0 ? Math.max(0.5, Math.floor(v - 0.5) + 0.5) : null;
+      if (!Number.isFinite(v) || v <= 0) { if (el) el.value = ''; return null; }
+      const r = Math.max(0.5, (up ? Math.ceil(v - 0.5) : Math.floor(v - 0.5)) + 0.5);
+      if (el) el.value = String(r); // yuvarlanan değer kutuda görünsün
+      return r;
     };
     const sel = (n) => Number(modal.querySelector(`select[name="${n}"]`)?.value) || null;
     state.count = COUNTS.includes(sel('count')) ? sel('count') : state.count || 10;
@@ -982,8 +1001,8 @@
     state.maxLegs = sel('maxLegs') || state.maxLegs || 5;
     if (state.maxLegs < state.minLegs) [state.minLegs, state.maxLegs] = [state.maxLegs, state.minLegs];
     state.sizes = legRange();
-    state.minLine = ln('minLine');
-    state.maxLine = ln('maxLine');
+    state.minLine = ln('minLine', true);
+    state.maxLine = ln('maxLine', false);
     if (state.minLine != null && state.maxLine != null && state.maxLine < state.minLine) [state.minLine, state.maxLine] = [state.maxLine, state.minLine];
   }
 
