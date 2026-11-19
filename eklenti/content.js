@@ -480,33 +480,74 @@
     let n = 0;
 
     const sides = opts.side === 'BOTH' ? ['OVER', 'UNDER'] : [opts.side];
-    // Kombinasyonları önce yerel tahminle sırala (sitenin oranı ≈ kendi λ'sıyla Poisson + pay), en iyileri sor.
+    // Kombinasyonlar önce yerel tahminle sıralanır (sitenin oranı ≈ kendi λ'sıyla Poisson + pay), en iyilerinin
+    // gerçek Goal Mix oranı sorulur.
     const MARGIN = 1.085;
-    const cands = [];
-    for (const side of sides) {
-      const top = [...items].sort((a, b) => (side === 'OVER' ? b.edge - a.edge : a.edge - b.edge)).slice(0, poolSize(opts.sizes));
-      for (const k of opts.sizes) {
-        for (const c of combos(top, k)) {
-          const lf = c.reduce((s, x) => s + x.fair.lam, 0);
-          const ls = c.reduce((s, x) => s + x.site, 0);
-          let best = null;
-          for (let line = Math.max(0.5, Math.floor(ls) - 4.5); line <= ls + 6; line += 1) {
-            if (!lineOk(line, opts)) continue;
-            const psU = cdf(Math.floor(line), ls);
-            const ps = side === 'OVER' ? 1 - psU : psU;
-            const odds = 1 / (ps * MARGIN);
-            if (odds < opts.minOdds || odds > opts.maxOdds) continue;
-            const pfU = cdf(Math.floor(line), lf);
-            const pf = side === 'OVER' ? 1 - pfU : pfU;
-            const sc = score(pf, pf * odds - 1, opts.sort);
-            if (best == null || sc > best) best = sc;
+    function localCands(avail) {
+      const cands = [];
+      for (const side of sides) {
+        const top = [...avail].sort((x, y) => (side === 'OVER' ? y.edge - x.edge : x.edge - y.edge)).slice(0, poolSize(opts.sizes));
+        for (const k of opts.sizes) {
+          if (k > top.length) continue;
+          for (const c of combos(top, k)) {
+            const lf = c.reduce((t, x) => t + x.fair.lam, 0);
+            const ls = c.reduce((t, x) => t + x.site, 0);
+            let best = null;
+            for (let line = Math.max(0.5, Math.floor(ls) - 4.5); line <= ls + 6; line += 1) {
+              if (!lineOk(line, opts)) continue;
+              const psU = cdf(Math.floor(line), ls);
+              const ps = side === 'OVER' ? 1 - psU : psU;
+              const odds = 1 / (ps * MARGIN);
+              if (odds < opts.minOdds || odds > opts.maxOdds) continue;
+              const pfU = cdf(Math.floor(line), lf);
+              const pf = side === 'OVER' ? 1 - pfU : pfU;
+              const sc = score(pf, pf * odds - 1, opts.sort);
+              if (best == null || sc > best) best = sc;
+            }
+            if (best != null) cands.push({ c, side, est: best });
           }
-          if (best != null) cands.push({ c, side, est: best });
         }
       }
+      return cands.sort((x, y) => y.est - x.est);
     }
-    if (!cands.length) throw new Error('Bu oran ve çizgi aralığında kurulabilen kupon yok. Aralığı genişlet (çizgi sınırı maç sayısına uymuyor olabilir: örneğin 2 maçta 12.5 çizgisi yok).');
-    cands.sort((a, b) => b.est - a.est);
+    async function priceOf(x) {
+      const q = await quote(x.c.map((m) => m.g.id));
+      if (!q) return null;
+      const lf = x.c.reduce((t, m) => t + m.fair.lam, 0);
+      const bl = bestLine(q.lines, lf, [x.side], opts.minOdds, opts.maxOdds, opts.sort, opts);
+      return bl ? { ...bl, legs: x.c, lamFair: lf, lamSite: q.lam } : null;
+    }
+    const NONE = 'Bu oran ve çizgi aralığında kurulabilen kupon yok. Aralığı genişlet (çizgi sınırı maç sayısına uymuyor olabilir: örneğin 2 maçta 12.5 çizgisi yok).';
+    const stats = { ...data, priced: data.events.length, window: items.length };
+
+    // Tekrarsız: kuponlar sırayla kurulur. Her adımda kalan maçlardan en iyi birkaç aday sorulur, en iyisi alınır,
+    // maçları havuzdan çıkarılır. Böylece her maç en fazla bir kuponda olur.
+    if (opts.repeat === 0) {
+      const usedIds = new Set();
+      const out = [];
+      let asked = 0;
+      while (out.length < opts.count && asked < opts.count * 6) {
+        const avail = items.filter((x) => !usedIds.has(x.g.id));
+        const cands = localCands(avail);
+        if (!cands.length) break;
+        const tries = cands.slice(0, 3);
+        asked += tries.length;
+        say(`Tekrarsız kuponlar kuruluyor… ${out.length + 1}/${opts.count}`);
+        const got = (await Promise.all(tries.map((x) => priceOf(x).catch(() => null)))).filter(Boolean).sort((x, y) => y.sc - x.sc);
+        if (!got.length) {
+          // Üç aday da kurulamadı: en iyi adayın ilk maçı havuzdan çıkarılıp devam edilir (sonsuz döngü olmasın).
+          usedIds.add(tries[0].c[0].g.id);
+          continue;
+        }
+        out.push(got[0]);
+        got[0].legs.forEach((m) => usedIds.add(m.g.id));
+      }
+      if (!out.length) throw new Error(NONE);
+      return { list: out, stats: { ...stats, short: out.length < opts.count } };
+    }
+
+    const cands = localCands(items);
+    if (!cands.length) throw new Error(NONE);
     // Aynı maç çok fazla kuponda tekrar etmesin (çok maçlı kuponlarda havuz küçük olduğundan sınır büyür).
     const maxUse = Math.max(4, Math.ceil((MAX_QUOTES * Math.max(...opts.sizes)) / poolSize(opts.sizes) / 2));
     const used = new Map();
@@ -519,28 +560,25 @@
     }
     n = 0;
     const res = await pool(pick, 4, async (x) => {
-      const q = await quote(x.c.map((m) => m.g.id));
+      const r = await priceOf(x);
       say(`Kuponların oranı soruluyor… ${++n}/${pick.length}`);
-      if (!q) return null;
-      const lf = x.c.reduce((s, m) => s + m.fair.lam, 0);
-      const b = bestLine(q.lines, lf, [x.side], opts.minOdds, opts.maxOdds, opts.sort, opts);
-      return b ? { ...b, legs: x.c, lamFair: lf, lamSite: q.lam } : null;
+      return r;
     });
     const seen = new Set();
-    const list = res.filter(Boolean).sort((a, b) => b.sc - a.sc).filter((x) => {
+    const list = res.filter(Boolean).sort((x, y) => y.sc - x.sc).filter((x) => {
       const k = `${x.side}|${x.line}|${x.legs.map((m) => m.g.id).sort().join(',')}`;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
     });
-    return { list: list.slice(0, opts.count), stats: { ...data, priced: data.events.length, window: items.length } };
+    return { list: list.slice(0, opts.count), stats };
   }
 
   // ---------- arayüz ----------
   let fab = null;
   let modal = null;
   let busy = false;
-  const state = { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, minLine: null, maxLine: null, minLegs: 2, maxLegs: 5, sizes: [2, 3, 4, 5], hours: 24, count: 10 };
+  const state = { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, minLine: null, maxLine: null, minLegs: 2, maxLegs: 5, repeat: 1, sizes: [2, 3, 4, 5], hours: 24, count: 10 };
   try { Object.assign(state, JSON.parse(localStorage.getItem('kkGoalMixOpts') || '{}')); delete state.formW; } catch { /* yok */ }
   // Goal Mix'in izin verdiği en çok maç (sitenin ayarı; okunamazsa 10).
   let maxLegsAllowed = 10;
@@ -632,6 +670,7 @@
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
     line: 'Kuponun toplam gol çizgisi sınırı. Örnek: Alt ve en az çizgi 5.5 → sadece 5.5, 6.5, 7.5… Alt kuponlar. Boş bırakılırsa sınır yok. Tam sayı yazılırsa .5\'e yuvarlanır (6 → 5.5).',
     xg: 'Maçın adil gol beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
+    repeat: 'Tekrar edebilir: bir maç birden çok kuponda olabilir. Tekrarsız: her maç en fazla bir kuponda olur; en iyi kupondan başlanır, önceki kuponlarda kullanılan maçı içeren kupon atlanır (bu yüzden istenenden az kupon çıkabilir, özellikle çok maçlı kuponlarda).',
     set: 'Seçili kuponların birlikte hesabı: en az 1, en az 2… kuponun tutma olasılığı. Her maçın golü adil beklentiyle 20.000 kez denendi; aynı maç birden çok kuponda varsa o maçın sonucu hepsinde aynı sayıldı. Beklenen net: her kupona 1 birim yatırılırsa ortalama sonuç (oranlar × tutma − kupon sayısı). Tahmindir, garanti değildir.',
     formLeg: 'Sadece bilgi, yüzdeye katılmaz (oranlar formu zaten içerir). Son 5 maç: attığı–yediği gol ortalaması, 2.5 üst biten maç sayısı ve sonuçlar (G galibiyet, B beraberlik, M mağlubiyet).',
   };
@@ -731,6 +770,7 @@
       + `<div class="kk-field"><span>Başlama</span>${seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']])}</div>`
 
       + `<div class="kk-field"><span>Kupon</span>${seg('count', state.count, [[5, '5'], [10, '10'], [20, '20']])}</div>`
+      + `<div class="kk-field"><span>Aynı maç ${info(TIP.repeat)}</span>${seg('repeat', state.repeat, [[1, 'Tekrar edebilir'], [0, 'Tekrarsız']])}</div>`
       + '<div class="kk-field kk-field--go"><span>&nbsp;</span><button type="button" class="kk-go">Kuponları oluştur</button></div>';
   }
 
@@ -776,7 +816,7 @@
       const { list, stats } = await build({ ...state, sizes: [...state.sizes].sort() }, say, force);
       const mins = Math.round((Date.now() - stats.at) / 60000);
       const ago = mins < 1 ? 'az önce' : `${mins} dk önce`;
-      const infoLine = `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · seçilen aralıkta ${stats.window} maç · ${ago} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
+      const infoLine = `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · seçilen aralıkta ${stats.window} maç · ${ago}${stats.short && state.repeat === 0 ? ' · <span class="kk-warn">tekrarsız: istenenden az kupon kurulabildi</span>' : ''} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
       lastList = list;
       offSet.clear();
       out.innerHTML = infoLine + (list.length
