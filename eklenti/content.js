@@ -1016,26 +1016,45 @@
     dd.querySelector('.kk-dd-btn').textContent = leagueLabel();
   }
 
+  // Ayarlar üç grupta: Kupon, Oran ve çizgi, Maçlar. Kuponlar oluşunca tek satırlık özete katlanır (alanlar sayfada
+  // kalır, sadece gizlenir; okunan değerler bozulmaz). Özete basınca açılır.
+  let formCollapsed = false;
+  function summaryText() {
+    const side = { OVER: 'Üst', UNDER: 'Alt', BOTH: 'Alt + Üst' }[state.side] || state.side;
+    const legs = state.minLegs === state.maxLegs ? `${state.minLegs} maç` : `${state.minLegs}–${state.maxLegs} maç`;
+    const line = state.minLine == null && state.maxLine == null ? 'çizgi serbest' : `çizgi ${state.minLine ?? '…'}–${state.maxLine ?? '…'}`;
+    const rep = { 1: 'tekrarlı', 0: 'tekrarsız', 2: 'ters çizgi' }[state.repeat];
+    const lg = !state.leagues.length ? 'tüm ligler' : state.leagues.length === 1 ? state.leagues[0] : `${state.leagues.length} lig`;
+    return [state.auto === 1 ? 'En iyi ayar açık' : side, state.sort === 'EV' ? 'değer' : 'olasılık', legs, `oran ${state.minOdds}–${state.maxOdds}`,
+      state.auto === 1 ? null : line, `${state.count} kupon`, rep, `${state.hours} sa`, lg, state.useYz === 1 ? 'YZ dahil' : null].filter(Boolean);
+  }
   function renderForm() {
     const body = modal.querySelector('.kk-form');
     const lock = state.auto === 1;
     const off = lock ? ' is-locked' : '';
     const dis = lock ? ' disabled' : '';
-    body.innerHTML = `<div class="kk-field${off}"><span>Alt / Üst${lock ? ' · otomatik' : ''}</span>${seg('side', state.side, [['OVER', 'Üst'], ['UNDER', 'Alt'], ['BOTH', 'İkisi']], lock)}</div>`
-      + `<div class="kk-field"><span>Öncelik ${info(TIP.sort)}</span>${seg('sort', state.sort, [['PROB', 'Olasılık'], ['EV', 'Değer']])}</div>`
-      + `<div class="kk-field"><span>En az oran</span><input class="kk-input" name="minOdds" type="number" min="1.01" step="0.05" value="${state.minOdds}"></div>`
-      + `<div class="kk-field"><span>En çok oran</span><input class="kk-input" name="maxOdds" type="number" min="1.05" step="0.25" value="${state.maxOdds}"></div>`
-      + `<div class="kk-field${off}"><span>En az çizgi ${info(TIP.line)}</span><input class="kk-input" name="minLine" type="number" min="0.5" step="1" placeholder="${lock ? 'otomatik' : 'sınırsız'}" value="${lock ? '' : state.minLine ?? ''}"${dis}></div>`
-      + `<div class="kk-field${off}"><span>En çok çizgi</span><input class="kk-input" name="maxLine" type="number" min="0.5" step="1" placeholder="${lock ? 'otomatik' : 'sınırsız'}" value="${lock ? '' : state.maxLine ?? ''}"${dis}></div>`
-      + `<div class="kk-field"><span>Maç sayısı</span><div class="kk-legs-sel">${legSelect('minLegs', state.minLegs)}<em>–</em>${legSelect('maxLegs', state.maxLegs)}</div></div>`
-      + `<div class="kk-field"><span>Başlama</span>${seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']])}</div>`
-
-      + leagueField()
-      + `<div class="kk-field"><span>YZ tahmini ${info(TIP.yz)}</span>${seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])}</div>`
-      + `<div class="kk-field"><span>Kupon sayısı</span><select class="kk-input kk-select" name="count">${COUNTS.map((k) => `<option value="${k}"${k === state.count ? ' selected' : ''}>${k} kupon</option>`).join('')}</select></div>`
-      + `<div class="kk-field"><span>Aynı maç ${info(TIP.repeat)}</span>${seg('repeat', state.repeat, [[1, 'Tekrarlı'], [0, 'Tekrarsız'], [2, 'Ters çizgi']])}</div>`
-      + `<div class="kk-field kk-field--go"><label class="kk-autochk${lock ? ' is-on' : ''}"><input type="checkbox" role="switch" name="auto"${lock ? ' checked' : ''}><i class="kk-switch" aria-hidden="true"></i><span>En iyi ayar</span>${info(TIP.auto)}</label><button type="button" class="kk-go">Kuponları oluştur</button></div>`;
+    const grp = (title, html, cls = '') => `<section class="kk-grp${cls}"><h3>${title}</h3><div class="kk-grp-body">${html}</div></section>`;
+    body.classList.toggle('is-collapsed', formCollapsed);
+    body.innerHTML = `<button type="button" class="kk-summary" title="Ayarları aç"><b>Ayarlar</b>${summaryText().map((x) => `<span>${esc(x)}</span>`).join('')}<em>Değiştir ▾</em></button>`
+      + grp('Kupon',
+        `<div class="kk-field${off}"><span>Alt / Üst${lock ? ' · otomatik' : ''}</span>${seg('side', state.side, [['OVER', 'Üst'], ['UNDER', 'Alt'], ['BOTH', 'İkisi']], lock)}</div>`
+        + `<div class="kk-field"><span>Öncelik ${info(TIP.sort)}</span>${seg('sort', state.sort, [['PROB', 'Olasılık'], ['EV', 'Değer']])}</div>`
+        + `<div class="kk-field"><span>Maç sayısı</span><div class="kk-legs-sel">${legSelect('minLegs', state.minLegs)}<em>–</em>${legSelect('maxLegs', state.maxLegs)}</div></div>`
+        + `<div class="kk-field"><span>Kupon sayısı</span><select class="kk-input kk-select" name="count">${COUNTS.map((k) => `<option value="${k}"${k === state.count ? ' selected' : ''}>${k} kupon</option>`).join('')}</select></div>`
+        + `<div class="kk-field kk-field--wide"><span>Aynı maç ${info(TIP.repeat)}</span>${seg('repeat', state.repeat, [[1, 'Tekrarlı'], [0, 'Tekrarsız'], [2, 'Ters çizgi']])}</div>`, ' kk-grp--main')
+      + grp('Oran ve çizgi',
+        `<div class="kk-field"><span>En az oran</span><input class="kk-input" name="minOdds" type="number" min="1.01" step="0.05" value="${state.minOdds}"></div>`
+        + `<div class="kk-field"><span>En çok oran</span><input class="kk-input" name="maxOdds" type="number" min="1.05" step="0.25" value="${state.maxOdds}"></div>`
+        + `<div class="kk-field${off}"><span>En az çizgi ${info(TIP.line)}</span><input class="kk-input" name="minLine" type="number" min="0.5" step="1" placeholder="${lock ? 'otomatik' : 'sınırsız'}" value="${lock ? '' : state.minLine ?? ''}"${dis}></div>`
+        + `<div class="kk-field${off}"><span>En çok çizgi</span><input class="kk-input" name="maxLine" type="number" min="0.5" step="1" placeholder="${lock ? 'otomatik' : 'sınırsız'}" value="${lock ? '' : state.maxLine ?? ''}"${dis}></div>`)
+      + grp('Maçlar',
+        `<div class="kk-field"><span>Başlama</span>${seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']])}</div>`
+        + leagueField()
+        + `<div class="kk-field"><span>YZ tahmini ${info(TIP.yz)}</span>${seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])}</div>`)
+      + `<div class="kk-actions"><label class="kk-autochk${lock ? ' is-on' : ''}"><input type="checkbox" role="switch" name="auto"${lock ? ' checked' : ''}><i class="kk-switch" aria-hidden="true"></i><span>En iyi ayar</span>${info(TIP.auto)}</label>`
+      + '<button type="button" class="kk-go">Kuponları oluştur</button></div>';
   }
+
 
   function save() {
     localStorage.setItem('kkGoalMixOpts', JSON.stringify(state));
@@ -1123,6 +1142,7 @@
         ? setHtml() + `<div class="kk-split"><div class="kk-left">${orderBar()}<div class="kk-grid">${sortList(list).map(cardHtml).join('')}</div></div><div class="kk-right"></div></div>`
         : '<div class="kk-empty">Bu ayarlarla kupon bulunamadı. En az oranı düşür, saat aralığını ya da lig seçimini genişlet.</div>');
       showDetail();
+      if (list.length && !formCollapsed) { formCollapsed = true; renderForm(); }
     } catch (err) {
       out.innerHTML = `<div class="kk-empty is-bad">Hesaplanamadı: ${esc(err?.message || err)}</div>`;
     } finally {
@@ -1214,6 +1234,7 @@
         renderForm();
         return;
       }
+      if (t.closest('.kk-summary')) { formCollapsed = false; renderForm(); return; }
       if (t.closest('.kk-go')) { if (state.auto === 1) runAuto(); else { autoNote = ''; run(); } return; }
       if (t.closest('.kk-refresh')) { run(true); return; }
       const ib = t.closest('.kk-i');
