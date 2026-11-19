@@ -162,3 +162,54 @@
 /* 4.5: form satırı */
 .kk-formline { display: block; margin-top: 2px; color: #b9c0d4 !important; font-size: 10.5px; white-space: normal !important; }
 .kk-formline .kk-i { width: 12px; height: 12px; font-size: 8px; }
+
+/* 4.7: form 6 sütun, maç sayısı listeleri, kupon seti, maç tablosu */
+.kk-form { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.kk-field--go { grid-column: span 3; }
+@media (max-width: 1100px) { .kk-form { grid-template-columns: repeat(3, minmax(0, 1fr)); } .kk-field--go { grid-column: span 3; } }
+.kk-legs-sel { display: flex; align-items: center; gap: 6px; }
+.kk-legs-sel em { color: var(--kk-muted); font-style: normal; }
+.kk-select { flex: 1; min-width: 0; appearance: auto; cursor: pointer; }
+.kk-select option { background: #232737; color: #fff; }
+.kk-input::placeholder { color: var(--kk-muted); font-weight: 500; }
+
+.kk-set { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--kk-line); border-radius: 12px; background: var(--kk-panel); }
+.kk-set > b, .kk-set-head > b { font-size: 12px; }
+.kk-set > span { margin-left: 8px; color: var(--kk-muted); font-size: 12px; }
+.kk-set-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--kk-muted); font-size: 11.5px; }
+.kk-set-head b { color: var(--kk-text); }
+.kk-set-head .is-up { color: var(--kk-ok); }
+.kk-set-head .is-down { color: var(--kk-bad); }
+.kk-set-btns { display: flex; gap: 6px; margin-left: auto; }
+.kk-set-btns button { padding: 4px 10px; border: 1px solid var(--kk-line); border-radius: 7px; background: var(--kk-panel2); color: var(--kk-text); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.kk-set-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; margin-top: 6px; }
+.kk-set-tile { display: flex; flex-direction: column; padding: 6px 10px; border-radius: 9px; background: var(--kk-panel2); }
+.kk-set-tile small { color: var(--kk-muted); font-size: 10.5px; font-weight: 700; text-transform: uppercase; }
+.kk-set-tile b { color: var(--kk-acc); font-size: 17px; font-weight: 900; }
+
+.kk-pick { flex: none; width: 18px; height: 18px; padding: 0; border: 2px solid var(--kk-muted); border-radius: 5px; background: transparent; cursor: pointer; }
+.kk-pick.is-on { border-color: var(--kk-acc); background: var(--kk-acc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' stroke='%2312141d' stroke-width='2.4' fill='none'/%3E%3C/svg%3E") center / 12px no-repeat; }
+
+/* açılan kupon: yorum üstte, maçlar altta tablo */
+.kk-card.is-open .kk-card-body { display: block; }
+.kk-card.is-open .kk-note { border-right: 0; border-bottom: 1px solid var(--kk-line); }
+.kk-card.is-open .kk-legs, .kk-legs { display: block; padding: 0 10px 6px; }
+.kk-legs .kk-leg, .kk-card.is-open .kk-leg { display: grid; grid-template-columns: 58px minmax(0, 1.5fr) 92px minmax(0, 1.6fr); align-items: center; gap: 10px; padding: 7px 0; border-top: 0; border-bottom: 1px solid var(--kk-line); }
+.kk-legs .kk-leg:last-child { border-bottom: 0; }
+.kk-leg--head { padding: 6px 0 4px !important; color: var(--kk-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+.kk-leg-time { flex-direction: column; }
+.kk-leg-time b { font-size: 14px; }
+.kk-leg-teams b { display: block; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.kk-vs { color: var(--kk-muted); font-weight: 600; }
+.kk-leg-xg { align-items: flex-start; }
+.kk-leg-xg b { font-size: 15px; }
+.kk-leg-form { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.kk-leg-form.is-none { color: var(--kk-muted); font-size: 11px; }
+.kk-tf { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 11px; }
+.kk-tf em { width: 26px; color: var(--kk-muted); font-style: normal; font-weight: 700; }
+.kk-tf small { overflow: hidden; color: #b9c0d4; font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+.kk-dots { display: inline-flex; gap: 2px; }
+.kk-r { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 3px; color: #fff; font-style: normal; font-size: 9px; font-weight: 800; }
+.kk-r--G { background: #2f9e44; }
+.kk-r--B { background: #5c6378; }
+.kk-r--M { background: #c92a2a; }
