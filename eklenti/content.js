@@ -530,6 +530,64 @@
   }
 
   // ---------- ana hesap ----------
+  // ---------- en iyi ayarı bul ----------
+  // Alt/Üst × maç sayısı (2–5) × oran bandı kombinasyonları kendi tahminimizle taranır (gerçek oran sorulmaz, hızlı):
+  // her ayarda en iyi N kuponun ortalama puanı (Öncelik'e göre: olasılık ya da değer) hesaplanır, en yükseği seçilir.
+  // Başlama, lig, YZ, kupon sayısı, tekrar modu ve tutar kullanıcının seçimi olarak kalır; çizgi sınırı kaldırılır.
+  const AUTO_BANDS = [[1.3, 1.8], [1.8, 2.5], [2.5, 4], [4, 7], [7, 12]];
+  async function autoTune(opts, say) {
+    const now = Date.now();
+    await ensureData(false, say);
+    if (!data?.events?.length) throw new Error('Maç verisi toplanamadı. Biraz sonra tekrar dene.');
+    const items = data.events.filter((e) => {
+      const t = Date.parse(e.startsAt);
+      return t > now + 3 * 60 * 1000 && t < now + opts.hours * 3600 * 1000
+        && (!opts.leagues?.length || opts.leagues.includes(e.league))
+        && (opts.useYz === 1 || e.src !== 'yz');
+    }).map((e) => ({ lam: e.lam, site: e.site, edge: e.lam - e.site }));
+    if (items.length < 2) throw new Error('Bu saat aralığında yeterli maç yok. Başlama aralığını genişlet.');
+    const N = opts.count;
+    const MARGIN = 1.085;
+    const ks = [2, 3, 4, 5].filter((k) => k <= Math.min(maxLegsAllowed, items.length));
+    let best = null;
+    for (const side of ['OVER', 'UNDER']) {
+      const sorted = [...items].sort((a, b) => (side === 'OVER' ? b.edge - a.edge : a.edge - b.edge));
+      for (const k of ks) {
+        say(`En iyi ayar aranıyor… ${side === 'OVER' ? 'Üst' : 'Alt'} · ${k} maç`);
+        await new Promise((r) => setTimeout(r, 0)); // sayfa donmasın
+        const top = sorted.slice(0, poolSize([k], items.length));
+        const bands = AUTO_BANDS.map(() => []);
+        for (const c of combos(top, k)) {
+          const lf = c.reduce((t, x) => t + x.lam, 0);
+          const ls = c.reduce((t, x) => t + x.site, 0);
+          const K = Math.ceil(Math.max(ls, lf) * 2 + 12);
+          const cs = cumPois(ls, K);
+          const cf = cumPois(lf, K);
+          const per = new Array(AUTO_BANDS.length).fill(null);
+          for (let line = 0.5; line <= K - 0.5; line += 1) {
+            const ps = side === 'OVER' ? 1 - cs[Math.floor(line)] : cs[Math.floor(line)];
+            if (ps < 1e-4) continue;
+            const odds = 1 / (ps * MARGIN);
+            const b = AUTO_BANDS.findIndex(([lo, hi]) => odds >= lo && odds < hi);
+            if (b < 0) continue;
+            const pf = side === 'OVER' ? 1 - cf[Math.floor(line)] : cf[Math.floor(line)];
+            const sc = score(pf, pf * odds - 1, opts.sort);
+            if (per[b] == null || sc > per[b]) per[b] = sc;
+          }
+          per.forEach((sc, b) => { if (sc != null) bands[b].push(sc); });
+        }
+        bands.forEach((arr, b) => {
+          if (arr.length < Math.ceil(N / 2)) return; // yeterli kupon kurulamayacak ayar seçilmez
+          arr.sort((x, y) => y - x);
+          const val = arr.slice(0, N).reduce((t, x) => t + x, 0) / N; // eksik kupon puanı 0 sayılır
+          if (!best || val > best.val) best = { val, side, k, band: AUTO_BANDS[b], n: arr.length };
+        });
+      }
+    }
+    if (!best) throw new Error('Bu başlama/lig seçiminde uygun ayar bulunamadı. Başlama aralığını genişlet.');
+    return best;
+  }
+
   async function build(opts, say, force = false) {
     const now = Date.now();
     await ensureData(force, say);
@@ -796,6 +854,7 @@
     prob: 'Tutma olasılığı: maçların normal Alt/Üst oranlarından payı çıkarılarak bulunan gol beklentisiyle hesaplanır. Oran yükseldikçe olasılık düşer (yaklaşık 1 ÷ oran).',
     data: 'Ekranda görünenler değil, önümüzdeki 48 saatteki bütün Goal Mix maçları okunur. Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez.',
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
+    auto: 'Alt/Üst, maç sayısı (2–5) ve oran aralığı kombinasyonlarını tarar; Öncelik\'e göre (olasılık ya da değer) en iyi kupon setini veren ayarı forma doldurur ve kuponları oluşturur. Başlama, lig, YZ, kupon sayısı, tekrar modu ve tutar senin seçimin olarak kalır; çizgi sınırı kaldırılır.',
     yz: 'Normal bültende Alt/Üst oranı olmayan maçlar için günde iki kez (00:00 ve 12:00) yapay zekâ beklenen gol tahmini yapar (son maçlar, lig ortalaması). Dahil: bu maçlar da kuponlara girer, maç satırında YZ etiketiyle. Tahmin, oranlardan çıkan beklentiden daha az isabetlidir; değeri de o kadar belirsizdir.',
     line: 'Kuponun toplam gol çizgisi sınırı. Örnek: Alt, en az 5.5, en çok 8.5 → sadece 5.5, 6.5, 7.5, 8.5 Alt kuponlar. Boş bırakılırsa sınır yok. Tam sayı yazılırsa en az yukarı (6 → 6.5), en çok aşağı (6 → 5.5) yuvarlanır.',
     xg: 'Maçın adil gol beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
@@ -970,7 +1029,7 @@
       + `<div class="kk-field"><span>YZ tahmini ${info(TIP.yz)}</span>${seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])}</div>`
       + `<div class="kk-field"><span>Kupon sayısı</span><select class="kk-input kk-select" name="count">${COUNTS.map((k) => `<option value="${k}"${k === state.count ? ' selected' : ''}>${k} kupon</option>`).join('')}</select></div>`
       + `<div class="kk-field"><span>Aynı maç ${info(TIP.repeat)}</span>${seg('repeat', state.repeat, [[1, 'Tekrarlı'], [0, 'Tekrarsız'], [2, 'Ters çizgi']])}</div>`
-      + '<div class="kk-field kk-field--go"><span>&nbsp;</span><button type="button" class="kk-go">Kuponları oluştur</button></div>';
+      + `<div class="kk-field kk-field--go"><span>&nbsp;</span><div class="kk-go-row"><button type="button" class="kk-auto" title="${esc(TIP.auto)}">En iyi ayarı bul</button><button type="button" class="kk-go">Kuponları oluştur</button></div></div>`;
   }
 
   function save() {
@@ -1006,6 +1065,36 @@
     if (state.minLine != null && state.maxLine != null && state.maxLine < state.minLine) [state.minLine, state.maxLine] = [state.maxLine, state.minLine];
   }
 
+  let autoNote = '';
+  async function runAuto() {
+    if (busy) return;
+    readInputs();
+    const out = modal.querySelector('.kk-out');
+    const say = (t) => { out.innerHTML = `<div class="kk-wait"><i></i>${esc(t)}</div>`; };
+    busy = true;
+    let best;
+    try {
+      best = await autoTune({ ...state }, say);
+    } catch (err) {
+      out.innerHTML = `<div class="kk-empty is-bad">Ayar bulunamadı: ${esc(err?.message || err)}</div>`;
+      return;
+    } finally {
+      busy = false;
+    }
+    state.side = best.side;
+    state.minLegs = best.k;
+    state.maxLegs = best.k;
+    state.sizes = [best.k];
+    state.minOdds = best.band[0];
+    state.maxOdds = best.band[1];
+    state.minLine = null;
+    state.maxLine = null;
+    save();
+    renderForm();
+    autoNote = `Otomatik ayar: ${best.side === 'OVER' ? 'Üst' : 'Alt'} · ${best.k} maç · oran ${best.band[0]}–${best.band[1]} (${state.sort === 'EV' ? 'değere' : 'tutma olasılığına'} göre en iyisi)`;
+    run();
+  }
+
   async function run(force = false) {
     if (busy) return;
     readInputs();
@@ -1020,7 +1109,7 @@
       const { list, stats } = await build({ ...state, sizes: [...state.sizes].sort() }, say, force);
       const mins = Math.round((Date.now() - stats.at) / 60000);
       const ago = mins < 1 ? 'az önce' : `${mins} dk önce`;
-      const infoLine = `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · YZ tahmini ${stats.yzCount || 0} maç${state.useYz === 1 ? ' (dahil)' : ' (hariç)'} · seçilen aralıkta ${stats.window} maç · ${ago}${stats.short ? ` · <span class="kk-warn">${state.repeat === 0 ? 'tekrarsız: ' : state.repeat === 2 ? 'ters çizgi: ' : ''}istenenden az kupon kurulabildi (bu oran/çizgi aralığında yeterli uygun kombinasyon yok)</span>` : ''} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
+      const infoLine = (autoNote ? `<p class="kk-meta kk-auto-note">${esc(autoNote)}</p>` : '') + `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · YZ tahmini ${stats.yzCount || 0} maç${state.useYz === 1 ? ' (dahil)' : ' (hariç)'} · seçilen aralıkta ${stats.window} maç · ${ago}${stats.short ? ` · <span class="kk-warn">${state.repeat === 0 ? 'tekrarsız: ' : state.repeat === 2 ? 'ters çizgi: ' : ''}istenenden az kupon kurulabildi (bu oran/çizgi aralığında yeterli uygun kombinasyon yok)</span>` : ''} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
       lastList = list;
       offSet.clear();
       selKey = list.length ? keyOf(sortList(list)[0]) : null;
@@ -1111,7 +1200,8 @@
         renderForm();
         return;
       }
-      if (t.closest('.kk-go')) { run(); return; }
+      if (t.closest('.kk-go')) { autoNote = ''; run(); return; }
+      if (t.closest('.kk-auto')) { runAuto(); return; }
       if (t.closest('.kk-refresh')) { run(true); return; }
       const ib = t.closest('.kk-i');
       if (ib) { showTip(ib, true); return; }
