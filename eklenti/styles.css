@@ -272,3 +272,11 @@
 
 /* 4.12: YZ tahmini etiketi */
 .kk-yz { margin-left: 4px; padding: 1px 5px; border-radius: 5px; background: rgba(155, 120, 255, 0.25); color: #c9b6ff; font-style: normal; font-size: 9.5px; font-weight: 800; vertical-align: 2px; cursor: help; }
+
+/* 4.14: en iyi ayarı bul */
+.kk-go-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.kk-auto { min-height: 36px; padding: 6px 8px; border: 1px solid var(--kk-acc); border-radius: 12px; background: transparent; color: var(--kk-acc); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.kk-auto:hover { background: rgba(230, 255, 107, 0.1); }
+.kk-go-row .kk-go { font-size: 12.5px; }
+.kk-form .kk-field--go { grid-column: span 2; }
+.kk-auto-note { margin: 0 0 6px; padding: 5px 10px; border-radius: 8px; background: rgba(230, 255, 107, 0.1); color: var(--kk-acc); font-weight: 700; }
