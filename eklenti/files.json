@@ -1,5 +1,5 @@
 {
- "version": "4.8.1",
+ "version": "4.8.2",
  "files": [
   "BENIOKU.md",
   "background.js",
@@ -21,12 +21,12 @@
  "hashes": {
   "BENIOKU.md": "534954f054d7427fa7f9f8850d1f33dcc2153e00",
   "background.js": "dbc5d7bc681e29f1ef3bd3fde939a45af1e96bea",
-  "content.js": "f398a20b0d03aa962f5036bd8c2cadb6541220d7",
+  "content.js": "818d6488fce0873e68ff9ae6eccafa9fda20ccd3",
   "icons/icon128.png": "500dbc3a25638fdadfb8627e5cfbaddfef66439e",
   "icons/icon16.png": "64d4c9b6afdaea94dbcf1e1419135c805f725acd",
   "icons/icon32.png": "f7458ff7d8e9d9920235686bb2b882ae12645b1e",
   "icons/icon48.png": "0b0255c08909759294514c14c865ec16ac42d8b1",
-  "manifest.json": "0d89f8a7af36e1ee57f18b985c74c220f4ecf749",
+  "manifest.json": "3004ca47a33b703af21983d0d71756572b9c501b",
   "popup.css": "3d7196c2aa4bbc100beffd165f551eeb04816b91",
   "popup.html": "7b5a629a2223e6363bfe76a00aad889eb2a5fe77",
   "popup.js": "a28155764a9b4603f5d0e7c072e9aab0aaf43d17",
