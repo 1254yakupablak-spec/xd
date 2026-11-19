@@ -21,6 +21,8 @@
   const COLLECT_HOURS = 48; // arka planda bu kadar saat içinde başlayacak bütün maçlar toplanır
   const MAX_EVENTS = 600;
   const DATA_KEY = 'kkData';
+  const DATA_V = 2; // toplanan verinin biçimi; değişince eski kayıt bayat sayılır
+  const fresh = (d) => !!d && d.v === DATA_V && Date.now() - d.at < DATA_FRESH;
   const LOCK_KEY = 'kkLock';
   const DATA_FRESH = 10 * 60 * 1000; // arka plan toplama aralığı
   const SITE_FRESH = 60 * 60 * 1000; // Goal Mix'in maç başı gol beklentisi bu kadar süre geçerli sayılır
@@ -465,7 +467,7 @@
       site: x.site,
       siteAt: cache.site.get(x.g.id)?.at || now,
     }));
-    data = { at: Date.now(), total: gm.length, matched: pairs.length, formFound: forms.size, yzCount: events.filter((e) => e.src === 'yz').length, events, missing };
+    data = { at: Date.now(), total: gm.length, matched: pairs.length, formFound: forms.size, yzCount: events.filter((e) => e.src === 'yz').length, events, missing, v: DATA_V };
     await store.set(DATA_KEY, data);
     publishMissing();
     return data;
@@ -495,7 +497,7 @@
   async function ensureData(force, say) {
     if (collecting) return collecting;
     if (!data) { data = await store.get(DATA_KEY); seed(data); }
-    if (!force && data && Date.now() - data.at < DATA_FRESH) return data;
+    if (!force && fresh(data)) return data;
     collecting = (async () => {
       await store.set(LOCK_KEY, Date.now());
       try { return await collect(say); } finally { collecting = null; }
@@ -509,7 +511,7 @@
       data = (await store.get(DATA_KEY)) || data;
       seed(data);
       publishMissing();
-      if (data && Date.now() - data.at < DATA_FRESH) return;
+      if (fresh(data)) return;
       const lock = await store.get(LOCK_KEY);
       if (lock && Date.now() - lock < 3 * 60 * 1000) return; // başka sekme topluyor
       await ensureData(true);
