@@ -280,3 +280,11 @@
 .kk-go-row .kk-go { font-size: 12.5px; }
 .kk-form .kk-field--go { grid-column: span 2; }
 .kk-auto-note { margin: 0 0 6px; padding: 5px 10px; border-radius: 8px; background: rgba(230, 255, 107, 0.1); color: var(--kk-acc); font-weight: 700; }
+
+/* 4.15: en iyi ayar onay kutusu, kilitli alanlar */
+.kk-form .kk-field--go { display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 10px; }
+.kk-form .kk-field--go > span { display: none; }
+.kk-autochk { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 10px; border: 1px solid var(--kk-acc); border-radius: 12px; color: var(--kk-acc) !important; font-size: 12px !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: 0 !important; white-space: nowrap; cursor: pointer; }
+.kk-autochk input { width: 16px; height: 16px; accent-color: #e6ff6b; cursor: pointer; }
+.kk-field.is-locked { opacity: 0.45; }
+.kk-field.is-locked .kk-seg button, .kk-field.is-locked input { cursor: not-allowed; }
