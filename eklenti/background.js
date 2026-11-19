@@ -102,3 +102,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   return false;
 });
 
+
+// ---------- YZ tahminleri: günlük görevin GitHub'a yazdığı dosya ----------
+const YZ_URL = 'https://raw.githubusercontent.com/1254yakupablak-spec/xd/main/tahmin/yz.json';
+let yzCache = { at: 0, v: null };
+chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  if (msg?.type !== 'fetchYz') return false;
+  (async () => {
+    if (yzCache.v && Date.now() - yzCache.at < 10 * 60 * 1000) return yzCache.v;
+    const res = await fetch(`${YZ_URL}?t=${Date.now()}`, { cache: 'no-store', credentials: 'omit' });
+    if (res.status === 404) return { at: null, matches: {} };
+    if (!res.ok) throw new Error(`tahmin dosyası ${res.status}`);
+    const v = await res.json();
+    yzCache = { at: Date.now(), v };
+    return v;
+  })().then((v) => reply({ ok: true, v }), (e) => reply({ ok: false, error: String(e?.message || e) }));
+  return true;
+});
