@@ -567,7 +567,7 @@
     n = 0;
     for (let round = 0; round < 3 && list.length < opts.count && from < cands.length; round++) {
       const pick = [];
-      while (from < cands.length && pick.length < MAX_QUOTES) {
+      while (from < cands.length && pick.length < Math.max(MAX_QUOTES, opts.count + 10)) {
         const x = cands[from++];
         if (x.c.some((m) => (used.get(m.g.id) || 0) >= maxUse * (round + 1))) continue;
         pick.push(x);
@@ -774,6 +774,8 @@
 
   const legSelect = (name, v) => `<select class="kk-input kk-select" name="${name}">${Array.from({ length: maxLegsAllowed - 1 }, (_, i) => i + 2).map((k) => `<option value="${k}"${k === v ? ' selected' : ''}>${k} maç</option>`).join('')}</select>`;
 
+  const COUNTS = [5, 10, 15, 20, 25, 30, 40, 50];
+
   function renderForm() {
     const body = modal.querySelector('.kk-form');
     body.innerHTML = `<div class="kk-field"><span>Alt / Üst</span>${seg('side', state.side, [['OVER', 'Üst'], ['UNDER', 'Alt'], ['BOTH', 'İkisi']])}</div>`
@@ -785,7 +787,7 @@
       + `<div class="kk-field"><span>Maç sayısı</span><div class="kk-legs-sel">${legSelect('minLegs', state.minLegs)}<em>–</em>${legSelect('maxLegs', state.maxLegs)}</div></div>`
       + `<div class="kk-field"><span>Başlama</span>${seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']])}</div>`
 
-      + `<div class="kk-field"><span>Kupon</span>${seg('count', state.count, [[5, '5'], [10, '10'], [20, '20']])}</div>`
+      + `<div class="kk-field"><span>Kupon sayısı</span><select class="kk-input kk-select" name="count">${COUNTS.map((k) => `<option value="${k}"${k === state.count ? ' selected' : ''}>${k} kupon</option>`).join('')}</select></div>`
       + `<div class="kk-field"><span>Aynı maç ${info(TIP.repeat)}</span>${seg('repeat', state.repeat, [[1, 'Tekrar edebilir'], [0, 'Tekrarsız']])}</div>`
       + '<div class="kk-field kk-field--go"><span>&nbsp;</span><button type="button" class="kk-go">Kuponları oluştur</button></div>';
   }
@@ -809,6 +811,7 @@
       return Number.isFinite(v) && v > 0 ? Math.max(0.5, Math.floor(v - 0.5) + 0.5) : null;
     };
     const sel = (n) => Number(modal.querySelector(`select[name="${n}"]`)?.value) || null;
+    state.count = COUNTS.includes(sel('count')) ? sel('count') : state.count || 10;
     state.minLegs = sel('minLegs') || state.minLegs || 2;
     state.maxLegs = sel('maxLegs') || state.maxLegs || 5;
     if (state.maxLegs < state.minLegs) [state.minLegs, state.maxLegs] = [state.maxLegs, state.minLegs];
