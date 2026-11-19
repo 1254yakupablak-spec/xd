@@ -486,10 +486,11 @@
     // Kombinasyonlar önce yerel tahminle sıralanır (sitenin oranı ≈ kendi λ'sıyla Poisson + pay), en iyilerinin
     // gerçek Goal Mix oranı sorulur.
     const MARGIN = 1.085;
-    function localCands(avail) {
+    function localCands(avail, bySide = null) {
       const cands = [];
       for (const side of sides) {
-        const top = [...avail].sort((x, y) => (side === 'OVER' ? y.edge - x.edge : x.edge - y.edge)).slice(0, poolSize(opts.sizes, avail.length));
+        const base = bySide ? bySide[side] : avail;
+        const top = [...base].sort((x, y) => (side === 'OVER' ? y.edge - x.edge : x.edge - y.edge)).slice(0, poolSize(opts.sizes, base.length));
         for (const k of opts.sizes) {
           if (k > top.length) continue;
           for (const c of combos(top, k)) {
@@ -525,18 +526,22 @@
 
     // Tekrarsız: kuponlar sırayla kurulur. Her adımda kalan maçlardan en iyi birkaç aday sorulur, en iyisi alınır,
     // maçları havuzdan çıkarılır. Böylece her maç en fazla bir kuponda olur.
-    if (opts.repeat === 0) {
+    // 0: tekrarsız (her maç en fazla bir kuponda). 2: ters yönde tekrar (bir maç en fazla bir Üst ve bir Alt kuponda;
+    // aynı yönde iki kez girmez).
+    if (opts.repeat === 0 || opts.repeat === 2) {
       // Kurulamayan aday (gerçek oran aralık dışında) "denendi" diye işaretlenir ve atlanır; maçları havuzda kalır.
       // Böylece uzak saatteki çok sayıda aday soru hakkını bitirip iyi kuponları engellemez.
-      const usedIds = new Set();
+      const usedOver = new Set();
+      const usedUnder = opts.repeat === 2 ? new Set() : usedOver;
+      const usedOf = (side) => (side === 'OVER' ? usedOver : usedUnder);
       const failed = new Set();
       const ck = (x) => `${x.side}|${x.c.map((m) => m.g.id).sort().join(',')}`;
       const out = [];
       let asked = 0;
       const BUDGET = Math.max(60, opts.count * 10);
       while (out.length < opts.count && asked < BUDGET) {
-        const avail = items.filter((x) => !usedIds.has(x.g.id));
-        const tries = localCands(avail).filter((x) => !failed.has(ck(x))).slice(0, 4);
+        const bySide = { OVER: items.filter((x) => !usedOver.has(x.g.id)), UNDER: items.filter((x) => !usedUnder.has(x.g.id)) };
+        const tries = localCands(null, bySide).filter((x) => !failed.has(ck(x))).slice(0, 4);
         if (!tries.length) break;
         asked += tries.length;
         say(`Tekrarsız kuponlar kuruluyor… ${out.length + 1}/${opts.count}`);
@@ -546,7 +551,7 @@
           .sort((x, y) => y.sc - x.sc);
         if (!got.length) continue;
         out.push(got[0]);
-        got[0].legs.forEach((m) => usedIds.add(m.g.id));
+        got[0].legs.forEach((m) => usedOf(got[0].side).add(m.g.id));
         // Bu turda kurulup seçilmeyenler sonraki turlarda yeniden sorulmasın diye değil, maçları değiştiği için
         // zaten elenir (kullanılan maç içeriyorlarsa).
       }
@@ -686,7 +691,7 @@
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
     line: 'Kuponun toplam gol çizgisi sınırı. Örnek: Alt ve en az çizgi 5.5 → sadece 5.5, 6.5, 7.5… Alt kuponlar. Boş bırakılırsa sınır yok. Tam sayı yazılırsa .5\'e yuvarlanır (6 → 5.5).',
     xg: 'Maçın adil gol beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
-    repeat: 'Tekrar edebilir: bir maç birden çok kuponda olabilir. Tekrarsız: her maç en fazla bir kuponda olur; en iyi kupondan başlanır, önceki kuponlarda kullanılan maçı içeren kupon atlanır (bu yüzden istenenden az kupon çıkabilir, özellikle çok maçlı kuponlarda).',
+    repeat: 'Tekrarlı: bir maç birden çok kuponda olabilir. Tekrarsız: her maç en fazla bir kuponda olur. Ters çizgi: bir maç en fazla bir Üst ve bir Alt kupona girebilir, aynı yönde iki kez girmez (Alt/Üst "İkisi" seçiliyken anlamlı; tek yönde tekrarsızla aynıdır). Tekrarsız ve ters çizgide kuponlar sırayla, kalan maçlardan kurulur; istenenden az kupon çıkabilir.',
     set: 'Seçili kuponların birlikte hesabı: en az 1, en az 2… kuponun tutma olasılığı. Her kutunun altında tam o kadar kupon tutarsa net kâr/zarar: ortalama, en kötü (en düşük oranlılar tutarsa) … en iyi (en yüksek oranlılar tutarsa). Kâra geçiş: ortalamada artıya geçmek için gereken en az tutan kupon sayısı. Her maçın golü adil beklentiyle 20.000 kez denendi; aynı maç birden çok kuponda varsa o maçın sonucu hepsinde aynı sayıldı. Beklenen net: her kupona 1 birim yatırılırsa ortalama sonuç (oranlar × tutma − kupon sayısı). Tahmindir, garanti değildir.',
     formLeg: 'Sadece bilgi, yüzdeye katılmaz (oranlar formu zaten içerir). Son 5 maç: attığı–yediği gol ortalaması, 2.5 üst biten maç sayısı ve sonuçlar (G galibiyet, B beraberlik, M mağlubiyet).',
   };
@@ -821,7 +826,7 @@
       + `<div class="kk-field"><span>Başlama</span>${seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']])}</div>`
 
       + `<div class="kk-field"><span>Kupon sayısı</span><select class="kk-input kk-select" name="count">${COUNTS.map((k) => `<option value="${k}"${k === state.count ? ' selected' : ''}>${k} kupon</option>`).join('')}</select></div>`
-      + `<div class="kk-field"><span>Aynı maç ${info(TIP.repeat)}</span>${seg('repeat', state.repeat, [[1, 'Tekrar edebilir'], [0, 'Tekrarsız']])}</div>`
+      + `<div class="kk-field"><span>Aynı maç ${info(TIP.repeat)}</span>${seg('repeat', state.repeat, [[1, 'Tekrarlı'], [0, 'Tekrarsız'], [2, 'Ters çizgi']])}</div>`
       + '<div class="kk-field kk-field--go"><span>&nbsp;</span><button type="button" class="kk-go">Kuponları oluştur</button></div>';
   }
 
@@ -868,7 +873,7 @@
       const { list, stats } = await build({ ...state, sizes: [...state.sizes].sort() }, say, force);
       const mins = Math.round((Date.now() - stats.at) / 60000);
       const ago = mins < 1 ? 'az önce' : `${mins} dk önce`;
-      const infoLine = `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · seçilen aralıkta ${stats.window} maç · ${ago}${stats.short ? ` · <span class="kk-warn">${state.repeat === 0 ? 'tekrarsız: ' : ''}istenenden az kupon kurulabildi (bu oran/çizgi aralığında yeterli uygun kombinasyon yok)</span>` : ''} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
+      const infoLine = `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · seçilen aralıkta ${stats.window} maç · ${ago}${stats.short ? ` · <span class="kk-warn">${state.repeat === 0 ? 'tekrarsız: ' : state.repeat === 2 ? 'ters çizgi: ' : ''}istenenden az kupon kurulabildi (bu oran/çizgi aralığında yeterli uygun kombinasyon yok)</span>` : ''} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
       lastList = list;
       offSet.clear();
       out.innerHTML = infoLine + (list.length
