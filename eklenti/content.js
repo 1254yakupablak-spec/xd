@@ -531,7 +531,7 @@
 
   // ---------- ana hesap ----------
   // ---------- en iyi ayarı bul ----------
-  // Alt/Üst × maç sayısı (2–10) kombinasyonları kendi tahminimizle taranır (gerçek oran sorulmaz, hızlı); oran aralığı
+  // Alt/Üst × maç sayısı (kullanıcının aralığında) kombinasyonları kendi tahminimizle taranır (gerçek oran sorulmaz, hızlı); oran aralığı
   // kullanıcınınki olarak kalır. Her ayarda en iyi N kuponun ortalama puanı (Öncelik'e göre: olasılık ya da değer)
   // hesaplanır, en yükseği seçilir. Oran, başlama, lig, YZ, kupon sayısı, tekrar modu ve tutar değişmez; çizgi sınırı
   // kaldırılır.
@@ -548,7 +548,8 @@
     if (items.length < 2) throw new Error('Bu saat aralığında yeterli maç yok. Başlama aralığını genişlet.');
     const N = opts.count;
     const MARGIN = 1.085;
-    const ks = Array.from({ length: Math.max(0, Math.min(maxLegsAllowed, items.length) - 1) }, (_, i) => i + 2);
+    // Maç sayısı kullanıcının seçtiği aralıkta (en az – en çok) taranır.
+    const ks = (opts.sizes?.length ? opts.sizes : [2, 3, 4, 5]).filter((k) => k >= 2 && k <= Math.min(maxLegsAllowed, items.length));
     const AUTO_BANDS = [[opts.minOdds, opts.maxOdds + 1e-9]];
     let best = null;
     for (const side of ['OVER', 'UNDER']) {
@@ -855,7 +856,7 @@
     prob: 'Tutma olasılığı: maçların normal Alt/Üst oranlarından payı çıkarılarak bulunan gol beklentisiyle hesaplanır. Oran yükseldikçe olasılık düşer (yaklaşık 1 ÷ oran).',
     data: 'Ekranda görünenler değil, önümüzdeki 48 saatteki bütün Goal Mix maçları okunur. Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez.',
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
-    auto: 'Senin oran aralığında Alt/Üst ve maç sayısı (2–10) kombinasyonlarını tarar; Öncelik\'e göre (olasılık ya da değer) en iyi kupon setini veren ayarı forma doldurur ve kuponları oluşturur. Oran, başlama, lig, YZ, kupon sayısı, tekrar modu ve tutar değişmez; çizgi sınırı kaldırılır.',
+    auto: 'Senin oran ve maç sayısı aralığında Alt/Üst ve maç sayısı kombinasyonlarını tarar; Öncelik\'e göre (olasılık ya da değer) en iyi kupon setini veren ayarı forma doldurur ve kuponları oluşturur. Oran, maç sayısı aralığı, başlama, lig, YZ, kupon sayısı, tekrar modu ve tutar değişmez; çizgi sınırı kaldırılır.',
     yz: 'Normal bültende Alt/Üst oranı olmayan maçlar için günde iki kez (00:00 ve 12:00) yapay zekâ beklenen gol tahmini yapar (son maçlar, lig ortalaması). Dahil: bu maçlar da kuponlara girer, maç satırında YZ etiketiyle. Tahmin, oranlardan çıkan beklentiden daha az isabetlidir; değeri de o kadar belirsizdir.',
     line: 'Kuponun toplam gol çizgisi sınırı. Örnek: Alt, en az 5.5, en çok 8.5 → sadece 5.5, 6.5, 7.5, 8.5 Alt kuponlar. Boş bırakılırsa sınır yok. Tam sayı yazılırsa en az yukarı (6 → 6.5), en çok aşağı (6 → 5.5) yuvarlanır.',
     xg: 'Maçın adil gol beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
@@ -1083,18 +1084,19 @@
       busy = false;
     }
     state.side = best.side;
-    state.minLegs = best.k;
-    state.maxLegs = best.k;
+    // Seçilen maç sayısı formda gösterilir; aralık kullanıcınınki olarak kalır, kuponlar bu sayıyla kurulur.
+    const userLegs = [state.minLegs, state.maxLegs];
     state.sizes = [best.k];
     state.minLine = null;
     state.maxLine = null;
     save();
     renderForm();
-    autoNote = `Otomatik ayar: ${best.side === 'OVER' ? 'Üst' : 'Alt'} · ${best.k} maç · oran ${state.minOdds}–${state.maxOdds} senin aralığın (${state.sort === 'EV' ? 'değere' : 'tutma olasılığına'} göre en iyisi)`;
-    run();
+    [state.minLegs, state.maxLegs] = userLegs;
+    autoNote = `Otomatik ayar: ${best.side === 'OVER' ? 'Üst' : 'Alt'} · ${best.k} maç (aralığın ${userLegs[0]}–${userLegs[1]}) · oran ${state.minOdds}–${state.maxOdds} senin aralığın (${state.sort === 'EV' ? 'değere' : 'tutma olasılığına'} göre en iyisi)`;
+    run(false, [best.k]);
   }
 
-  async function run(force = false) {
+  async function run(force = false, sizesOverride = null) {
     if (busy) return;
     readInputs();
     if (!state.sizes.length) state.sizes = legRange();
@@ -1105,7 +1107,7 @@
     go.disabled = true;
     const say = (t) => { out.innerHTML = `<div class="kk-wait"><i></i>${esc(t)}</div>`; };
     try {
-      const { list, stats } = await build({ ...state, sizes: [...state.sizes].sort() }, say, force);
+      const { list, stats } = await build({ ...state, sizes: sizesOverride || [...state.sizes].sort((a, b) => a - b) }, say, force);
       const mins = Math.round((Date.now() - stats.at) / 60000);
       const ago = mins < 1 ? 'az önce' : `${mins} dk önce`;
       const infoLine = (autoNote ? `<p class="kk-meta kk-auto-note">${esc(autoNote)}</p>` : '') + `<p class="kk-meta">${info(TIP.data)} 48 sa: ${stats.total} Goal Mix maçı · ${stats.matched ?? '?'} bültende bulundu · ${stats.priced} maçın adil oranı hazır · form ${stats.formFound || 0} maçta · YZ tahmini ${stats.yzCount || 0} maç${state.useYz === 1 ? ' (dahil)' : ' (hariç)'} · seçilen aralıkta ${stats.window} maç · ${ago}${stats.short ? ` · <span class="kk-warn">${state.repeat === 0 ? 'tekrarsız: ' : state.repeat === 2 ? 'ters çizgi: ' : ''}istenenden az kupon kurulabildi (bu oran/çizgi aralığında yeterli uygun kombinasyon yok)</span>` : ''} <span class="kk-meta-btns"><button type="button" class="kk-refresh">Verileri yenile</button></span></p>`;
