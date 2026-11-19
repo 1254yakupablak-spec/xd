@@ -749,8 +749,13 @@
     const st = state.stake > 0 ? state.stake : 1;
     const money = (v) => `${v > 0.005 ? '+' : v < -0.005 ? '−' : ''}${Math.abs(v * st).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}`;
     const cls = (v) => (v > 0.005 ? 'is-up' : v < -0.005 ? 'is-down' : '');
-    // Gösterilecek k'lar: 1–5, kâra geçiş noktası ve hepsi.
-    const ks = [...new Set([1, 2, 3, 4, 5, r.even, r.n].filter((k) => k >= 1 && k <= r.n))].sort((x, y) => x - y);
+    // Gösterilecek k'lar: az kuponda hepsi; çok kuponda 1, beklenen tutan sayısının çevresi, kâra geçiş noktası
+    // ve hepsi (1–5 gibi kesin tutacak sayılar yer kaplamasın).
+    const m = Math.round(r.mean);
+    const ks = [...new Set((r.n <= 7
+      ? Array.from({ length: r.n }, (_, i) => i + 1)
+      : [1, Math.max(1, m - 3), Math.max(1, m - 1), m, m + 1, m + 3, r.even, r.n])
+      .filter((k) => k >= 1 && k <= r.n))].sort((x, y) => x - y);
     const tiles = ks.map((k) => {
       const x = r.netK[k];
       const range = Math.abs(x.max - x.min) > 0.005 ? `<em>${money(x.min)} … ${money(x.max)}</em>` : '';
