@@ -262,6 +262,23 @@
   // Çizgi kullanıcının sınırları içinde mi (boş = sınırsız).
   const lineOk = (line, opts) => (opts.minLine == null || line >= opts.minLine - 1e-9) && (opts.maxLine == null || line <= opts.maxLine + 1e-9);
 
+  // Aralıktaki bütün uygun çizgiler (en iyiden kötüye). Aynı maçlarla 7.5 Alt ve 8.5 Alt ayrı kupon olabilir.
+  function allLines(lines, lamFair, sides, minOdds, maxOdds, sort, opts = {}) {
+    const out = [];
+    for (const l of lines) {
+      if (!lineOk(l.line, opts)) continue;
+      const pu = cdf(Math.floor(l.line), lamFair);
+      for (const side of sides) {
+        const odds = side === 'OVER' ? l.over : l.under;
+        if (!(odds >= minOdds) || odds > maxOdds) continue;
+        const p = side === 'OVER' ? 1 - pu : pu;
+        const ev = p * odds - 1;
+        out.push({ line: l.line, side, odds, p, fair: 1 / p, ev, sc: score(p, ev, sort) });
+      }
+    }
+    return out.sort((a, b) => b.sc - a.sc);
+  }
+
   function bestLine(lines, lamFair, sides, minOdds, maxOdds, sort, opts = {}) {
     let best = null;
     for (const l of lines) {
@@ -554,8 +571,10 @@
       const q = await quote(x.c.map((m) => m.g.id));
       if (!q) return null;
       const lf = x.c.reduce((t, m) => t + m.fair.lam, 0);
-      const bl = bestLine(q.lines, lf, [x.side], opts.minOdds, opts.maxOdds, opts.sort, opts);
-      return bl ? { ...bl, legs: x.c, lamFair: lf, lamSite: q.lam } : null;
+      const all = allLines(q.lines, lf, [x.side], opts.minOdds, opts.maxOdds, opts.sort, opts).map((b) => ({ ...b, legs: x.c, lamFair: lf, lamSite: q.lam }));
+      if (!all.length) return null;
+      // En iyi çizgi + aynı maçlarla diğer uygun çizgiler (tekrarlı modda ayrı kupon olarak listelenir).
+      return { ...all[0], alts: all.slice(1) };
     }
     const NONE = 'Bu oran ve çizgi aralığında kurulabilen kupon yok. Aralığı genişlet (çizgi sınırı maç sayısına uymuyor olabilir: örneğin 2 maçta 12.5 çizgisi yok).';
     const stats = { ...data, priced: data.events.length, window: items.length };
@@ -619,8 +638,7 @@
         say(`Kuponların oranı soruluyor… ${++n}`);
         return r;
       });
-      for (const x of res) {
-        if (!x) continue;
+      for (const x of res.flatMap((r) => (r ? [r, ...(r.alts || [])] : []))) {
         const k = `${x.side}|${x.line}|${x.legs.map((m) => m.g.id).sort().join(',')}`;
         if (seen.has(k)) continue;
         seen.add(k);
