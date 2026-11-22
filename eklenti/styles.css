@@ -424,3 +424,5 @@ select.kk-input option { background: #181d2c; color: #eef1f7; }
 .kk-lg-logo { background: #262c42; border: 1px solid var(--line); }
 .kk-lg-logo img { filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.4)); }
 .kk-lg-logo.kk-lg-flag { color: var(--tx2); font-size: 10px; font-weight: 800; letter-spacing: 0.2px; }
+
+.kk-lg em.is-zero { color: var(--mut); opacity: 0.7; }
