@@ -30,7 +30,7 @@ chrome.runtime.onStartup?.addListener(() => checkUpdate(true));
 chrome.runtime.onInstalled.addListener(async () => {
   // Eski sürümlerin kayıtları (canlı skor, oranlar, notlar) artık kullanılmıyor.
   // Güncelleme bilgisi ve kupon verisi korunur; eski sürümlerin kayıtları (1xBet vb.) silinir.
-  const KEEP = ['updateInfo', 'kkData'];
+  const KEEP = ['updateInfo', 'kkData', 'kkDataBb'];
   const keep = await chrome.storage.local.get(KEEP);
   await chrome.storage.local.clear();
   await chrome.storage.local.set(keep);
