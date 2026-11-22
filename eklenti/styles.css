@@ -374,3 +374,12 @@ select.kk-input option { background: #181d2c; color: #eef1f7; }
 .kk-cal-foot { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--mut); font-size: 12px; }
 .kk-cal-foot b { color: var(--tx); }
 @media (max-width: 1180px) { .kk-cal-grid { grid-template-columns: 1fr; } }
+
+/* favorileri temizle */
+.kk-banner-btns { display: flex; gap: 6px; margin-left: auto; }
+.kk-banner .kk-banner-btns .kk-chip { margin-left: 0; }
+.kk-chip { display: inline-flex; align-items: center; gap: 5px; }
+.kk-chip svg { width: 13px; height: 13px; }
+.kk-chip--danger { border-color: rgba(248, 113, 113, 0.35); color: #fca5a5; }
+.kk-chip--danger:hover { border-color: var(--down); color: var(--down); }
+.kk-chip--danger.is-confirm { border-color: var(--down); background: rgba(248, 113, 113, 0.15); color: #fff; }
