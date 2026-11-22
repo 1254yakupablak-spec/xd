@@ -33,6 +33,10 @@ Eklenti bahis yapmaz ve siteye hiçbir şey göndermez. Önerilen maçları Goal
 
 Not: Veri hazırsa kuponlar birkaç saniyede çıkar; ilk açılışta toplama 10–30 saniye sürer.
 
+## Favoriler
+
+Her kuponun yanındaki ☆ ile kupon favorilere kaydedilir (bu tarayıcıda). Üstteki **Favoriler** sekmesinde kaydedilen kuponlar aynı liste ve ayrıntı görünümünde durur; seçili favoriler için birlikte tutma olasılığı (en az 1, en az 2…) ve kupon başı tutara göre kâr/zarar hesaplanır. Maçı başlamış kuponlar işaretlenir, **Geçmiş maçlıları temizle** ile silinir.
+
 ## Kurulum
 
 1. `chrome://extensions` sayfasını aç ve **Geliştirici modu**nu aç.
