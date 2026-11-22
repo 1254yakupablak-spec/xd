@@ -1,6 +1,6 @@
 {
- "at": "2026-11-22T13:37:40.521Z",
- "count": 77,
+ "at": "2026-11-22T13:38:08.755Z",
+ "count": 90,
  "matches": {
   "01M7H0FNB8EF7T97Q8J73WZB6F": {
    "lam": 3.1,
@@ -617,6 +617,110 @@
    "away": "Madrid CFF W",
    "startsAt": "2026-11-22T16:00:00.000Z",
    "at": "2026-11-22T13:37:33.328Z"
+  },
+  "01M7TB7XSXT3EZFCXG592YEE95": {
+   "lam": 2.5,
+   "note": "Serie D H grubu Puglia derbisi; son H2H 3-1; grup ortalaması ~2.5",
+   "home": "Martina Calcio",
+   "away": "Brindisi",
+   "startsAt": "2026-11-22T16:00:00.000Z",
+   "at": "2026-11-22T13:38:08.207Z"
+  },
+  "01M80C7XJ27FNPDG0FYY0AA532": {
+   "lam": 2.3,
+   "note": "Mali ligi az gollü; Stade Malien güçlü, son eşleşmeler 4-0 ve 2-1",
+   "home": "Stade Malien",
+   "away": "Binga",
+   "startsAt": "2026-11-22T16:00:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7YTMCFQ2BG9ZQ788YE4TR6K": {
+   "lam": 2.1,
+   "note": "Sierra Leone ligi az gollü; Bo Rangers şampiyon, veri az",
+   "home": "Diamond Stars",
+   "away": "Bo Rangers",
+   "startsAt": "2026-11-22T16:15:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7YTMCFQ45A9K7AQQJ96PNFM": {
+   "lam": 2.1,
+   "note": "Sierra Leone ligi az gollü; Old Edwardians–Waterloo, veri az",
+   "home": "Old Edwardians",
+   "away": "Waterloo",
+   "startsAt": "2026-11-22T16:15:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7N5AEYDZFH9C2P3K2QAB8GG": {
+   "lam": 2.5,
+   "note": "Bosna ligi, Sarajevo üst sırada; tarihsel H2H dengeli",
+   "home": "FK Sarajevo",
+   "away": "Siroki Brijeg",
+   "startsAt": "2026-11-22T16:30:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7YG9J974WCNJZVQ24S07G80": {
+   "lam": 2,
+   "note": "Senegal ligi çok az gollü; şampiyon Teungueth, yeni yükselen Diambars",
+   "home": "Teungueth",
+   "away": "Diambars",
+   "startsAt": "2026-11-22T16:30:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7YH4YB3J2DXMTMZPS1BEP1S": {
+   "lam": 1.9,
+   "note": "Senegal ligi az gollü (~1.9); Ouakam–HLM orta sıra",
+   "home": "Ouakam",
+   "away": "ASC HLM",
+   "startsAt": "2026-11-22T16:30:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7YH4YB3SV3CKBXADY9WQQRZ": {
+   "lam": 1.9,
+   "note": "Senegal ligi az gollü; AJEL güçlü, Mbour orta sıra",
+   "home": "Mbour",
+   "away": "AJEL",
+   "startsAt": "2026-11-22T16:30:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M81E05S7YBRYECKVWJM0HZYH": {
+   "lam": 2.2,
+   "note": "Angola ligi, lider Wiliete ev sahibi; son H2H 2-2 ve 1-1",
+   "home": "Wiliete",
+   "away": "Sagrada",
+   "startsAt": "2026-11-22T16:30:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M77AWWPEF9RW3F1PTD2G70BE": {
+   "lam": 2.9,
+   "note": "Danimarka ligi, Nordsjælland iç sahada gollü oynuyor; Kopenhag güçlü",
+   "home": "Nordsjaelland",
+   "away": "FC Copenhagen",
+   "startsAt": "2026-11-22T17:00:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7H0FNB8C2AMQK7DYQB30NEM": {
+   "lam": 2.7,
+   "note": "Regionalliga West, iki takım da üst sırada; geçen sezon 0-0",
+   "home": "FC Gutersloh",
+   "away": "Oberhausen",
+   "startsAt": "2026-11-22T17:00:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7TB7XSX0T82MZHJRHW1RDJZ": {
+   "lam": 2.55,
+   "note": "Segunda RFEF, Mestalla gençleri; son H2H 2-2 ve 1-0",
+   "home": "Valencia B",
+   "away": "Alcoyano",
+   "startsAt": "2026-11-22T17:00:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7WBP3V907C7Q7C70YSXCXR8": {
+   "lam": 2.2,
+   "note": "Fas 2. lig az gollü; Khemisset formda, Boujaad 0-0'lar oynuyor",
+   "home": "Ittihad Khemisset",
+   "away": "US Boujaad",
+   "startsAt": "2026-11-22T17:00:00.000Z",
+   "at": "2026-11-22T13:38:08.208Z"
   }
  }
 }
