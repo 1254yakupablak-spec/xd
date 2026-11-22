@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KOKLEYİCİ SPORTS",
-  "version": "5.2.1",
+  "version": "5.3.0",
   "description": "6q Özel Oranlar (Goal Mix): sitenin maç oranlarından adil oran hesaplayıp kupon önerir.",
   "permissions": [
     "storage",
