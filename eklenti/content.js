@@ -1077,34 +1077,39 @@
   };
   const tone = (v) => (v > 0.005 ? 'is-up' : v < -0.005 ? 'is-down' : '');
 
+  // Kupon seti: tek satır. Solda başlık + tutar, ortada beklenen net ve kâra geçiş, sağda "en az k tutar" çubuk grafiği
+  // (boy = olasılık, yeşil = o kadar tutarsa kâr, kırmızı = zarar). Bir çubuğa basınca/üstüne gelince ayrıntısı yazılır.
+  let setK = null; // seçili çubuk (tutan kupon sayısı)
+  let setCache = null; // son hesap: çubuğa basınca yeniden simülasyon yapılmasın
   function setHtml() {
     const list = curList();
     const off = curOff();
     const sel = list.filter((c) => !off.has(keyOf(c)));
     const r = setChance(sel);
+    setCache = r;
     const st = state.stake > 0 ? state.stake : 1;
-    const head = `<div class="kk-set-head"><h4>${tab === 'favs' ? 'Favori seti' : 'Kupon seti'} ${info(TIP.set)}</h4><span class="kk-set-count">${sel.length}/${list.length} kupon hesapta</span>`
-      + `<label class="kk-stake">Kupon başı<input type="number" min="0.01" step="any" inputmode="decimal" name="stake" value="${st}"></label>`
-      + '<span class="kk-set-btns"><button type="button" class="kk-chip kk-set-all">Hepsi</button><button type="button" class="kk-chip kk-set-none">Hiçbiri</button></span></div>';
-    if (!r) return `<section class="kk-set">${head}<p class="kk-set-empty">Hesaba katmak için kuponlardaki kutucuğu işaretle.</p></section>`;
-    const m = Math.round(r.mean);
-    const ks = [...new Set((r.n <= 6 ? Array.from({ length: r.n }, (_, i) => i + 1) : [1, Math.max(1, m - 2), m, m + 2, r.even, r.n])
-      .filter((k) => k >= 1 && k <= r.n))].sort((x, y) => x - y);
-    const kpi = (label, value, cls = '', sub = '') => `<div class="kk-kpi ${cls}"><small>${label}</small><b>${value}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
-    const kpis = kpi('Yatırılan', (r.n * st).toLocaleString('tr-TR', { maximumFractionDigits: 2 }))
-      + kpi('Beklenen tutan', `${r.mean.toFixed(1)} / ${r.n}`)
-      + kpi('Beklenen net', money(r.net), tone(r.net))
-      + kpi('Kâra geçiş', r.even > 0 ? `${r.even} kupon` : '—', '', r.even > 0 ? `olasılık ${pctTxt(r.pEven)}` : 'ortalamada kâr yok');
-    const tiles = ks.map((k) => {
-      const x = r.netK[k];
-      const range = Math.abs(x.max - x.min) > 0.005 ? `<em>${money(x.min)} … ${money(x.max)}</em>` : '';
-      return `<div class="kk-tile${k === r.even ? ' is-even' : ''}"><small>${k === r.n && k > 1 ? `Hepsi (${k})` : `En az ${k}`}</small><b>${pctTxt(r.atLeast[k])}</b>`
-        + `<span>tam ${k} → <i class="${tone(x.avg)}">${money(x.avg)}</i></span>${range}</div>`;
+    const left = `<div class="kk-set-id"><h4>${tab === 'favs' ? 'Favori seti' : 'Kupon seti'} ${info(TIP.set)}</h4>`
+      + `<span><button type="button" class="kk-link kk-set-all" title="Hepsini hesaba kat">${sel.length}/${list.length} kupon</button>${sel.length ? ' · <button type="button" class="kk-link kk-set-none">temizle</button>' : ''}</span></div>`
+      + `<label class="kk-stake" title="Her kupona yatırılacak tutar">Kupon başı<input type="number" min="0.01" step="any" inputmode="decimal" name="stake" value="${st}"></label>`;
+    if (!r) return `<section class="kk-set">${left}<p class="kk-set-empty">Hesaba katmak için kuponlardaki kutucuğu işaretle.</p></section>`;
+    if (setK == null || setK > r.n || setK < 1) setK = r.even > 0 ? r.even : Math.max(1, Math.round(r.mean));
+    const mid = `<div class="kk-set-kpi"><small>Beklenen net</small><b class="${tone(r.net)}">${money(r.net)}</b><em>${(r.n * st).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} yatırılır</em></div>`
+      + `<div class="kk-set-kpi"><small>Kâra geçiş</small><b>${r.even > 0 ? `${r.even}/${r.n} kupon` : '—'}</b><em>${r.even > 0 ? `olasılık ${pctTxt(r.pEven)}` : 'ortalamada kâr yok'}</em></div>`;
+    const bars = Array.from({ length: r.n }, (_, i) => {
+      const k = i + 1;
+      const h = Math.max(4, Math.round(r.atLeast[k] * 100));
+      const cls = r.netK[k].avg > 0.005 ? 'is-up' : 'is-down';
+      return `<button type="button" class="kk-bar ${cls}${k === setK ? ' is-sel' : ''}${k === r.even ? ' is-even' : ''}" data-k="${k}" title="En az ${k}: ${pctTxt(r.atLeast[k])}"><i style="height:${h}%"></i>${r.n <= 16 || k % Math.ceil(r.n / 12) === 0 || k === r.n ? `<em>${k}</em>` : ''}</button>`;
     }).join('');
-    return `<section class="kk-set">${head}<div class="kk-set-body"><div class="kk-kpis">${kpis}</div><div class="kk-tiles">${tiles}</div></div>`
-      + `${r.shared ? '<p class="kk-set-note">Ortak maçlar birlikte sayıldı.</p>' : ''}</section>`;
+    return `<section class="kk-set">${left}<div class="kk-set-kpis">${mid}</div>`
+      + `<div class="kk-set-chart"><div class="kk-bars" role="group" aria-label="En az k kupon tutma olasılığı">${bars}</div>${setDetail(r)}</div></section>`;
   }
-
+  function setDetail(r) {
+    const x = r.netK[setK];
+    const range = Math.abs(x.max - x.min) > 0.005 ? `<em>${money(x.min)} … ${money(x.max)}</em>` : '';
+    return `<div class="kk-set-detail"><small>En az <b>${setK}</b> kupon tutar</small><b>${pctTxt(r.atLeast[setK])}</b>`
+      + `<span>tam ${setK} tutarsa <i class="${tone(x.avg)}">${money(x.avg)}</i></span>${range}</div>`;
+  }
   function rowHtml(c, i) {
     const k = keyOf(c);
     const st = couponState(c);
@@ -1298,7 +1303,21 @@
     renderMain();
     ensureData(false).then(() => { refreshLeagues(); modal.querySelector('.kk-status-wrap').innerHTML = statusHtml(); }).catch(() => {});
 
-    modal.addEventListener('mouseover', (ev) => { const ib = ev.target.closest?.('.kk-i'); if (ib) showTip(ib); });
+    modal.addEventListener('mouseover', (ev) => {
+      const ib = ev.target.closest?.('.kk-i');
+      if (ib) showTip(ib);
+      const bar = ev.target.closest?.('.kk-bar');
+      if (bar && setCache) {
+        const keep = setK;
+        setK = Number(bar.dataset.k);
+        modal.querySelector('.kk-set-detail').outerHTML = setDetail(setCache);
+        setK = keep; // üstünden çekilince seçili çubuğa döner
+      }
+    });
+    modal.addEventListener('mouseleave', () => {}, true);
+    modal.addEventListener('mouseout', (ev) => {
+      if (ev.target.closest?.('.kk-bars') && !ev.relatedTarget?.closest?.('.kk-bars') && setCache) modal.querySelector('.kk-set-detail').outerHTML = setDetail(setCache);
+    });
     modal.addEventListener('mouseout', (ev) => { if (ev.target.closest?.('.kk-i') && !tipPinned) hideTip(); });
     modal.addEventListener('focusin', (ev) => { if (ev.target.classList?.contains('kk-i')) showTip(ev.target); });
     modal.addEventListener('focusout', (ev) => { if (ev.target.classList?.contains('kk-i')) { tipPinned = false; hideTip(); } });
@@ -1371,6 +1390,13 @@
         if (off.has(k)) off.delete(k); else off.add(k);
         ck.classList.toggle('is-on', !off.has(k));
         redrawSet();
+        return;
+      }
+      const bar = t.closest('.kk-bar');
+      if (bar && setCache) {
+        setK = Number(bar.dataset.k);
+        modal.querySelectorAll('.kk-bar').forEach((x) => x.classList.toggle('is-sel', x === bar));
+        modal.querySelector('.kk-set-detail').outerHTML = setDetail(setCache);
         return;
       }
       if (t.closest('.kk-set-all')) { curOff().clear(); modal.querySelectorAll('.kk-check').forEach((x) => x.classList.add('is-on')); redrawSet(); return; }
