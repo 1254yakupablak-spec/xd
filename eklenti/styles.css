@@ -343,3 +343,34 @@ select.kk-input option { background: #181d2c; color: #eef1f7; }
 .kk-set-detail em { color: var(--mut); font-style: normal; font-size: 10.5px; }
 .kk-set-empty { margin: 0; }
 @media (max-width: 1180px) { .kk-set-chart { flex-basis: 100%; padding-left: 0; border-left: 0; } }
+
+/* 5.2: kalibrasyon */
+.kk-main:has(.kk-cal-intro) { overflow-y: auto; }
+.kk-cal-intro { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 24px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r3); background: var(--s1); }
+.kk-cal-intro > div:first-child { flex: 1; min-width: 300px; }
+.kk-cal-intro h3 { margin: 0 0 4px; font-size: 16px; font-weight: 800; }
+.kk-cal-intro p { margin: 0; color: var(--tx2); font-size: 12.5px; }
+.kk-cal-counts { display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 6px; }
+.kk-cal-counts span { padding: 8px 12px; border-radius: var(--r2); background: var(--s2); color: var(--mut); font-size: 12px; }
+.kk-cal-counts b { color: var(--tx); font-size: 16px; }
+.kk-cal-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; }
+.kk-cal-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r3); background: var(--s1); }
+.kk-cal-card h4 { margin: 0; font-size: 14px; font-weight: 800; }
+.kk-cal-card > p { margin: 4px 0 12px; color: var(--mut); font-size: 12px; }
+.kk-cal-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.kk-cal-table th, .kk-cal-table td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.kk-cal-table thead th { color: var(--mut); font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px; }
+.kk-cal-table tbody th { text-align: left; color: var(--tx); font-weight: 700; }
+.kk-cal-table td b { font-weight: 800; }
+.kk-rels { display: flex; flex-direction: column; gap: 10px; }
+.kk-rel { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: center; gap: 4px 10px; }
+.kk-rel > span { color: var(--tx2); font-weight: 700; font-size: 12px; }
+.kk-rel-bar { position: relative; height: 14px; border-radius: 999px; background: var(--s2); overflow: hidden; }
+.kk-rel-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; }
+.kk-rel-pred { background: rgba(255, 255, 255, 0.16); }
+.kk-rel-act { top: 4px !important; bottom: 4px !important; background: var(--up); }
+.kk-rel-act.is-down { background: var(--down); }
+.kk-rel em { grid-column: 2; color: var(--mut); font-style: normal; font-size: 11.5px; }
+.kk-cal-foot { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--mut); font-size: 12px; }
+.kk-cal-foot b { color: var(--tx); }
+@media (max-width: 1180px) { .kk-cal-grid { grid-template-columns: 1fr; } }
