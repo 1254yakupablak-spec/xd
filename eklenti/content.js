@@ -988,7 +988,7 @@
 
   // ---------- ülke adı ----------
   // Goal Mix ülke kodu: ISO (TR, DE…), İngiltere bölgeleri (GB-ENG…) ya da kıta/uluslararası (X-EUR, X-NAM…).
-  const REGION_TR = { 'GB-ENG': 'İngiltere', 'GB-SCT': 'İskoçya', 'GB-WLS': 'Galler', 'GB-NIR': 'K. İrlanda',
+  const REGION_TR = { 'GB-ENG': 'İngiltere', 'GB-SCT': 'İskoçya', 'GB-WLS': 'Galler', 'GB-NIR': 'K. İrlanda', HK: 'Hong Kong', MO: 'Makao', KR: 'G. Kore', KP: 'K. Kore', US: 'ABD', AE: 'BAE', CZ: 'Çekya',
     'X-INT': 'Uluslararası', 'X-WRL': 'Dünya', 'X-EUR': 'Avrupa', 'X-NAM': 'K. Amerika', 'X-SAM': 'G. Amerika',
     'X-CAM': 'Orta Amerika', 'X-AFR': 'Afrika', 'X-ASI': 'Asya', 'X-ASIA': 'Asya', 'X-OCE': 'Okyanusya' };
   let regionNames = null;
