@@ -26,7 +26,7 @@
 }
 .kk-modal *, .kk-fab * { box-sizing: border-box; }
 .kk-modal svg, .kk-fab svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-.kk-modal button { font: inherit; }
+.kk-modal :where(button, input, select) { font: inherit; }
 .is-up { color: var(--up) !important; }
 .is-down { color: var(--down) !important; }
 
@@ -121,7 +121,7 @@ select.kk-input option { background: #181d2c; color: #eef1f7; }
 .kk-toggle input:checked + i { background: var(--acc); }
 .kk-toggle input:checked + i::after { background: var(--acc-ink); transform: translateX(16px); }
 .kk-toggle input:focus-visible + i { outline: 2px solid var(--acc); outline-offset: 2px; }
-.kk-toggle > span { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.kk-toggle > span:not(.kk-i) { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .kk-toggle b { font-size: 13px; }
 .kk-toggle small { color: var(--mut); font-size: 11px; }
 
