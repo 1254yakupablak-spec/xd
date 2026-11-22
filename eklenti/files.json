@@ -1,5 +1,5 @@
 {
- "version": "5.0.2",
+ "version": "5.1.0",
  "files": [
   "BENIOKU.md",
   "background.js",
@@ -21,16 +21,16 @@
  "hashes": {
   "BENIOKU.md": "8e8dbf514638986d09d626da9896974485608cb6",
   "background.js": "331fe4dcf94deeee60f62cc490018a06bca45089",
-  "content.js": "3dc49f18e9303e1714dfd0f2d03e2a564d4dfbc3",
+  "content.js": "87bd70ae4f8772258856658a356c9d188c1adfe9",
   "icons/icon128.png": "500dbc3a25638fdadfb8627e5cfbaddfef66439e",
   "icons/icon16.png": "64d4c9b6afdaea94dbcf1e1419135c805f725acd",
   "icons/icon32.png": "f7458ff7d8e9d9920235686bb2b882ae12645b1e",
   "icons/icon48.png": "0b0255c08909759294514c14c865ec16ac42d8b1",
-  "manifest.json": "a0f397b39983b909d21b43988b5d0db015e4105f",
+  "manifest.json": "53876e93dd4f19a3dc34c6748d58dc2a1b548371",
   "popup.css": "3d7196c2aa4bbc100beffd165f551eeb04816b91",
   "popup.html": "7b5a629a2223e6363bfe76a00aad889eb2a5fe77",
   "popup.js": "a28155764a9b4603f5d0e7c072e9aab0aaf43d17",
-  "styles.css": "e4c6788c9ec88306dad63d4eb9051fe24a57fc97",
+  "styles.css": "4f569d24b15f13cf0694382a649603c2f07e134f",
   "teams.json": "18a0dd814f5a0d54311be4dcc656978f92e17b8b",
   "update.css": "07cd06f5f68d360e488e515f69e3103231cd9bca",
   "update.html": "0bc3e46772901f05a32a9ab976344eb69c12d03a",
