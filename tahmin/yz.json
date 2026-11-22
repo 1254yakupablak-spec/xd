@@ -1,6 +1,6 @@
 {
- "at": "2026-11-22T13:35:03.668Z",
- "count": 10,
+ "at": "2026-11-22T13:35:39.620Z",
+ "count": 25,
  "matches": {
   "01M7H0FNB8EF7T97Q8J73WZB6F": {
    "lam": 3.1,
@@ -81,6 +81,126 @@
    "away": "Venafro",
    "startsAt": "2026-11-22T14:00:00.000Z",
    "at": "2026-11-22T13:35:02.385Z"
+  },
+  "01M7TB7XSX5NG8JB6XYN92GYEH": {
+   "lam": 2.45,
+   "note": "Serie D C grubu, Mestre dengeli, Bolzano son maçta gol atamadı; ortalama altı",
+   "home": "Mestre",
+   "away": "Virtus Bolzano",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.590Z"
+  },
+  "01M7TB7XSX7G9GW9VCKYXZGFKD": {
+   "lam": 2.5,
+   "note": "Serie D F grubu, son eşleşmeler 2-1 ve 1-1; dengeli ve az gollü",
+   "home": "Vigor Senigallia",
+   "away": "Recanatese",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7TB7XSXAYX1TPTV20XBV4DF": {
+   "lam": 2.7,
+   "note": "Serie D A grubu, Sestri iç sahada gollü (son H2H 4-0); hafif üst",
+   "home": "Sestri Levante",
+   "away": "Derthona FbC",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7TB7XSXB4WFQ7MK54SA4P5Q": {
+   "lam": 2.45,
+   "note": "Serie D A grubu, Imperia az gol atıyor, Bra son maçta 0-2 kaybetti",
+   "home": "Imperia",
+   "away": "Bra",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7WDPW2FHCXT56PS9J5JY2P0": {
+   "lam": 2.1,
+   "note": "Fas 2. lig düşük gollü, iki takım da zayıf formda; son H2H 1-0",
+   "home": "USM Oujda",
+   "away": "Jeunesse Massira",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7X0RK194WTBJMMDDFJHDYRC": {
+   "lam": 3,
+   "note": "İsveç kadın ligi, Örebro formda ve gollü, Rosengård karışık formda",
+   "home": "Rosengard W",
+   "away": "KIF Orebro W",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7XWKSN9B3S63Y1ADDY8R55G": {
+   "lam": 2.8,
+   "note": "Kosova ligi, şampiyon Drita güçlü favori; güç farkı yüksek",
+   "home": "Drita",
+   "away": "Feronikeli",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7XWKSN9Y7YKQZECNQ1712V4": {
+   "lam": 2.9,
+   "note": "Belçika amatör ligi, önceki eşleşmeler 4-2, 3-1, 4-1; gollü seri",
+   "home": "Eendracht Aalst",
+   "away": "Londerzeel",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7Y7HXADVEN2W4Q4K0P81ERJ": {
+   "lam": 2.1,
+   "note": "Kamerun ligi düşük gollü; Bamenda son maçta 0-3 kaybetti; veri az",
+   "home": "Bamenda",
+   "away": "Union SA",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7YG9J97F0AJETAZ82X1M79Z": {
+   "lam": 2.9,
+   "note": "San Marino ligi, güç farkları büyük ve gollü; veri az",
+   "home": "Pennarossa",
+   "away": "Tre Penne",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7YH4YB3BR9BRRVSNMBSNSNJ": {
+   "lam": 3,
+   "note": "San Marino ligi, U22 akademi takımı çok gol yiyor; veri az",
+   "home": "Libertas",
+   "away": "San Marino Academy U22",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7YH4YB3R5TFGWW7BSGAPZDY": {
+   "lam": 2.9,
+   "note": "San Marino ligi, iki takım da geçen sezon dipteydi; savunmalar zayıf",
+   "home": "Murata",
+   "away": "Cailungo",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7YSJYQEM56J7CWCCMXQ32DD": {
+   "lam": 3.4,
+   "note": "Fransa kadın ligi, Lyon çok baskın (son eşleşmeler 5-0, 6-0)",
+   "home": "OL Lyonnes W",
+   "away": "Strasbourg W",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7Z1EARJ5876CBKYZ869GM30": {
+   "lam": 3,
+   "note": "Portekiz Kupası, Liga 3 ekibine karşı Rio Ave favori; güç farkı var",
+   "home": "SC Vianense",
+   "away": "Rio Ave",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7Z1EARJPG8ZB9Y8PZPG2TXR": {
+   "lam": 2.8,
+   "note": "Portekiz Kupası alt lig eşleşmesi; kupa maçı, veri az",
+   "home": "Vitoria Sernache",
+   "away": "Lusitania FC",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:35:38.626Z"
   }
  }
 }
