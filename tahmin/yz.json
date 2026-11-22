@@ -1,6 +1,6 @@
 {
- "at": "2026-11-22T13:39:07.804Z",
- "count": 112,
+ "at": "2026-11-22T13:39:37.146Z",
+ "count": 124,
  "matches": {
   "01M7H0FNB8EF7T97Q8J73WZB6F": {
    "lam": 3.1,
@@ -897,6 +897,102 @@
    "away": "Trasandino",
    "startsAt": "2026-11-22T21:00:00.000Z",
    "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M7M0Z6D05C5Q0XE2V1T3QBRS": {
+   "lam": 2.4,
+   "note": "Venezuela ligi play-off grubu, iki üst sıra takımı; temkinli maç",
+   "home": "Metropolitanos",
+   "away": "La Guaira",
+   "startsAt": "2026-11-22T21:30:00.000Z",
+   "at": "2026-11-22T13:39:36.466Z"
+  },
+  "01M77HF88Q9A6HV30C6SJWZFV2": {
+   "lam": 2.2,
+   "note": "Arjantin play-off son 16, tek maç eleme; lig düşük gollü (~2.2)",
+   "home": "River Plate",
+   "away": "Lanus",
+   "startsAt": "2026-11-22T22:00:00.000Z",
+   "at": "2026-11-22T13:39:36.467Z"
+  },
+  "01M7H6SB3FBW5PWVHEZNTG6GRS": {
+   "lam": 2.6,
+   "note": "Kosta Rika ligi, Inter San Carlos yeni yükseldi; önceki maç 0-2",
+   "home": "Inter San Carlos",
+   "away": "Sporting FC",
+   "startsAt": "2026-11-22T22:00:00.000Z",
+   "at": "2026-11-22T13:39:36.467Z"
+  },
+  "01M7YS8H0S3BB36ZZF9BK6SMXM": {
+   "lam": 2.6,
+   "note": "Jamaika ligi, Molynes son eşleşmeleri kazandı (2-0, 3-2)",
+   "home": "Molynes",
+   "away": "Tivoli",
+   "startsAt": "2026-11-22T22:00:00.000Z",
+   "at": "2026-11-22T13:39:36.468Z"
+  },
+  "01M7ZT944S8EQAHK9V92NSXNJY": {
+   "lam": 2.4,
+   "note": "Venezuela 2. lig play-off, Lara üst sırada; önceki maçlar 1-0, 2-2",
+   "home": "Lara",
+   "away": "Aragua",
+   "startsAt": "2026-11-22T22:00:00.000Z",
+   "at": "2026-11-22T13:39:36.468Z"
+  },
+  "01M81B0KPVVB634KFQ551QE8D8": {
+   "lam": 2.5,
+   "note": "Dominik ligi play-off, Cibao ikinci, Vega Real üçüncü; dengeli eşleşme",
+   "home": "Vega Real",
+   "away": "Cibao",
+   "startsAt": "2026-11-22T22:00:00.000Z",
+   "at": "2026-11-22T13:39:36.468Z"
+  },
+  "01M7XWKSN905MAPVT38BX1BG9Z": {
+   "lam": 2.6,
+   "note": "Nikaragua ligi, Ferretti ev sahibi; Sébaco ağır yenilgiler aldı",
+   "home": "Ferretti",
+   "away": "Sport Sebaco",
+   "startsAt": "2026-11-22T23:00:00.000Z",
+   "at": "2026-11-22T13:39:36.468Z"
+  },
+  "01M7R2P6SG9MY007GNVZD17RVF": {
+   "lam": 2.5,
+   "note": "Honduras derbisi, Olimpia lider; son derbi 3-1",
+   "home": "Motagua",
+   "away": "Olimpia",
+   "startsAt": "2026-11-22T23:15:00.000Z",
+   "at": "2026-11-22T13:39:36.468Z"
+  },
+  "01M77AWWPE8QZ8XNR06TFJ2HTD": {
+   "lam": 2.8,
+   "note": "MLS play-off ilk maçı, Chicago sezonda iki kez kazandı (1-0, 2-1)",
+   "home": "Chicago Fire",
+   "away": "Charlotte",
+   "startsAt": "2026-11-22T23:30:00.000Z",
+   "at": "2026-11-22T13:39:36.468Z"
+  },
+  "01M81EXMJ8304TJDFBDNZBXHRX": {
+   "lam": 2.9,
+   "note": "Aruba ligi gollü; Britannia favori, River Plate son 6 maçın 5'ini kaybetti",
+   "home": "River Plate",
+   "away": "Britannia",
+   "startsAt": "2026-11-23T00:30:00.000Z",
+   "at": "2026-11-22T13:39:36.468Z"
+  },
+  "01M80D6ZJHNN4JJ7NCCFZ73N3G": {
+   "lam": 3,
+   "note": "Nikaragua ligi, Diriangén çok gollü (18 maçta 48 gol); Managua orta sıra",
+   "home": "Diriangen",
+   "away": "Managua FC",
+   "startsAt": "2026-11-23T01:00:00.000Z",
+   "at": "2026-11-22T13:39:36.468Z"
+  },
+  "01M7RDVS6PV70MERAYVZXRJ9FQ": {
+   "lam": 2.6,
+   "note": "Honduras Juticalpa derbisi; son eşleşme 4-1 Olancho",
+   "home": "Juticalpa",
+   "away": "Olancho",
+   "startsAt": "2026-11-23T01:30:00.000Z",
+   "at": "2026-11-22T13:39:36.468Z"
   }
  }
 }
