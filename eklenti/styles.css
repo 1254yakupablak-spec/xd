@@ -309,3 +309,37 @@ select.kk-input option { background: #181d2c; color: #eef1f7; }
 .kk-dd-item span { white-space: normal; overflow: visible; line-height: 1.35; }
 .kk-dd-item input { margin-top: 2px; }
 .kk-dd-search { width: 100%; }
+
+/* 5.1: kompakt kupon seti (tek satır + çubuk grafik) */
+.kk-set { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 10px 14px; border-radius: var(--r2); }
+.kk-set-id { display: flex; flex-direction: column; gap: 1px; min-width: 120px; }
+.kk-set-id h4 { display: flex; align-items: center; gap: 4px; margin: 0; font-size: 13px; font-weight: 800; }
+.kk-set-id > span { color: var(--mut); font-size: 11.5px; }
+.kk-link { padding: 0; border: 0; background: none; color: var(--tx2); font-size: 11.5px; font-weight: 600; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+.kk-link:hover { color: var(--acc); }
+.kk-set .kk-stake { flex-direction: column; align-items: flex-start; gap: 2px; font-size: 11px; }
+.kk-set .kk-stake input { width: 92px; padding: 4px 8px; }
+.kk-set-kpis { display: flex; gap: 18px; padding-left: 18px; border-left: 1px solid var(--line); }
+.kk-set-kpi { display: flex; flex-direction: column; line-height: 1.2; }
+.kk-set-kpi small { color: var(--mut); font-size: 11px; font-weight: 600; }
+.kk-set-kpi b { font-size: 18px; font-weight: 800; letter-spacing: -0.2px; }
+.kk-set-kpi em { color: var(--mut); font-style: normal; font-size: 11px; }
+.kk-set-chart { display: flex; flex: 1; align-items: center; gap: 14px; min-width: 280px; padding-left: 18px; border-left: 1px solid var(--line); }
+.kk-bars { display: flex; flex: 1; align-items: flex-end; gap: 3px; height: 54px; min-width: 120px; }
+.kk-bar { position: relative; display: flex; flex: 1 1 0; flex-direction: column; justify-content: flex-end; min-width: 6px; max-width: 34px; height: 100%; padding: 0 0 14px; border: 0; background: none; cursor: pointer; }
+.kk-bar i { display: block; width: 100%; border-radius: 4px 4px 2px 2px; background: rgba(248, 113, 113, 0.55); transition: background 0.12s ease, filter 0.12s ease; }
+.kk-bar.is-up i { background: rgba(74, 222, 128, 0.6); }
+.kk-bar:hover i { filter: brightness(1.3); }
+.kk-bar.is-sel i { box-shadow: 0 0 0 2px var(--acc); }
+.kk-bar.is-even::after { content: ""; position: absolute; left: -2px; top: 0; bottom: 14px; border-left: 1px dashed var(--acc); }
+.kk-bar em { position: absolute; left: 0; right: 0; bottom: 0; color: var(--mut); font-style: normal; font-size: 9.5px; text-align: center; }
+.kk-bar.is-sel em { color: var(--acc); font-weight: 800; }
+.kk-set-detail { display: flex; flex-direction: column; min-width: 150px; line-height: 1.25; }
+.kk-set-detail small { color: var(--mut); font-size: 11px; }
+.kk-set-detail small b { color: var(--tx); }
+.kk-set-detail > b { color: var(--acc); font-size: 18px; font-weight: 800; }
+.kk-set-detail span { color: var(--mut); font-size: 11.5px; }
+.kk-set-detail span i { font-style: normal; font-weight: 800; color: var(--tx); }
+.kk-set-detail em { color: var(--mut); font-style: normal; font-size: 10.5px; }
+.kk-set-empty { margin: 0; }
+@media (max-width: 1180px) { .kk-set-chart { flex-basis: 100%; padding-left: 0; border-left: 0; } }
