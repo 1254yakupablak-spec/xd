@@ -479,6 +479,7 @@
       siteAt: cache.site.get(x.g.id)?.at || now,
     }));
     data = { at: Date.now(), total: gm.length, matched: pairs.length, formFound: forms.size, yzCount: events.filter((e) => e.src === 'yz').length, events, missing, v: DATA_V };
+    calLogMatches(events).catch(() => {});
     await store.set(DATA_KEY, data);
     publishMissing();
     return data;
@@ -516,12 +517,126 @@
     return collecting;
   }
 
+  // ---------- kalibrasyon: tahminleri gerçek sonuçlarla ölçme ----------
+  // Her toplamada maçların maç öncesi tahmini (adil λ, sitenin λ'sı, kaynak) kaydedilir; oluşturulan kuponlar da
+  // (olasılık, oran, çizgi) kaydedilir. Maç başladıktan sonra 6q bülteninden skor izlenir; bitince 90 dakikanın toplam
+  // golü yazılır. Kalibrasyon sekmesi "%60 dediklerimiz gerçekten %60 tuttu mu" sorusunu cevaplar. 14 gün saklanır.
+  const CAL_KEY = 'kkCal';
+  const CAL_DAYS = 14;
+  let cal = null;
+  let calLastUpd = 0;
+  async function calLoad() {
+    if (cal) return cal;
+    const v = await store.get(CAL_KEY);
+    cal = v && typeof v === 'object' ? { matches: v.matches || {}, coupons: v.coupons || [] } : { matches: {}, coupons: [] };
+    return cal;
+  }
+  const calSave = () => store.set(CAL_KEY, cal);
+  function calPrune() {
+    const lim = Date.now() - CAL_DAYS * 86400e3;
+    for (const [id, m] of Object.entries(cal.matches)) if (Date.parse(m.startsAt) < lim) delete cal.matches[id];
+    cal.coupons = cal.coupons.filter((c) => c.at > lim).slice(-3000);
+  }
+  // Maç öncesi tahmin: başlamadan önceki son değer tutulur.
+  async function calLogMatches(events) {
+    await calLoad();
+    const now = Date.now();
+    for (const e of events) {
+      if (Date.parse(e.startsAt) <= now) continue;
+      const old = cal.matches[e.id];
+      cal.matches[e.id] = { ...(old || {}), bookId: e.bookId || old?.bookId || null, home: e.home, away: e.away, league: e.league, startsAt: e.startsAt, lam: e.lam, site: e.site, src: e.src || '6q', at: now };
+    }
+    calPrune();
+    await calSave();
+  }
+  async function calLogCoupons(list) {
+    await calLoad();
+    const now = Date.now();
+    const have = new Set(cal.coupons.map((c) => c.key));
+    for (const c of list) {
+      const key = keyOf(c);
+      if (have.has(key)) continue;
+      have.add(key);
+      cal.coupons.push({ key, at: now, side: c.side, line: c.line, odds: c.odds, p: c.p, ev: c.ev, lam: c.lamFair, legs: c.legs.map((m) => m.g.id) });
+    }
+    calPrune();
+    await calSave();
+  }
+  // Skor izleme: başlamış maçların bülten kaydı 10 dakikada bir sorulur. Bitince (ya da kayıt silinince, son görülen
+  // dakika 88+ ise) 90 dakikanın skoru yazılır. Uzatmaya giden (120+ dk) maçlar ölçümden çıkarılır.
+  async function calUpdate(force = false) {
+    const now = Date.now();
+    if (!force && now - calLastUpd < 5 * 60 * 1000) return;
+    calLastUpd = now;
+    await calLoad();
+    const due = Object.values(cal.matches).filter((m) => {
+      const t = Date.parse(m.startsAt);
+      return !m.res && m.bookId && t + 30 * 60 * 1000 < now && t > now - 3 * 86400e3 && (!m.chk || now - m.chk > 10 * 60 * 1000);
+    }).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)).slice(0, 30);
+    if (!due.length) return;
+    const fin = (m, h, a, sec) => { m.res = sec != null && sec > 115 * 60 ? { void: 'uzatma' } : { h, a, total: h + a, at: now }; };
+    await pool(due, 3, async (m) => {
+      m.chk = now;
+      const t = Date.parse(m.startsAt);
+      let ev = null;
+      try { ev = await getJ(`/events/${m.bookId}`); } catch (err) { ev = { gone: String(err?.message || err) }; }
+      const ls = ev?.liveScore;
+      const st = `${ev?.status || ''}/${ls?.status || ''}`;
+      if (ls && ls.home != null && /END|FIN|CLOS|COMPLET|AFTER/i.test(st)) { fin(m, Number(ls.home), Number(ls.away), ls.clockSeconds); return; }
+      if (ls && ls.home != null) m.last = { h: Number(ls.home), a: Number(ls.away), sec: Number(ls.clockSeconds) || null, at: now };
+      const late = t + 3 * 3600 * 1000 < now;
+      if ((ev?.gone || late) && m.last && (m.last.sec || 0) >= 88 * 60) { fin(m, m.last.h, m.last.a, m.last.sec); return; }
+      if (late && t + 8 * 3600 * 1000 < now) m.res = { void: 'sonuç yok' };
+      if (/CANCEL|POSTPON|ABANDON/i.test(st)) m.res = { void: 'ertelendi' };
+    });
+    await calSave();
+  }
+
+  // Ölçüm: maç düzeyi (beklenen gol, 1.5/2.5/3.5 üst olasılığı) ve kupon düzeyi (olasılık dilimlerine göre tutma).
+  function calStats() {
+    if (!cal) return null;
+    const done = Object.values(cal.matches).filter((m) => m.res && m.res.total != null);
+    const pending = Object.values(cal.matches).filter((m) => !m.res && Date.parse(m.startsAt) <= Date.now()).length;
+    const grp = (arr) => {
+      if (!arr.length) return null;
+      const avg = (f) => arr.reduce((t, m) => t + f(m), 0) / arr.length;
+      const lines = [1.5, 2.5, 3.5].map((L) => ({ L, pred: avg((m) => 1 - cdf(Math.floor(L), m.lam)), act: avg((m) => (m.res.total > L ? 1 : 0)) }));
+      const brier = avg((m) => { const p = 1 - cdf(2, m.lam); const o = m.res.total > 2.5 ? 1 : 0; return (p - o) ** 2; });
+      return { n: arr.length, lam: avg((m) => m.lam), site: avg((m) => m.site || m.lam), goals: avg((m) => m.res.total), lines, brier };
+    };
+    const byRes = new Map(done.map((m) => [Object.keys(cal.matches).find((k) => cal.matches[k] === m), m]));
+    const coupons = [];
+    for (const c of cal.coupons) {
+      const legs = c.legs.map((id) => cal.matches[id]);
+      if (legs.some((m) => !m || !m.res)) continue;
+      if (legs.some((m) => m.res.total == null)) continue;
+      const total = legs.reduce((t, m) => t + m.res.total, 0);
+      coupons.push({ ...c, hit: c.side === 'OVER' ? total > c.line : total < c.line, total });
+    }
+    const BUCKETS = [[0, 0.2], [0.2, 0.4], [0.4, 0.6], [0.6, 0.8], [0.8, 1.01]];
+    const buckets = BUCKETS.map(([lo, hi]) => {
+      const arr = coupons.filter((c) => c.p >= lo && c.p < hi);
+      return { lo, hi, n: arr.length, pred: arr.length ? arr.reduce((t, c) => t + c.p, 0) / arr.length : null, act: arr.length ? arr.filter((c) => c.hit).length / arr.length : null };
+    });
+    const roi = coupons.length ? coupons.reduce((t, c) => t + (c.hit ? c.odds : 0), 0) / coupons.length - 1 : null;
+    const sides = ['OVER', 'UNDER'].map((sd) => {
+      const arr = coupons.filter((c) => c.side === sd);
+      return { side: sd, n: arr.length, pred: arr.length ? arr.reduce((t, c) => t + c.p, 0) / arr.length : null, act: arr.length ? arr.filter((c) => c.hit).length / arr.length : null };
+    });
+    void byRes;
+    return {
+      matches: grp(done), m6q: grp(done.filter((m) => m.src !== 'yz')), myz: grp(done.filter((m) => m.src === 'yz')),
+      logged: Object.keys(cal.matches).length, pending, coupons: coupons.length, loggedCoupons: cal.coupons.length, buckets, roi, sides,
+    };
+  }
+
   async function backgroundTick() {
     try {
       if (collecting) return;
       data = (await store.get(DATA_KEY)) || data;
       seed(data);
       publishMissing();
+      calUpdate().catch(() => {});
       if (fresh(data)) return;
       const lock = await store.get(LOCK_KEY);
       if (lock && Date.now() - lock < 3 * 60 * 1000) return; // başka sekme topluyor
@@ -1154,8 +1269,9 @@
     const main = modal.querySelector('.kk-main');
     modal.querySelector('.kk-tab[data-tab="favs"] em').textContent = favs.length;
     modal.querySelectorAll('.kk-tab').forEach((x) => x.classList.toggle('is-on', x.dataset.tab === tab));
-    modal.querySelector('.kk-shell').classList.toggle('is-favs', tab === 'favs');
+    modal.querySelector('.kk-shell').classList.toggle('is-favs', tab !== 'build');
     modal.querySelector('.kk-status-wrap').innerHTML = statusHtml();
+    if (tab === 'cal') { renderCal(); return; }
     const list = curList();
     if (tab === 'favs' && !list.length) {
       main.innerHTML = `<div class="kk-empty-box kk-empty-box--big">${ICON.star}<b>Henüz favori yok</b><span>Oluşturulan kuponlardaki ☆ simgesine basarak kaydet; burada birlikte kâr/zarar ve tutma olasılığı hesaplanır.</span></div>`;
@@ -1180,6 +1296,40 @@
       + `<div class="kk-rows">${sorted.map(rowHtml).join('')}</div></section><section class="kk-pane"></section></div>`;
     showDetail();
   }
+  // ---------- kalibrasyon ekranı ----------
+  const pc = (x) => (x == null ? '—' : `%${(x * 100).toFixed(1)}`);
+  const diffCls = (pred, act) => (pred == null || act == null ? '' : Math.abs(act - pred) < 0.03 ? 'is-up' : act < pred ? 'is-down' : 'is-up');
+  async function renderCal() {
+    const main = modal.querySelector('.kk-main');
+    main.innerHTML = '<div class="kk-wait"><div class="kk-spinner"></div><b>Sonuçlar güncelleniyor…</b><span>Başlamış maçların skoru 6q bülteninden okunuyor.</span></div>';
+    try { await calUpdate(true); } catch { /* yine de göster */ }
+    if (tab !== 'cal') return;
+    const st = calStats();
+    const head = `<section class="kk-cal-intro"><div><h3>Kalibrasyon</h3><p>Eklentinin tahminleri gerçek sonuçlarla karşılaştırılır. Her veri toplamasında maçların maç öncesi tahmini, her oluşturmada kuponlar kaydedilir; maçlar bitince 6q bülteninden 90 dakikanın skoru okunur. Son ${CAL_DAYS} gün saklanır.</p></div>`
+      + `<div class="kk-cal-counts"><span><b>${st?.logged || 0}</b> maç kayıtlı</span><span><b>${st?.matches?.n || 0}</b> maç sonuçlandı</span><span><b>${st?.pending || 0}</b> maç sonuç bekliyor</span><span><b>${st?.coupons || 0}</b> / ${st?.loggedCoupons || 0} kupon sonuçlandı</span></div></section>`;
+    if (!st || !st.matches) {
+      main.innerHTML = head + `<div class="kk-empty-box">${ICON.spark}<b>Henüz sonuç yok</b><span>6q açıkken tahminler kendiliğinden kaydediliyor. İlk maçlar bittikten sonra (yaklaşık 2 saat) burada isabet oranları görünmeye başlar; anlamlı sonuç için birkaç gün beklemek gerekir.</span></div>`;
+      return;
+    }
+    const mRow = (title, g) => (g ? `<tr><th>${title}</th><td>${g.n}</td><td>${g.lam.toFixed(2)}</td><td>${g.site.toFixed(2)}</td><td class="${Math.abs(g.goals - g.lam) < 0.15 ? 'is-up' : 'is-down'}">${g.goals.toFixed(2)}</td>`
+      + g.lines.map((x) => `<td>${pc(x.pred)} → <b class="${diffCls(x.pred, x.act)}">${pc(x.act)}</b></td>`).join('') + `<td>${g.brier.toFixed(3)}</td></tr>` : '');
+    const matchTable = `<section class="kk-cal-card"><h4>Maç düzeyi</h4><p>Beklenen gol ve "üst" olasılıkları gerçekleşenle. Ok: tahmin → gerçekleşen. Fark küçükse tahmin isabetli.</p>`
+      + `<table class="kk-cal-table"><thead><tr><th></th><th>Maç</th><th>Beklenen gol</th><th>Sitenin</th><th>Gerçek gol</th><th>1.5 üst</th><th>2.5 üst</th><th>3.5 üst</th><th>Brier (2.5)</th></tr></thead>`
+      + `<tbody>${mRow('Hepsi', st.matches)}${mRow('Oranlı (6q)', st.m6q)}${mRow('YZ tahmini', st.myz)}</tbody></table></section>`;
+    const bars = st.buckets.map((b) => {
+      const label = `%${Math.round(b.lo * 100)}–${Math.min(100, Math.round(b.hi * 100))}`;
+      if (!b.n) return `<div class="kk-rel"><span>${label}</span><div class="kk-rel-bar"></div><em>kupon yok</em></div>`;
+      return `<div class="kk-rel"><span>${label}</span><div class="kk-rel-bar"><i class="kk-rel-pred" style="width:${b.pred * 100}%"></i><i class="kk-rel-act ${diffCls(b.pred, b.act)}" style="width:${b.act * 100}%"></i></div>`
+        + `<em>${b.n} kupon · tahmin ${pc(b.pred)} · tuttu <b class="${diffCls(b.pred, b.act)}">${pc(b.act)}</b></em></div>`;
+    }).join('');
+    const sides = st.sides.map((x) => `<span>${sideTxt(x.side)}: ${x.n} kupon · tahmin ${pc(x.pred)} · tuttu <b class="${diffCls(x.pred, x.act)}">${pc(x.act)}</b></span>`).join('');
+    const couponCard = `<section class="kk-cal-card"><h4>Kupon düzeyi</h4><p>Oluşturulan kuponlar tahmin edilen tutma olasılığına göre dilimlendi. Gri çizgi tahmin, renkli çizgi gerçekte tutma oranı.</p>`
+      + (st.coupons ? `<div class="kk-rels">${bars}</div><div class="kk-cal-foot">${sides}<span>Her kupona 1 birim: ortalama getiri <b class="${tone(st.roi)}">${pct(st.roi)}</b></span></div>`
+        : '<p class="kk-set-empty">Henüz bütün maçları bitmiş kupon yok.</p>') + '</section>';
+    const note = '<p class="kk-banner">Az sayıda maçla yüzdeler çok oynar; 100+ maç ve 50+ kupondan sonra güvenilir hale gelir. Brier puanı ne kadar küçükse o kadar iyi (rastgele tahmin ≈ 0.25).</p>';
+    main.innerHTML = head + note + `<div class="kk-cal-grid">${matchTable}${couponCard}</div>`;
+  }
+
   function showDetail() {
     const pane = modal.querySelector('.kk-pane');
     const k = tab === 'favs' ? favSel : selKey;
@@ -1243,6 +1393,7 @@
     try {
       const { list, stats } = await build({ ...state, sizes: sizesOverride || [...state.sizes].sort((a, b) => a - b) }, say, force);
       lastList = list;
+      calLogCoupons(list).catch(() => {});
       lastStats = stats;
       offSet.clear();
       selKey = null;
@@ -1258,7 +1409,7 @@
   }
   function renderTabsOnly() {
     modal.querySelectorAll('.kk-tab').forEach((x) => x.classList.toggle('is-on', x.dataset.tab === tab));
-    modal.querySelector('.kk-shell').classList.toggle('is-favs', tab === 'favs');
+    modal.querySelector('.kk-shell').classList.toggle('is-favs', tab !== 'build');
     modal.querySelector('.kk-tab[data-tab="favs"] em').textContent = favs.length;
   }
 
@@ -1291,7 +1442,8 @@
       + '<header class="kk-top">'
       + `<div class="kk-brand"><span class="kk-logo">${ICON.ball}</span><div><h2>Kupon Asistanı</h2><p>Goal Mix · adil oranla kupon önerisi</p></div></div>`
       + '<nav class="kk-tabs" role="tablist"><button type="button" class="kk-tab is-on" data-tab="build" role="tab">Kupon oluştur</button>'
-      + `<button type="button" class="kk-tab" data-tab="favs" role="tab">${ICON.star}Favoriler <em>0</em></button></nav>`
+      + `<button type="button" class="kk-tab" data-tab="favs" role="tab">${ICON.star}Favoriler <em>0</em></button>`
+      + '<button type="button" class="kk-tab" data-tab="cal" role="tab">Kalibrasyon</button></nav>'
       + `<div class="kk-top-right"><span class="kk-status-wrap"></span><button type="button" class="kk-icon-btn kk-refresh" title="Maç verisini yenile">${ICON.refresh}</button>`
       + `<button type="button" class="kk-icon-btn kk-x" aria-label="Kapat">${ICON.close}</button></div></header>`
       + '<div class="kk-body"><aside class="kk-side"><div class="kk-side-body"></div>'
