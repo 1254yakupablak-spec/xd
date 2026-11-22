@@ -1,6 +1,6 @@
 {
- "at": "2026-11-22T13:36:12.390Z",
- "count": 41,
+ "at": "2026-11-22T13:36:50.447Z",
+ "count": 60,
  "matches": {
   "01M7H0FNB8EF7T97Q8J73WZB6F": {
    "lam": 3.1,
@@ -329,6 +329,158 @@
    "away": "Primeiro de Maio",
    "startsAt": "2026-11-22T14:30:00.000Z",
    "at": "2026-11-22T13:36:11.596Z"
+  },
+  "01M77AWWPEK1ZCS31TMC2NQT9S": {
+   "lam": 2.45,
+   "note": "Yunanistan ligi alt sıra eşleşmesi, iki takım da formsuz; lig ortalaması ~2.4",
+   "home": "Panetolikos",
+   "away": "Volos",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.507Z"
+  },
+  "01M7H6SB3FNPKJFVB16HXNX1YT": {
+   "lam": 2.9,
+   "note": "Challenger Pro League, Beerschot favori, U23 rakip açık oynuyor",
+   "home": "Beerschot VA",
+   "away": "Genk U23",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7Q0465BHMSCMTRRQ7QBC1V5": {
+   "lam": 2.35,
+   "note": "Primera RFEF, iki takım da yeni yükseldi; Fabril az gol atıyor",
+   "home": "Dep. Fabril",
+   "away": "CD Coria",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7Q0465BPMYP9FVXFVA8ZG0V": {
+   "lam": 2.8,
+   "note": "Tercera RFEF, son H2H 3-3; Molinense gol yiyor",
+   "home": "UCAM Murcia B",
+   "away": "Molinense",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7QWF5K6VJF34F3JGPHQK9C6": {
+   "lam": 3,
+   "note": "Kadın Bundesliga, Wolfsburg son 4 maçı kazandı; önceki skor 3-1",
+   "home": "RB Leipzig W",
+   "away": "Wolfsburg W",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7R2P6SGB2355Y93Y2SFKPQG": {
+   "lam": 2.4,
+   "note": "Şili ikinci lig play-off ilk maçı; temkinli, lig maçı 2-0 bitmişti",
+   "home": "San Marcos de Arica",
+   "away": "Magallanes",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7S8CGBPBES2E1CF3WQ17WV7": {
+   "lam": 2.55,
+   "note": "Serie D I grubu Sicilya derbisi; Igea son iki maçı kazandı (3-0, 2-1)",
+   "home": "Gela",
+   "away": "Igea Virtus",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7WC7KZZ460CXCNZJPWPR1MK": {
+   "lam": 2.2,
+   "note": "Fas 2. lig düşük gollü; Benguerir–Yacoub El Mansour, veri az",
+   "home": "Chabab Benguerir",
+   "away": "Yacoub El Mansour",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7WCR18XFNRYBBBKPAA2F8Q8": {
+   "lam": 2.75,
+   "note": "Portekiz Kupası, Farense ev sahibi ve formda (son maç 3-0)",
+   "home": "SC Farense",
+   "away": "Fatima",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7WJA8W7436RZC6KYCSZZX6H": {
+   "lam": 2.2,
+   "note": "Fas 2. lig, Mohammedia–Mouloudia Oujda; lig ortalaması ~2.1",
+   "home": "Chabab Mohammedia",
+   "away": "Mouloudia Oujda",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7WMR5HFNBVYZGNHPPCTNDXN": {
+   "lam": 3.2,
+   "note": "Meksika U21 ligi gollü; Chivas–Cruz Azul altyapı derbisi, veri az",
+   "home": "Guadalajara Chivas U21",
+   "away": "Cruz Azul U21",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7XWKSN9002ZNTDAP7HWS6GY": {
+   "lam": 2.9,
+   "note": "Lüksemburg ligi, Differdange üst sırada; lig ortalaması ~3.0",
+   "home": "Differdange",
+   "away": "Niedercorn",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7XWKSN92PC3SKTR9PSWC97R": {
+   "lam": 3,
+   "note": "Lüksemburg ligi, Walferdange yeni yükseldi; Dudelange favori",
+   "home": "Dudelange",
+   "away": "Walferdange",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7XWKSN9HJNKANJFYDH6BTZ1": {
+   "lam": 2.9,
+   "note": "Lüksemburg ligi, Racing üst sırada, Wiltz yeni yükseldi",
+   "home": "Racing Luxembourg",
+   "away": "Wiltz",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7XWKSN9MCY87KH6A2PM8AJ4": {
+   "lam": 2.8,
+   "note": "Lüksemburg ligi, şampiyon Bissen deplasmanda; dengeli eşleşme",
+   "home": "Hesperange",
+   "away": "Bissen",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7XWKSN9QXAMHB11QCQKSAWB": {
+   "lam": 3,
+   "note": "Lüksemburg ligi, savunmalar zayıf; lig ortalaması ~3.0",
+   "home": "Victoria Rosport",
+   "away": "Jeunesse Esch",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M7Z84Y2CGWCE838RA52HW4XB": {
+   "lam": 3.2,
+   "note": "Meksika U21 ligi gollü; Querétaro–Necaxa, veri az",
+   "home": "Queretaro U21",
+   "away": "Necaxa U21",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M817M9XBSK9KD6G2T204EQVJ": {
+   "lam": 3.1,
+   "note": "Lüksemburg ligi, lider Strassen yeni yükselen Ettelbruck deplasmanında",
+   "home": "Ettelbruck",
+   "away": "UNA Strassen",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
+  },
+  "01M819PY495EDGF8BGWDZA57H2": {
+   "lam": 2.9,
+   "note": "Lüksemburg ligi, Rumelange yeni yükseldi; dengeli eşleşme",
+   "home": "Hostert",
+   "away": "Rumelange",
+   "startsAt": "2026-11-22T15:00:00.000Z",
+   "at": "2026-11-22T13:36:49.509Z"
   }
  }
 }
