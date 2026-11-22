@@ -1,6 +1,6 @@
 {
- "at": "2026-11-22T13:35:39.620Z",
- "count": 25,
+ "at": "2026-11-22T13:36:12.390Z",
+ "count": 41,
  "matches": {
   "01M7H0FNB8EF7T97Q8J73WZB6F": {
    "lam": 3.1,
@@ -201,6 +201,134 @@
    "away": "Lusitania FC",
    "startsAt": "2026-11-22T14:00:00.000Z",
    "at": "2026-11-22T13:35:38.626Z"
+  },
+  "01M7Z7ETQM8S4DEXJXZ05P5GTP": {
+   "lam": 2.9,
+   "note": "Kadın lig kupası, Leicester ev sahibi; kupa maçları açık geçiyor",
+   "home": "Leicester W",
+   "away": "Wolverhampton W",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:36:11.564Z"
+  },
+  "01M7Z7R6MT77FVJWTHXX76XWHK": {
+   "lam": 2.8,
+   "note": "Kadın lig kupası, Sunderland ve Burnley 2. lig; son kupa maçları gollü",
+   "home": "Sunderland W",
+   "away": "Burnley W",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M7Z7R6MTVA85AV7TRMW00M14": {
+   "lam": 2.6,
+   "note": "Kadın lig kupası, Newcastle son iki kupa maçında gol bulamadı",
+   "home": "Newcastle Utd W",
+   "away": "Nottingham W",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M7Z7R6MTWWVDFJMM5FNS5C1Q": {
+   "lam": 2.8,
+   "note": "Kadın lig kupası, 2. lig seviyesinde dengeli eşleşme",
+   "home": "Ipswich W",
+   "away": "Southampton W",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M7Z8DDYWP31WXN05GT6CJFVP": {
+   "lam": 2.7,
+   "note": "Kadın lig kupası, Durham son maçta 3-2 kaybetti; dengeli eşleşme",
+   "home": "Sheffield Utd W",
+   "away": "Durham W",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M80RF4T5Z1RZ7M51DR660VT1": {
+   "lam": 2.8,
+   "note": "Paulista kadın play-off, Corinthians güçlü; geçmişte gollü galibiyetler",
+   "home": "Corinthians W",
+   "away": "Bragantino W",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M80RKBJG9Y2JMG19FDXEAQ53": {
+   "lam": 2.4,
+   "note": "Mineiro kadın derbisi play-off, son final 1-0; temkinli derbi",
+   "home": "Cruzeiro W",
+   "away": "Atletico-MG W",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M813BWDM05WMTRYN5CYPMRR3": {
+   "lam": 2.1,
+   "note": "Angola ligi düşük gollü; alt sıra eşleşmesi, veri az",
+   "home": "CD Lunda Sul",
+   "away": "Desportivo Huila",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M8178EBFJ1VNWD7D42BYSTXR": {
+   "lam": 3,
+   "note": "Portekiz Kupası, Gil Vicente alt lig rakibine karşı net favori",
+   "home": "Gil Vicente",
+   "away": "Olhanense",
+   "startsAt": "2026-11-22T14:00:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M8172PSH3DSHC021AP9NE5BX": {
+   "lam": 2.7,
+   "note": "Kuveyt Veliaht Kupası, iki orta sıra takımı; veri az",
+   "home": "Al Shabab",
+   "away": "Al Sahel",
+   "startsAt": "2026-11-22T14:20:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M7H0FNB8NR8FA0BMH8SK4BKM": {
+   "lam": 3.7,
+   "note": "WSL, Arsenal baskın; son eşleşmeler 5-0 ve 5-1",
+   "home": "Arsenal W",
+   "away": "West Ham W",
+   "startsAt": "2026-11-22T14:30:00.000Z",
+   "at": "2026-11-22T13:36:11.595Z"
+  },
+  "01M7TB7XSXVNEYNNSMEYRBRCXD": {
+   "lam": 2.45,
+   "note": "Serie D A grubu, son eşleşmeler 0-0 ve 2-2; Sanremese hafif favori",
+   "home": "Fezzanese",
+   "away": "Sanremese",
+   "startsAt": "2026-11-22T14:30:00.000Z",
+   "at": "2026-11-22T13:36:11.596Z"
+  },
+  "01M7XWKSN90BJWJE99VZNRS8MC": {
+   "lam": 2.1,
+   "note": "Angola ligi az gollü, Kabuscorp zayıf başladı; veri az",
+   "home": "Kabuscorp",
+   "away": "FC Luanda",
+   "startsAt": "2026-11-22T14:30:00.000Z",
+   "at": "2026-11-22T13:36:11.596Z"
+  },
+  "01M7YA4NZNJFVB9WM628D06A0N": {
+   "lam": 2.3,
+   "note": "Kamerun ligi az gollü; Canon formda, Panthère üst sıralarda",
+   "home": "Canon Yaounde",
+   "away": "Panthere",
+   "startsAt": "2026-11-22T14:30:00.000Z",
+   "at": "2026-11-22T13:36:11.596Z"
+  },
+  "01M7YA4NZNRATG5YAX4Y47DJGR": {
+   "lam": 2.3,
+   "note": "Kamerun ligi, Unisport zirvede; lig ortalaması düşük (~2.2)",
+   "home": "Dynamo Douala",
+   "away": "Unisport Bafang",
+   "startsAt": "2026-11-22T14:30:00.000Z",
+   "at": "2026-11-22T13:36:11.596Z"
+  },
+  "01M81EQKE3TGSSZXAC0MAVVKS4": {
+   "lam": 2.1,
+   "note": "Angola ligi az gollü; Caála–Primeiro de Maio dengeli, veri az",
+   "home": "Caala",
+   "away": "Primeiro de Maio",
+   "startsAt": "2026-11-22T14:30:00.000Z",
+   "at": "2026-11-22T13:36:11.596Z"
   }
  }
 }
