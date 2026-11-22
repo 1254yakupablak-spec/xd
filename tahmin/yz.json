@@ -1,6 +1,6 @@
 {
- "at": "2026-11-22T13:38:35.973Z",
- "count": 101,
+ "at": "2026-11-22T13:39:07.804Z",
+ "count": 112,
  "matches": {
   "01M7H0FNB8EF7T97Q8J73WZB6F": {
    "lam": 3.1,
@@ -809,6 +809,94 @@
    "away": "Baraunas",
    "startsAt": "2026-11-22T18:30:00.000Z",
    "at": "2026-11-22T13:38:34.670Z"
+  },
+  "01M7Y8XPXVF2FXRM34H1CBBN50": {
+   "lam": 3,
+   "note": "Bermuda ligi gollü; X-Roads zayıf (5 maçta 11 yedi), veri az",
+   "home": "Somerset",
+   "away": "X-Roads Warriors",
+   "startsAt": "2026-11-22T19:00:00.000Z",
+   "at": "2026-11-22T13:39:06.288Z"
+  },
+  "01M7Z1EARJTEZH2E3DKJ4RJT3V": {
+   "lam": 2.6,
+   "note": "Portekiz Kupası, Leiria favori; Leça Liga 3'te az gol yiyor",
+   "home": "Leiria",
+   "away": "Leca",
+   "startsAt": "2026-11-22T19:30:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M7ZGYYFYMNW8TNBX412YCXKM": {
+   "lam": 2.8,
+   "note": "Surinam ligi, Leo Victor lider; önceki eşleşmeler 3-0, 1-0, 1-2",
+   "home": "Broki",
+   "away": "Leo Victor",
+   "startsAt": "2026-11-22T19:30:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M77AWWPE2EKJR506F60WVZCB": {
+   "lam": 2.3,
+   "note": "Peru ligi şampiyonluk yarışı, yükseklikte Huancayo; kritik ve temkinli maç",
+   "home": "Sport Huancayo",
+   "away": "U. de Deportes",
+   "startsAt": "2026-11-22T20:00:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M7ZDMNTC4C8NKA9T0R39YK5D": {
+   "lam": 2.7,
+   "note": "Copa Paraíba son grup maçı, Atlético çok gol yiyor; Campinense favori",
+   "home": "Atl. Cajazeirense",
+   "away": "Campinense",
+   "startsAt": "2026-11-22T20:00:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M80TRDKNJCRKJYT4XG2V6S6N": {
+   "lam": 2.8,
+   "note": "Copa SC play-off, önceki maç 4-2; iki takım da açık oynuyor",
+   "home": "Marcilio Dias",
+   "away": "Joinville",
+   "startsAt": "2026-11-22T20:00:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M81B0KPVQEJRS10YV3H0TG67": {
+   "lam": 2.8,
+   "note": "Copa Fares Lopes, Tirol favori; Palmácia 4-0 kaybetmişti",
+   "home": "Tirol",
+   "away": "Palmacia",
+   "startsAt": "2026-11-22T20:00:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M7Z1EARJD63KG2373C8J9PCT": {
+   "lam": 2.7,
+   "note": "Portekiz Kupası, Benfica favori; son H2H 4-3, kupa maçı",
+   "home": "Torreense",
+   "away": "Benfica",
+   "startsAt": "2026-11-22T20:45:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M7QWF5K6Y93T1T4R4Q8HPXYX": {
+   "lam": 2.7,
+   "note": "Şili 3. lig, Santiago City yükselme yarışında; Osorno orta sıra",
+   "home": "Santiago City",
+   "away": "Osorno",
+   "startsAt": "2026-11-22T21:00:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M7ZM62Z24ZYTRN58BVBDHSM0": {
+   "lam": 2.5,
+   "note": "Honduras ligi, Platense formsuz; önceki H2H 3-0 ve 4-1",
+   "home": "Platense",
+   "away": "Choloma",
+   "startsAt": "2026-11-22T21:00:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
+  },
+  "01M7ZM62Z2YAPK2ZWY6HM9TTB3": {
+   "lam": 2.6,
+   "note": "Şili 3. lig, Trasandino lider; Brujas da yarışta, veri az",
+   "home": "Brujas Salamanca",
+   "away": "Trasandino",
+   "startsAt": "2026-11-22T21:00:00.000Z",
+   "at": "2026-11-22T13:39:06.290Z"
   }
  }
 }
