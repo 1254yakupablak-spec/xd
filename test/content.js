@@ -1106,15 +1106,14 @@
     return MAJOR.some(([cc, re]) => cc === c && re.test(n));
   }
   // Bayrak: iki harfli ülke kodundan emoji; İngiltere bölgeleri ve kıtalar için yakın karşılık.
+  // Ülke rozeti: kısa kod (Windows bayrak emojisi göstermediği için yazı). İngiltere bölgeleri ve kıtalar okunur kodla.
   function flagOf(code) {
     const c = String(code || '').toUpperCase();
-    if (!c) return '🌐';
-    if (c.startsWith('X-')) return c.includes('EU') ? '🇪🇺' : '🌍';
-    if (c === 'GB-ENG') return '🏴\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}';
-    if (c === 'GB-SCT') return '🏴\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}';
-    if (c === 'GB-WLS') return '🏴\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}';
-    const cc = c.slice(0, 2);
-    return /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map((ch) => 127397 + ch.charCodeAt(0))) : '🌐';
+    if (!c) return 'INT';
+    const map = { 'GB-ENG': 'ENG', 'GB-SCT': 'SCO', 'GB-WLS': 'WAL', 'GB-NIR': 'NIR' };
+    if (map[c]) return map[c];
+    if (c.startsWith('X-')) return c.includes('EU') ? 'EU' : 'INT';
+    return c.slice(0, 3);
   }
   function leagueList() {
     const now = Date.now();
@@ -1172,7 +1171,7 @@
     const q = lp.querySelector('.kk-lp-search')?.value.trim().toLocaleLowerCase('tr') || '';
     const shown = list.filter(([, v]) => !q || `${v.label} ${countryName(v.country)}`.toLocaleLowerCase('tr').includes(q));
     const card = ([key, v]) => `<button type="button" class="kk-lg${lpDraft.has(key) ? ' is-on' : ''}" data-key="${esc(key)}" aria-pressed="${lpDraft.has(key)}">`
-      + `<i class="kk-lg-check" aria-hidden="true"></i>${logoHtml(v)}<span class="kk-lg-txt"><b>${esc(v.name)}</b><small>${flagOf(v.country)} ${esc(countryName(v.country) || 'Uluslararası')}</small></span>`
+      + `<i class="kk-lg-check" aria-hidden="true"></i>${logoHtml(v)}<span class="kk-lg-txt"><b>${esc(v.name)}</b><small>${esc(countryName(v.country) || 'Uluslararası')}</small></span>`
       + `${v.major ? `<span class="kk-lg-major" title="Major lig">${ICON.star}</span>` : ''}<em>${v.n}</em></button>`;
     const majors = shown.filter(([, v]) => v.major);
     const others = shown.filter(([, v]) => !v.major);
