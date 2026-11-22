@@ -1290,7 +1290,7 @@
     const notes = tab === 'build'
       ? (autoNote ? `<p class="kk-banner kk-banner--accent">${ICON.spark}${esc(autoNote)}</p>` : '')
         + (s?.short ? `<p class="kk-banner kk-banner--warn">İstenenden az kupon kurulabildi: bu oran/çizgi aralığında yeterli uygun kombinasyon yok.</p>` : '')
-      : `<p class="kk-banner">${info(TIP.fav)} Favoriler kaydedildiği andaki oran ve olasılıklarla gösterilir. <button type="button" class="kk-chip kk-fav-clean">Geçmiş maçlıları temizle</button></p>`;
+      : `<p class="kk-banner">${info(TIP.fav)} Favoriler kaydedildiği andaki oran ve olasılıklarla gösterilir. <span class="kk-banner-btns"><button type="button" class="kk-chip kk-fav-clean">Geçmiş maçlıları temizle</button><button type="button" class="kk-chip kk-chip--danger kk-fav-clear">${ICON.trash}Tümünü temizle</button></span></p>`;
     main.innerHTML = notes + setHtml()
       + `<div class="kk-split"><section class="kk-list"><div class="kk-list-head"><span>${list.length} kupon</span>${seg('order', state.order || 'prob', ORDERS)}</div>`
       + `<div class="kk-rows">${sorted.map(rowHtml).join('')}</div></section><section class="kk-pane"></section></div>`;
@@ -1553,6 +1553,22 @@
       }
       if (t.closest('.kk-set-all')) { curOff().clear(); modal.querySelectorAll('.kk-check').forEach((x) => x.classList.add('is-on')); redrawSet(); return; }
       if (t.closest('.kk-set-none')) { curList().forEach((c) => curOff().add(keyOf(c))); modal.querySelectorAll('.kk-check').forEach((x) => x.classList.remove('is-on')); redrawSet(); return; }
+      // Tümünü temizle: iki adımlı (ilk basış onay ister, 4 sn içinde ikinci basış siler).
+      const fc = t.closest('.kk-fav-clear');
+      if (fc) {
+        if (!fc.classList.contains('is-confirm')) {
+          fc.classList.add('is-confirm');
+          fc.innerHTML = `${ICON.trash}Emin misin? ${favs.length} favori silinir · Evet, sil`;
+          setTimeout(() => { if (fc.isConnected) { fc.classList.remove('is-confirm'); fc.innerHTML = `${ICON.trash}Tümünü temizle`; } }, 4000);
+          return;
+        }
+        favs = [];
+        offFav.clear();
+        favSel = null;
+        saveFavs();
+        renderMain();
+        return;
+      }
       if (t.closest('.kk-fav-clean')) {
         favs = favs.filter((c) => couponState(c)?.cls !== 'done' && couponState(c)?.cls !== 'live');
         saveFavs();
