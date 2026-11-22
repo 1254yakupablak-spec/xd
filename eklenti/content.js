@@ -553,15 +553,21 @@
       st(12 + (43 * n) / Math.max(1, byId.size), `Maç oranları okunuyor… ${n}/${byId.size}`);
     });
 
-    // Bültende Alt/Üst oranı olmayan maçlar: günlük görevin yazdığı YZ tahmini (varsa) kullanılır (sadece futbol).
-    const yz = foot ? await loadYz() : {};
+    // Bültende Alt/Üst oranı olmayan maçlar: günlük görevin yazdığı YZ tahmini (varsa) kullanılır. Basketbolda tahmin
+    // toplam sayıdır (uzatmalar dahil); sapma verilmediyse 17 sayı (bültenden çıkan tipik değer) alınır.
+    const yz = await loadYz();
     for (const it of items) {
       const t = yz[it.g.id];
-      if (!it.fair && t?.lam > 0.3 && t.lam < 9) it.fair = { lam: Number(t.lam), src: 'yz', at: Date.parse(t.at) || now, note: String(t.note || '').slice(0, 300) };
+      if (it.fair || !t) continue;
+      const lam = Number(t.lam);
+      const ok = S.normal ? lam > 80 && lam < 330 && (t.sport || 'football') === sp : lam > 0.3 && lam < 9 && (t.sport || 'football') === 'football';
+      if (!ok) continue;
+      const sd = S.normal ? (Number(t.sd) >= 8 && Number(t.sd) <= 30 ? Number(t.sd) : 17) : null;
+      it.fair = { lam, sd, src: 'yz', at: Date.parse(t.at) || now, note: String(t.note || '').slice(0, 300) };
     }
     const missing = items.filter((it) => !it.fair || it.fair.src === 'yz').map((it) => ({
       id: it.g.id, home: it.g.home, away: it.g.away, league: it.g.league?.name || '', leagueId: it.g.league?.id || '', country: it.g.country?.code || '',
-      startsAt: it.g.startsAt, yz: it.fair?.src === 'yz' ? it.fair.lam : null,
+      startsAt: it.g.startsAt, sport: sp, yz: it.fair?.src === 'yz' ? it.fair.lam : null,
     }));
 
     let forms = new Map();
@@ -599,7 +605,7 @@
     if (foot) calLogMatches(events).catch(() => {});
     await store.set(S.dataKey, d);
     setProg(null, null, sp);
-    if (foot) publishMissing();
+    publishMissing();
     return d;
   }
 
@@ -611,9 +617,10 @@
 
   // Bültende oranı olmayan maçlar sayfada gizli bir JSON olarak durur (#kk-missing): günlük YZ tahmin görevi okur.
   // Sadece maç adları, lig ve saat içerir.
+  // İki branşın eksik maçları tek listede (her maçta sport alanı: football | basketball).
   function publishMissing() {
-    const data = datas.football;
-    if (!data || !document.body) return;
+    const parts = SPORT_KEYS.map((k) => datas[k]).filter(Boolean);
+    if (!parts.length || !document.body) return;
     let el = document.getElementById('kk-missing');
     if (!el) {
       el = document.createElement('script');
@@ -623,7 +630,11 @@
     }
     // YZ görevi sadece önümüzdeki 48 saati tahmin eder (uzak maçlar sonraki çalışmalarda gelir).
     const lim = Date.now() + 48 * 3600 * 1000;
-    el.textContent = JSON.stringify({ at: new Date(data.at).toISOString(), total: data.total, missing: (data.missing || []).filter((m) => Date.parse(m.startsAt) < lim) });
+    el.textContent = JSON.stringify({
+      at: new Date(Math.max(...parts.map((d) => d.at))).toISOString(),
+      total: parts.reduce((t, d) => t + (d.total || 0), 0),
+      missing: parts.flatMap((d) => (d.missing || []).filter((m) => Date.parse(m.startsAt) < lim).map((m) => ({ ...m, sport: m.sport || d.sport || 'football' }))),
+    });
   }
 
   // Tek seferde bir toplama (branş başına); force değilse veri tazeyse ya da başka sekme topluyorsa beklenmez.
@@ -760,7 +771,7 @@
         const S = SPORTS[sp];
         datas[sp] = (await store.get(S.dataKey)) || datas[sp];
         seed(datas[sp], sp);
-        if (sp === 'football') publishMissing();
+        publishMissing();
         if (fresh(datas[sp])) continue;
         const lock = await store.get(S.lockKey);
         if (lock && Date.now() - lock < 3 * 60 * 1000) continue; // başka sekme topluyor
@@ -1022,7 +1033,6 @@
     delete state.formW;
     state.sport = sp;
     if (![12, 24, 48, 72, 168].includes(state.hours)) state.hours = DEFAULTS[sp].hours; // eski 6 sa seçeneği kalktı
-    if (sp !== 'football') state.useYz = 0;
   }
   loadState(SPORTS[localStorage.getItem('kkSport')] ? localStorage.getItem('kkSport') : 'football');
   // Goal Mix'in izin verdiği en çok maç, branş başına (sitenin ayarı; okunamazsa futbol 10, basketbol 5).
@@ -1114,7 +1124,7 @@
     data: 'Ekranda görünenler değil, önümüzdeki 7 gündeki bütün Goal Mix maçları okunur (yakın maçların oranları 20 dakikada, 1–3 gün sonrakiler 2 saatte, daha uzaktakiler 6 saatte bir yenilenir). Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez (YZ tahmini dahil edilmedikçe). Basketbolda bültenin uzatmalar dahil Alt/Üst çizgilerinden maçın beklenen sayısı ve oynaklığı (normal dağılım) bulunur; Goal Mix de uzatmaları sayar.',
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
     auto: 'Açıkken Kuponları oluştur önce senin oran ve maç sayısı aralığında Alt/Üst ve maç sayısı kombinasyonlarını tarar; Öncelik\'e göre en iyi kupon setini veren ayarı seçer ve kuponları onunla oluşturur. Otomatik seçilen alanlar (Alt/Üst, çizgi) kilitlenir.',
-    yz: 'Normal bültende Alt/Üst oranı olmayan maçlar için günde iki kez (00:00 ve 12:00) yapay zekâ beklenen gol tahmini yapar. Dahil: bu maçlar da kuponlara girer, maç satırında YZ etiketiyle. Tahmin, oranlardan çıkan beklentiden daha az isabetlidir.',
+    yz: 'Normal bültende Alt/Üst oranı olmayan maçlar için günde iki kez (00:00 ve 12:00) yapay zekâ beklenen gol (basketbolda uzatmalar dahil toplam sayı) tahmini yapar. Dahil: bu maçlar da kuponlara girer, maç satırında YZ etiketiyle. Tahmin, oranlardan çıkan beklentiden daha az isabetlidir.',
     line: 'Kuponun toplam gol (basketbolda sayı) çizgisi sınırı. Örnek: Alt, en az 5.5, en çok 8.5 → sadece 5.5, 6.5, 7.5, 8.5 Alt kuponlar. Boş = sınırsız. Tam sayı yazılırsa en az yukarı (6 → 6.5), en çok aşağı (6 → 5.5) yuvarlanır.',
     xg: 'Maçın adil gol (basketbolda sayı) beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
     repeat: 'Tekrarlı: kuponların yarısı tamamen farklı maçlardan, kalan yarısı tekrara izin verilerek kurulur (bir maç en fazla 3 kupona girer). Tekrarsız: her maç en fazla bir kuponda. Ters çizgi: bir maç en fazla bir Üst ve bir Alt kupona girer. Tekrarsız ve ters çizgide istenenden az kupon çıkabilir.',
@@ -1406,7 +1416,7 @@
       + section('Maçlar',
         field('Başlama', seg('hours', state.hours, [[12, '12 sa'], [24, '24 sa'], [48, '48 sa'], [72, '72 sa'], [168, '7 gün']]))
         + field('Lig', `<button type="button" class="kk-input kk-lg-btn">${leagueBtnHtml()}</button>`)
-        + (state.sport === 'football' ? field(`YZ tahmini ${info(TIP.yz)}`, seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])) : ''));
+        + field(`YZ tahmini ${info(TIP.yz)}`, seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])));
   }
 
   function save() {
