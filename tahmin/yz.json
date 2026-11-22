@@ -1,6 +1,6 @@
 {
- "at": "2026-11-22T13:38:08.755Z",
- "count": 90,
+ "at": "2026-11-22T13:38:35.973Z",
+ "count": 101,
  "matches": {
   "01M7H0FNB8EF7T97Q8J73WZB6F": {
    "lam": 3.1,
@@ -721,6 +721,94 @@
    "away": "US Boujaad",
    "startsAt": "2026-11-22T17:00:00.000Z",
    "at": "2026-11-22T13:38:08.208Z"
+  },
+  "01M7YH4YB3ETW9XG1KTWQTFZ9T": {
+   "lam": 2,
+   "note": "Senegal ligi az gollü; Guédiawaye–Jaraaf son H2H 1-2",
+   "home": "Guediawaye",
+   "away": "Jaraaf",
+   "startsAt": "2026-11-22T17:00:00.000Z",
+   "at": "2026-11-22T13:38:34.663Z"
+  },
+  "01M7Z9MCJ23WWM5WM5A5TSWZR0": {
+   "lam": 3,
+   "note": "Portekiz kadın derbisi, iki güçlü takım; Sporting gollü oynuyor",
+   "home": "Porto W",
+   "away": "Sporting W",
+   "startsAt": "2026-11-22T17:00:00.000Z",
+   "at": "2026-11-22T13:38:34.669Z"
+  },
+  "01M7ZPBNAQ54TFDAHCKT64ZZTF": {
+   "lam": 2.4,
+   "note": "Kosta Rika 2. lig play-off; Sarchí son H2H 2-0 ve 1-1",
+   "home": "AD Sarchi",
+   "away": "Grecia",
+   "startsAt": "2026-11-22T17:00:00.000Z",
+   "at": "2026-11-22T13:38:34.669Z"
+  },
+  "01M7FKCR1ANBYW3A4FQ7TENFR4": {
+   "lam": 2.5,
+   "note": "LaLiga2, Celta B yeni yükseldi, Valladolid alt sıralarda; veri az",
+   "home": "Celta Vigo B",
+   "away": "Valladolid",
+   "startsAt": "2026-11-22T17:30:00.000Z",
+   "at": "2026-11-22T13:38:34.669Z"
+  },
+  "01M7QWF5K6DDM1FQGYCDDD6ARH": {
+   "lam": 3,
+   "note": "Kadın Bundesliga, iki takım da alt sıra ve çok gol yiyor",
+   "home": "Mainz W",
+   "away": "1.FC Nurnberg W",
+   "startsAt": "2026-11-22T17:30:00.000Z",
+   "at": "2026-11-22T13:38:34.670Z"
+  },
+  "01M80ASD68MHJ20MHYXA3SKEYP": {
+   "lam": 1.9,
+   "note": "Tanzanya ligi az gollü; Geita zayıf, önceki H2H 1-3 ve 0-0",
+   "home": "Geita Gold",
+   "away": "Mashujaa",
+   "startsAt": "2026-11-22T17:30:00.000Z",
+   "at": "2026-11-22T13:38:34.670Z"
+  },
+  "01M7Z1EARJTN2AB513X6SJZ4WB": {
+   "lam": 2.6,
+   "note": "Portekiz Kupası, Estrela–Portimonense; son H2H 3-1, kupa maçı",
+   "home": "Estrela",
+   "away": "Portimonense",
+   "startsAt": "2026-11-22T18:00:00.000Z",
+   "at": "2026-11-22T13:38:34.670Z"
+  },
+  "01M7ZMJJQA1NYGEQPRD6VZPP8Z": {
+   "lam": 3,
+   "note": "Meksika 3. lig, Tigres de Álica gollü (5-0); veri az",
+   "home": "Montaneses",
+   "away": "Tigres de Alica",
+   "startsAt": "2026-11-22T18:00:00.000Z",
+   "at": "2026-11-22T13:38:34.670Z"
+  },
+  "01M80RZBK47WKG1VVH2JQJWQE7": {
+   "lam": 2.5,
+   "note": "Carioca alt lig play-off, son H2H 1-1; temkinli eşleşme",
+   "home": "Belford Roxo",
+   "away": "Serra Macaense",
+   "startsAt": "2026-11-22T18:00:00.000Z",
+   "at": "2026-11-22T13:38:34.670Z"
+  },
+  "01M7H6SB3FKFFF447AX412FG07": {
+   "lam": 3,
+   "note": "Challenger Pro League, U23 Gent çok gol yiyor; önceki H2H 1-0",
+   "home": "Gent U23",
+   "away": "Francs Borains",
+   "startsAt": "2026-11-22T18:15:00.000Z",
+   "at": "2026-11-22T13:38:34.670Z"
+  },
+  "01M80RZBK4NT5MHF31T9GGSYRA": {
+   "lam": 2.7,
+   "note": "Potiguar 2. lig son hafta, Baraúnas lider; Alecrim yükselme için oynuyor",
+   "home": "Alecrim",
+   "away": "Baraunas",
+   "startsAt": "2026-11-22T18:30:00.000Z",
+   "at": "2026-11-22T13:38:34.670Z"
   }
  }
 }
