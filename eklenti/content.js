@@ -21,7 +21,7 @@
   const COLLECT_HOURS = 48; // arka planda bu kadar saat içinde başlayacak bütün maçlar toplanır
   const MAX_EVENTS = 600;
   const DATA_KEY = 'kkData';
-  const DATA_V = 4; // toplanan verinin biçimi; değişince eski kayıt bayat sayılır
+  const DATA_V = 5; // toplanan verinin biçimi; değişince eski kayıt bayat sayılır
   const fresh = (d) => !!d && d.v === DATA_V && Date.now() - d.at < DATA_FRESH;
   const LOCK_KEY = 'kkLock';
   const DATA_FRESH = 10 * 60 * 1000; // arka plan toplama aralığı
@@ -453,7 +453,7 @@
       if (!it.fair && t?.lam > 0.3 && t.lam < 9) it.fair = { lam: Number(t.lam), src: 'yz', at: Date.parse(t.at) || now, note: String(t.note || '').slice(0, 300) };
     }
     const missing = items.filter((it) => !it.fair || it.fair.src === 'yz').map((it) => ({
-      id: it.g.id, home: it.g.home, away: it.g.away, league: it.g.league?.name || '', country: it.g.country?.code || '',
+      id: it.g.id, home: it.g.home, away: it.g.away, league: it.g.league?.name || '', leagueId: it.g.league?.id || '', country: it.g.country?.code || '',
       startsAt: it.g.startsAt, yz: it.fair?.src === 'yz' ? it.fair.lam : null,
     }));
 
@@ -1119,13 +1119,19 @@
     const now = Date.now();
     const map = new Map();
     const labels = new Map();
-    for (const e of data?.events || []) {
+    // Bütün Goal Mix maçları sayılır; n = adil oranı hesaplanabilen (kupona girebilen), all = toplam.
+    const priced = new Set((data?.events || []).map((e) => e.id));
+    const seenIds = new Set();
+    for (const e of [...(data?.events || []), ...(data?.missing || [])]) {
+      if (seenIds.has(e.id)) continue;
+      seenIds.add(e.id);
       const t = Date.parse(e.startsAt);
       if (t <= now + 3 * 60 * 1000 || t >= now + state.hours * 3600 * 1000) continue;
       const k = leagueKey(e);
-      if (!map.has(k)) map.set(k, { label: leagueLabelOf(e), name: e.league || 'Diğer', country: e.country || '', logo: null, major: isMajor(e), n: 0 });
+      if (!map.has(k)) map.set(k, { label: leagueLabelOf(e), name: e.league || 'Diğer', country: e.country || '', logo: null, major: isMajor(e), n: 0, all: 0 });
       const v = map.get(k);
-      v.n++;
+      v.all++;
+      if (priced.has(e.id) || (e.src === 'yz' && state.useYz === 1)) v.n++;
       if (!v.logo && e.logoId) v.logo = e.logoId;
     }
     for (const v of map.values()) labels.set(v.label, (labels.get(v.label) || 0) + 1);
@@ -1133,7 +1139,7 @@
     for (const v of map.values()) {
       if (labels.get(v.label) > 1) { const i = (seen.get(v.label) || 0) + 1; seen.set(v.label, i); v.label = `${v.label} (${i})`; v.name = `${v.name} (${i})`; }
     }
-    for (const k of state.leagues) if (!map.has(k)) map.set(k, { label: k, name: k, country: '', logo: null, major: false, n: 0 });
+    for (const k of state.leagues) if (!map.has(k)) map.set(k, { label: k, name: k, country: '', logo: null, major: false, n: 0, all: 0 });
     return [...map.entries()].sort((x, y) => (y[1].major - x[1].major) || y[1].n - x[1].n || x[1].label.localeCompare(y[1].label, 'tr'));
   }
   const labelOfKey = (k) => leagueList().find(([key]) => key === k)?.[1].label || k;
@@ -1156,7 +1162,7 @@
     }
     lp.hidden = false;
     lp.innerHTML = '<div class="kk-lp-back"></div><section class="kk-lp-box" role="dialog" aria-label="Lig seç">'
-      + `<header class="kk-lp-head"><div><h3>Lig seç</h3><p>Seçili başlama aralığındaki (${state.hours} sa) ligler · boş seçim = bütün ligler</p></div><button type="button" class="kk-icon-btn kk-lp-x" aria-label="Kapat">${ICON.close}</button></header>`
+      + `<header class="kk-lp-head"><div><h3>Lig seç</h3><p>Goal Mix'te seçili başlama aralığındaki (${state.hours} sa) ligler · sayı: kupona girebilen maç (adil oranı olan) / toplam · boş seçim = bütün ligler</p></div><button type="button" class="kk-icon-btn kk-lp-x" aria-label="Kapat">${ICON.close}</button></header>`
       + '<div class="kk-lp-tools"><input class="kk-input kk-lp-search" type="search" placeholder="Lig ya da ülke ara…">'
       + `<button type="button" class="kk-chip kk-lp-major">${ICON.star}Sadece major ligler</button><button type="button" class="kk-chip kk-lp-all">Tüm ligler</button><button type="button" class="kk-chip kk-lp-none">Seçimi temizle</button></div>`
       + '<div class="kk-lp-list"></div>'
@@ -1172,7 +1178,7 @@
     const shown = list.filter(([, v]) => !q || `${v.label} ${countryName(v.country)}`.toLocaleLowerCase('tr').includes(q));
     const card = ([key, v]) => `<button type="button" class="kk-lg${lpDraft.has(key) ? ' is-on' : ''}" data-key="${esc(key)}" aria-pressed="${lpDraft.has(key)}">`
       + `<i class="kk-lg-check" aria-hidden="true"></i>${logoHtml(v)}<span class="kk-lg-txt"><b>${esc(v.name)}</b><small>${esc(countryName(v.country) || 'Uluslararası')}</small></span>`
-      + `${v.major ? `<span class="kk-lg-major" title="Major lig">${ICON.star}</span>` : ''}<em>${v.n}</em></button>`;
+      + `${v.major ? `<span class="kk-lg-major" title="Major lig">${ICON.star}</span>` : ''}<em class="${v.n ? '' : 'is-zero'}" title="${v.n} maçın adil oranı var (kupona girebilir) · Goal Mix'te toplam ${v.all} maç">${v.n === v.all ? v.n : `${v.n}/${v.all}`}</em></button>`;
     const majors = shown.filter(([, v]) => v.major);
     const others = shown.filter(([, v]) => !v.major);
     lp.querySelector('.kk-lp-list').innerHTML = !list.length
