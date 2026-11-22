@@ -21,7 +21,7 @@
   const COLLECT_HOURS = 48; // arka planda bu kadar saat içinde başlayacak bütün maçlar toplanır
   const MAX_EVENTS = 600;
   const DATA_KEY = 'kkData';
-  const DATA_V = 2; // toplanan verinin biçimi; değişince eski kayıt bayat sayılır
+  const DATA_V = 3; // toplanan verinin biçimi; değişince eski kayıt bayat sayılır
   const fresh = (d) => !!d && d.v === DATA_V && Date.now() - d.at < DATA_FRESH;
   const LOCK_KEY = 'kkLock';
   const DATA_FRESH = 10 * 60 * 1000; // arka plan toplama aralığı
@@ -467,6 +467,8 @@
       home: x.g.home,
       away: x.g.away,
       league: x.g.league?.name || '',
+      leagueId: x.g.league?.id || '',
+      country: x.g.country?.code || '',
       startsAt: x.g.startsAt,
       lam: x.fair.lam,
       src: x.fair.src,
@@ -542,7 +544,7 @@
     const items = data.events.filter((e) => {
       const t = Date.parse(e.startsAt);
       return t > now + 3 * 60 * 1000 && t < now + opts.hours * 3600 * 1000
-        && (!opts.leagues?.length || opts.leagues.includes(e.league))
+        && (!opts.leagues?.length || leagueSelected(e, opts.leagues))
         && (opts.useYz === 1 || e.src !== 'yz');
     }).map((e) => ({ lam: e.lam, site: e.site, edge: e.lam - e.site }));
     if (items.length < 2) throw new Error('Bu saat aralığında yeterli maç yok. Başlama aralığını genişlet.');
@@ -598,11 +600,11 @@
       .filter((e) => {
         const t = Date.parse(e.startsAt);
         return t > now + 3 * 60 * 1000 && t < now + opts.hours * 3600 * 1000
-          && (!opts.leagues?.length || opts.leagues.includes(e.league))
+          && (!opts.leagues?.length || leagueSelected(e, opts.leagues))
           && (opts.useYz === 1 || e.src !== 'yz');
       })
       // Yüzdeler sadece oranlardan: oranlar formu zaten içerir. Form kartta bilgi olarak gösterilir.
-      .map((e) => ({ g: { id: e.id, home: e.home, away: e.away, startsAt: e.startsAt, league: { name: e.league } }, fair: { lam: e.lam, mkt: e.lam, src: e.src || '6q', note: e.note || '' }, form: e.form || null, site: e.site, edge: e.lam - e.site }));
+      .map((e) => ({ g: { id: e.id, home: e.home, away: e.away, startsAt: e.startsAt, league: { name: e.country ? `${e.league} · ${countryName(e.country)}` : e.league } }, fair: { lam: e.lam, mkt: e.lam, src: e.src || '6q', note: e.note || '' }, form: e.form || null, site: e.site, edge: e.lam - e.site }));
     if (items.length < 2) throw new Error('Bu saat aralığında adil oranı hesaplanmış yeterli maç yok. Başlama aralığını genişlet (24 ya da 48 sa).');
     let n = 0;
 
@@ -984,28 +986,57 @@
 
   const COUNTS = [5, 10, 15, 20, 25, 30, 40, 50];
 
+  // ---------- ülke adı ----------
+  // Goal Mix ülke kodu: ISO (TR, DE…), İngiltere bölgeleri (GB-ENG…) ya da kıta/uluslararası (X-EUR, X-NAM…).
+  const REGION_TR = { 'GB-ENG': 'İngiltere', 'GB-SCT': 'İskoçya', 'GB-WLS': 'Galler', 'GB-NIR': 'K. İrlanda',
+    'X-INT': 'Uluslararası', 'X-WRL': 'Dünya', 'X-EUR': 'Avrupa', 'X-NAM': 'K. Amerika', 'X-SAM': 'G. Amerika',
+    'X-CAM': 'Orta Amerika', 'X-AFR': 'Afrika', 'X-ASI': 'Asya', 'X-ASIA': 'Asya', 'X-OCE': 'Okyanusya' };
+  let regionNames = null;
+  try { regionNames = new Intl.DisplayNames(['tr'], { type: 'region' }); } catch { regionNames = null; }
+  function countryName(code) {
+    const c = String(code || '').toUpperCase();
+    if (!c) return '';
+    if (REGION_TR[c]) return REGION_TR[c];
+    if (c.startsWith('X-')) return 'Uluslararası';
+    try { return regionNames?.of(c.slice(0, 2)) || c; } catch { return c; }
+  }
+  // Lig anahtarı: Goal Mix lig kimliği (aynı adlı farklı ligler ayrılır); yoksa ad.
+  const leagueKey = (e) => e.leagueId || e.league || 'Diğer';
+  const leagueLabelOf = (e) => (e.country ? `${e.league || 'Diğer'} · ${countryName(e.country)}` : e.league || 'Diğer');
+  // Seçili mi: kimlikle; eski sürümden kalan ad seçimleri de tanınır.
+  const leagueSelected = (e, sel) => sel.includes(leagueKey(e)) || sel.includes(e.league);
+
   // ---------- lig seçimi (çoklu seçimli açılır liste) ----------
   // Ligler toplanan veriden, seçili başlama aralığındaki maç sayısıyla gelir. Boş seçim = bütün ligler.
   function leagueList() {
     const now = Date.now();
-    const counts = new Map();
+    const map = new Map(); // anahtar → { label, n }
+    const labels = new Map(); // aynı etiket iki ligde varsa ayırt etmek için
     for (const e of data?.events || []) {
       const t = Date.parse(e.startsAt);
       if (t <= now + 3 * 60 * 1000 || t >= now + state.hours * 3600 * 1000) continue;
-      const k = e.league || 'Diğer';
-      counts.set(k, (counts.get(k) || 0) + 1);
+      const k = leagueKey(e);
+      if (!map.has(k)) map.set(k, { label: leagueLabelOf(e), n: 0 });
+      map.get(k).n++;
     }
-    for (const k of state.leagues) if (!counts.has(k)) counts.set(k, 0);
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'tr'));
+    // Ülkesi de aynı olan iki farklı lig kalırsa sıra numarası eklenir.
+    for (const v of map.values()) labels.set(v.label, (labels.get(v.label) || 0) + 1);
+    const seen = new Map();
+    for (const v of map.values()) {
+      if (labels.get(v.label) > 1) { const i = (seen.get(v.label) || 0) + 1; seen.set(v.label, i); v.label = `${v.label} (${i})`; }
+    }
+    for (const k of state.leagues) if (!map.has(k)) map.set(k, { label: k, n: 0 });
+    return [...map.entries()].sort((x, y) => y[1].n - x[1].n || x[1].label.localeCompare(y[1].label, 'tr'));
   }
-  const leagueLabel = () => (!state.leagues.length ? 'Tüm ligler' : state.leagues.length === 1 ? state.leagues[0] : `${state.leagues.length} lig seçili`);
+  const labelOfKey = (k) => leagueList().find(([key]) => key === k)?.[1].label || k;
+  const leagueLabel = () => (!state.leagues.length ? 'Tüm ligler' : state.leagues.length === 1 ? labelOfKey(state.leagues[0]) : `${state.leagues.length} lig seçili`);
   function leagueItems() {
     const list = leagueList();
     if (!list.length) return '<p class="kk-dd-empty">Maç verisi toplanınca ligler burada çıkar.</p>';
-    return list.map(([name, n]) => `<label class="kk-dd-item" data-name="${esc(name.toLocaleLowerCase('tr'))}"><input type="checkbox" value="${esc(name)}"${state.leagues.includes(name) ? ' checked' : ''}><span>${esc(name)}</span><em>${n}</em></label>`).join('');
+    return list.map(([key, v]) => `<label class="kk-dd-item" data-name="${esc(v.label.toLocaleLowerCase('tr'))}"><input type="checkbox" value="${esc(key)}"${state.leagues.includes(key) ? ' checked' : ''}><span>${esc(v.label)}</span><em>${v.n}</em></label>`).join('');
   }
   const leagueField = () => `<div class="kk-field kk-field--league"><span>Lig</span><div class="kk-dd">`
-    + `<button type="button" class="kk-input kk-dd-btn" title="${esc(state.leagues.join(', '))}">${esc(leagueLabel())}</button>`
+    + `<button type="button" class="kk-input kk-dd-btn" title="${esc(state.leagues.map(labelOfKey).join(', '))}">${esc(leagueLabel())}</button>`
     + '<div class="kk-dd-panel" hidden><input class="kk-input kk-dd-search" type="search" placeholder="Lig ara…">'
     + '<div class="kk-dd-tools"><button type="button" class="kk-dd-clear">Tüm ligler</button><button type="button" class="kk-dd-close">Tamam</button></div>'
     + `<div class="kk-dd-list">${leagueItems()}</div></div></div></div>`;
@@ -1024,7 +1055,7 @@
     const legs = state.minLegs === state.maxLegs ? `${state.minLegs} maç` : `${state.minLegs}–${state.maxLegs} maç`;
     const line = state.minLine == null && state.maxLine == null ? 'çizgi serbest' : `çizgi ${state.minLine ?? '…'}–${state.maxLine ?? '…'}`;
     const rep = { 1: 'tekrarlı', 0: 'tekrarsız', 2: 'ters çizgi' }[state.repeat];
-    const lg = !state.leagues.length ? 'tüm ligler' : state.leagues.length === 1 ? state.leagues[0] : `${state.leagues.length} lig`;
+    const lg = !state.leagues.length ? 'tüm ligler' : state.leagues.length === 1 ? labelOfKey(state.leagues[0]) : `${state.leagues.length} lig`;
     return [state.auto === 1 ? 'En iyi ayar açık' : side, state.sort === 'EV' ? 'değer' : 'olasılık', legs, `oran ${state.minOdds}–${state.maxOdds}`,
       state.auto === 1 ? null : line, `${state.count} kupon`, rep, `${state.hours} sa`, lg, state.useYz === 1 ? 'YZ dahil' : null].filter(Boolean);
   }
@@ -1195,7 +1226,7 @@
         save();
         const btn = modal.querySelector('.kk-dd-btn');
         btn.textContent = leagueLabel();
-        btn.title = state.leagues.join(', ');
+        btn.title = state.leagues.map(labelOfKey).join(', ');
         return;
       }
       if (ev.target.name === 'auto') {
