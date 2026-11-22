@@ -430,9 +430,20 @@
     return out;
   }
 
+  // ---------- ilerleme ----------
+  // Veri toplama kim başlatırsa başlatsın (arka plan ya da düğme) ilerlemesi buradan yayılır; pencere açıksa düğmede
+  // ve ana alanda yüzde olarak görünür.
+  let prog = null; // { pct, text }
+  const progSubs = new Set();
+  function setProg(pct, text) {
+    prog = pct == null ? null : { pct: Math.max(0, Math.min(100, Math.round(pct))), text };
+    progSubs.forEach((f) => { try { f(prog); } catch { /* yok */ } });
+  }
+
   async function collect(say = () => {}) {
+    const st = (pct, t) => { setProg(pct, t); say(t); };
     const now = Date.now();
-    say('Goal Mix maç listesi alınıyor…');
+    st(2, 'Goal Mix maç listesi alınıyor…');
     const gm = (await loadGoalMix()).filter((g) => {
       const t = Date.parse(g.startsAt);
       return t > now + 3 * 60 * 1000 && t < now + COLLECT_HOURS * 3600 * 1000;
@@ -441,7 +452,7 @@
     // Her maçın beklentisi 6q'nun normal bültenindeki Alt/Üst oranlarından.
     await loadAliases();
     const items = gm.map((g) => ({ g, fair: null }));
-    say('Sitenin bülteni alınıyor…');
+    st(8, 'Sitenin bülteni alınıyor…');
     const pairs = pairUp(gm, await loadBook());
     const byId = new Map(pairs.map((p) => [p.g.id, p.e]));
     let n = 0;
@@ -449,7 +460,8 @@
       const e = byId.get(it.g.id);
       const v = await fairOf(e.id, it.g.startsAt);
       if (v?.lam) it.fair = { lam: v.lam, src: '6q', at: cache.detail.get(e.id)?.at || now, bookId: e.id };
-      say(`Sitenin maç oranları okunuyor… ${++n}/${byId.size}`);
+      ++n;
+      st(12 + (43 * n) / Math.max(1, byId.size), `Maç oranları okunuyor… ${n}/${byId.size}`);
     });
 
     // Bültende Alt/Üst oranı olmayan maçlar: günlük görevin yazdığı YZ tahmini (varsa) kullanılır.
@@ -464,9 +476,13 @@
     }));
 
     let forms = new Map();
-    try { forms = await loadForms(items.map((it) => it.g), say); } catch { /* form yoksa da devam */ }
+    st(55, 'Takım formları okunuyor…');
+    try {
+      forms = await loadForms(items.map((it) => it.g), (t) => { const m = /(\d+)\/(\d+)/.exec(t); st(55 + (m ? (10 * m[1]) / Math.max(1, m[2]) : 0), t); });
+    } catch { /* form yoksa da devam */ }
     const priced = items.filter((it) => it.fair?.lam);
-    if (priced.length >= 3) await siteLambdas(priced, (i, t) => say(`Goal Mix fiyatları okunuyor… ${i}/${t}`));
+    st(65, 'Goal Mix fiyatları okunuyor…');
+    if (priced.length >= 3) await siteLambdas(priced, (i, t) => st(65 + (33 * i) / Math.max(1, t), `Goal Mix fiyatları okunuyor… ${i}/${t}`));
     const events = priced.filter((x) => x.site != null && x.site > 0.2).map((x) => ({
       id: x.g.id,
       bookId: x.fair.bookId || null,
@@ -488,6 +504,7 @@
     data = { at: Date.now(), total: gm.length, matched: pairs.length, formFound: forms.size, yzCount: events.filter((e) => e.src === 'yz').length, events, missing, v: DATA_V };
     calLogMatches(events).catch(() => {});
     await store.set(DATA_KEY, data);
+    setProg(null);
     publishMissing();
     return data;
   }
@@ -521,7 +538,7 @@
     if (!force && fresh(data)) return data;
     collecting = (async () => {
       await store.set(LOCK_KEY, Date.now());
-      try { return await collect(say); } finally { collecting = null; }
+      try { return await collect(say); } finally { collecting = null; if (prog) setProg(null); }
     })();
     return collecting;
   }
@@ -850,6 +867,7 @@
     const seen = new Set();
     const list = [];
     let from = 0;
+    let qTotal = 0;
     n = 0;
     for (let round = 0; round < 4 && pickDiverse(list).length < opts.count && from < cands.length; round++) {
       const pick = [];
@@ -859,9 +877,10 @@
         pick.push(x);
         for (const m of x.c) used.set(m.g.id, (used.get(m.g.id) || 0) + 1);
       }
+      qTotal += pick.length;
       const res = await pool(pick, 4, async (x) => {
         const r = await priceOf(x);
-        say(`Kuponların oranı soruluyor… ${++n}`);
+        say(`Kuponların oranı soruluyor… ${++n}/${qTotal}`);
         return r;
       });
       for (const x of res.flatMap((r) => (r ? [r, ...(r.alts || [])] : []))) {
@@ -1439,13 +1458,44 @@
     if (lh) lh.innerHTML = `<span>${curList().length} kupon</span>${seg('order', state.order || 'prob', ORDERS)}`;
     showDetail();
   }
+  // Bekleme paneli: adım adı + yüzde çubuğu. Yüzde, toplama adımından (prog) ya da "a/b" ilerlemesinden gelir.
+  let uiStep = '';
   function say(t) {
-    modal.querySelector('.kk-main').innerHTML = `<div class="kk-wait"><div class="kk-spinner"></div><b>${esc(t)}</b><span>Bu sırada pencereyi kapatabilirsin; hesap sürer.</span></div>`;
+    uiStep = t;
+    const m = /(\d+)\/(\d+)/.exec(t);
+    const pct = prog ? prog.pct : m ? Math.round((100 * m[1]) / Math.max(1, m[2])) : null;
+    paintWait(t, pct);
+  }
+  function paintWait(t, pct) {
+    const main = modal?.querySelector('.kk-main');
+    if (!main) return;
+    const bar = pct != null ? `<div class="kk-prog"><i style="width:${pct}%"></i></div><em class="kk-prog-pct">%${pct}</em>` : '';
+    let w = main.querySelector('.kk-wait');
+    if (!w) { main.innerHTML = '<div class="kk-wait"></div>'; w = main.querySelector('.kk-wait'); }
+    w.innerHTML = `<div class="kk-spinner"></div><b>${esc(t)}</b>${bar}<span>${prog && !busy ? 'Maç verisi arka planda okunuyor; bitince kuponlar hesaplanacak.' : 'Bu sırada pencereyi kapatabilirsin; hesap sürer.'}</span>`;
+    paintGo(pct, t);
+  }
+  // Düğme: meşgulken içinde ince bir dolum çubuğu ve kısa durum + yüzde.
+  function paintGo(pct, t) {
+    const go = modal?.querySelector('.kk-go');
+    if (!go) return;
+    const on = busy || !!prog;
+    go.classList.toggle('is-busy', on);
+    if (!on) { go.innerHTML = 'Kuponları oluştur'; go.disabled = false; return; }
+    // Sadece arka planda veri okunuyorsa düğme basılabilir kalır: basınca toplama bitince kuponlar hesaplanır.
+    if (!busy) {
+      go.innerHTML = `<span class="kk-go-fill" style="width:${pct ?? 0}%"></span><span class="kk-go-txt">Kuponları oluştur · veri %${pct ?? 0}</span>`;
+      go.disabled = false;
+      return;
+    }
+    const short = String(t || uiStep || 'Hazırlanıyor').replace(/….*$/, '').replace(/\s+\d+\/\d+$/, '');
+    go.innerHTML = `<span class="kk-go-fill" style="width:${pct ?? 0}%"></span><span class="kk-go-txt">${esc(short)}${pct != null ? ` · %${pct}` : '…'}</span>`;
+    go.disabled = true;
   }
   function setBusy(on) {
     busy = on;
-    const go = modal?.querySelector('.kk-go');
-    if (go) { go.disabled = on; go.classList.toggle('is-busy', on); }
+    if (!on) uiStep = '';
+    paintGo(prog?.pct ?? null, prog?.text || uiStep);
   }
 
   // ---------- çalıştırma ----------
@@ -1481,6 +1531,7 @@
     tab = 'build';
     renderTabsOnly();
     setBusy(true);
+    say(prog ? prog.text : 'Kuponlar hazırlanıyor…');
     try {
       const { list, stats } = await build({ ...state, sizes: sizesOverride || [...state.sizes].sort((a, b) => a - b) }, say, force);
       lastList = list;
@@ -1544,6 +1595,14 @@
     document.body.appendChild(modal);
     renderForm();
     renderMain();
+    progSubs.add((p) => {
+      if (!modal || modal.hidden) return;
+      if (p && (busy || modal.querySelector('.kk-wait'))) paintWait(p.text, p.pct);
+      else paintGo(p?.pct ?? null, p?.text);
+      const sw = modal.querySelector('.kk-status-wrap');
+      if (sw) sw.innerHTML = p ? `<span class="kk-status is-busy"><i></i>Veri okunuyor · %${p.pct}</span>` : statusHtml();
+    });
+    if (prog) paintGo(prog.pct, prog.text);
     ensureData(false).then(() => { refreshLeagues(); modal.querySelector('.kk-status-wrap').innerHTML = statusHtml(); }).catch(() => {});
 
     modal.addEventListener('mouseover', (ev) => {
