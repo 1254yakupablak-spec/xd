@@ -18,10 +18,15 @@
   const FOOTBALL = 6046;
   const OU_MARKET = 2; // sitenin "Under/Over" (maç sonu toplam gol) pazarı
   const PAGE_RE = /\/sportsbook\/goal-mix/;
-  const COLLECT_HOURS = 48; // arka planda bu kadar saat içinde başlayacak bütün maçlar toplanır
-  const MAX_EVENTS = 600;
+  const COLLECT_HOURS = 168; // arka planda bu kadar saat (7 gün) içinde başlayacak bütün maçlar toplanır
+  const MAX_EVENTS = 1200;
+  // Uzak maçların oranları seyrek değişir: yenileme aralığı maça kalan süreye göre (siteyi gereksiz sorgulamamak için).
+  const refreshTtl = (startsAt) => {
+    const h = (Date.parse(startsAt) - Date.now()) / 3600e3;
+    return h < 24 ? 20 * 60 * 1000 : h < 72 ? 2 * 3600 * 1000 : 6 * 3600 * 1000;
+  };
   const DATA_KEY = 'kkData';
-  const DATA_V = 4; // toplanan verinin biçimi; değişince eski kayıt bayat sayılır
+  const DATA_V = 6; // toplanan verinin biçimi; değişince eski kayıt bayat sayılır
   const fresh = (d) => !!d && d.v === DATA_V && Date.now() - d.at < DATA_FRESH;
   const LOCK_KEY = 'kkLock';
   const DATA_FRESH = 10 * 60 * 1000; // arka plan toplama aralığı
@@ -192,9 +197,9 @@
     return out;
   }
 
-  async function fairOf(bookId) {
+  async function fairOf(bookId, startsAt = null) {
     const hit = cache.detail.get(bookId);
-    if (hit && Date.now() - hit.at < 20 * 60 * 1000) return hit.v; // maç oranları 20 dk geçerli
+    if (hit && Date.now() - hit.at < (startsAt ? refreshTtl(startsAt) : 20 * 60 * 1000)) return hit.v; // yakın maç 20 dk, uzak maç 2–6 sa
     const d = await getJ(`/events/${bookId}`);
     const m = (d.markets || []).find((x) => x.marketTypeId === OU_MARKET && x.status === 'OPEN');
     const by = {};
@@ -223,7 +228,8 @@
   // Sitenin Goal Mix'te her maç için varsaydığı gol beklentisi: üç maçlık bir üçgenden referans maçın
   // beklentisi bulunur, sonra her maç referansla birlikte sorulur (λ toplanır).
   async function siteLambdas(items, onStep) {
-    const has = (id) => { const h = cache.site.get(id); return !!h && Date.now() - h.at < SITE_FRESH; };
+    const startOf = new Map(items.map((x) => [x.g.id, x.g.startsAt]));
+    const has = (id) => { const h = cache.site.get(id); return !!h && Date.now() - h.at < Math.max(SITE_FRESH, startOf.has(id) ? refreshTtl(startOf.get(id)) : 0); };
     const put = (id, v) => cache.site.set(id, { v, at: Date.now() });
     const need = items.filter((x) => !has(x.g.id));
     if (need.length) {
@@ -424,9 +430,20 @@
     return out;
   }
 
+  // ---------- ilerleme ----------
+  // Veri toplama kim başlatırsa başlatsın (arka plan ya da düğme) ilerlemesi buradan yayılır; pencere açıksa düğmede
+  // ve ana alanda yüzde olarak görünür.
+  let prog = null; // { pct, text }
+  const progSubs = new Set();
+  function setProg(pct, text) {
+    prog = pct == null ? null : { pct: Math.max(0, Math.min(100, Math.round(pct))), text };
+    progSubs.forEach((f) => { try { f(prog); } catch { /* yok */ } });
+  }
+
   async function collect(say = () => {}) {
+    const st = (pct, t) => { setProg(pct, t); say(t); };
     const now = Date.now();
-    say('Goal Mix maç listesi alınıyor…');
+    st(2, 'Goal Mix maç listesi alınıyor…');
     const gm = (await loadGoalMix()).filter((g) => {
       const t = Date.parse(g.startsAt);
       return t > now + 3 * 60 * 1000 && t < now + COLLECT_HOURS * 3600 * 1000;
@@ -435,15 +452,16 @@
     // Her maçın beklentisi 6q'nun normal bültenindeki Alt/Üst oranlarından.
     await loadAliases();
     const items = gm.map((g) => ({ g, fair: null }));
-    say('Sitenin bülteni alınıyor…');
+    st(8, 'Sitenin bülteni alınıyor…');
     const pairs = pairUp(gm, await loadBook());
     const byId = new Map(pairs.map((p) => [p.g.id, p.e]));
     let n = 0;
     await pool(items.filter((it) => byId.has(it.g.id)), 6, async (it) => {
       const e = byId.get(it.g.id);
-      const v = await fairOf(e.id);
+      const v = await fairOf(e.id, it.g.startsAt);
       if (v?.lam) it.fair = { lam: v.lam, src: '6q', at: cache.detail.get(e.id)?.at || now, bookId: e.id };
-      say(`Sitenin maç oranları okunuyor… ${++n}/${byId.size}`);
+      ++n;
+      st(12 + (43 * n) / Math.max(1, byId.size), `Maç oranları okunuyor… ${n}/${byId.size}`);
     });
 
     // Bültende Alt/Üst oranı olmayan maçlar: günlük görevin yazdığı YZ tahmini (varsa) kullanılır.
@@ -453,14 +471,18 @@
       if (!it.fair && t?.lam > 0.3 && t.lam < 9) it.fair = { lam: Number(t.lam), src: 'yz', at: Date.parse(t.at) || now, note: String(t.note || '').slice(0, 300) };
     }
     const missing = items.filter((it) => !it.fair || it.fair.src === 'yz').map((it) => ({
-      id: it.g.id, home: it.g.home, away: it.g.away, league: it.g.league?.name || '', country: it.g.country?.code || '',
+      id: it.g.id, home: it.g.home, away: it.g.away, league: it.g.league?.name || '', leagueId: it.g.league?.id || '', country: it.g.country?.code || '',
       startsAt: it.g.startsAt, yz: it.fair?.src === 'yz' ? it.fair.lam : null,
     }));
 
     let forms = new Map();
-    try { forms = await loadForms(items.map((it) => it.g), say); } catch { /* form yoksa da devam */ }
+    st(55, 'Takım formları okunuyor…');
+    try {
+      forms = await loadForms(items.map((it) => it.g), (t) => { const m = /(\d+)\/(\d+)/.exec(t); st(55 + (m ? (10 * m[1]) / Math.max(1, m[2]) : 0), t); });
+    } catch { /* form yoksa da devam */ }
     const priced = items.filter((it) => it.fair?.lam);
-    if (priced.length >= 3) await siteLambdas(priced, (i, t) => say(`Goal Mix fiyatları okunuyor… ${i}/${t}`));
+    st(65, 'Goal Mix fiyatları okunuyor…');
+    if (priced.length >= 3) await siteLambdas(priced, (i, t) => st(65 + (33 * i) / Math.max(1, t), `Goal Mix fiyatları okunuyor… ${i}/${t}`));
     const events = priced.filter((x) => x.site != null && x.site > 0.2).map((x) => ({
       id: x.g.id,
       bookId: x.fair.bookId || null,
@@ -482,6 +504,7 @@
     data = { at: Date.now(), total: gm.length, matched: pairs.length, formFound: forms.size, yzCount: events.filter((e) => e.src === 'yz').length, events, missing, v: DATA_V };
     calLogMatches(events).catch(() => {});
     await store.set(DATA_KEY, data);
+    setProg(null);
     publishMissing();
     return data;
   }
@@ -503,7 +526,9 @@
       el.id = 'kk-missing';
       document.body.appendChild(el);
     }
-    el.textContent = JSON.stringify({ at: new Date(data.at).toISOString(), total: data.total, missing: data.missing || [] });
+    // YZ görevi sadece önümüzdeki 48 saati tahmin eder (uzak maçlar sonraki çalışmalarda gelir).
+    const lim = Date.now() + 48 * 3600 * 1000;
+    el.textContent = JSON.stringify({ at: new Date(data.at).toISOString(), total: data.total, missing: (data.missing || []).filter((m) => Date.parse(m.startsAt) < lim) });
   }
 
   // Tek seferde bir toplama; force değilse veri tazeyse ya da başka sekme topluyorsa beklenmez.
@@ -513,7 +538,7 @@
     if (!force && fresh(data)) return data;
     collecting = (async () => {
       await store.set(LOCK_KEY, Date.now());
-      try { return await collect(say); } finally { collecting = null; }
+      try { return await collect(say); } finally { collecting = null; if (prog) setProg(null); }
     })();
     return collecting;
   }
@@ -721,7 +746,7 @@
       })
       // Yüzdeler sadece oranlardan: oranlar formu zaten içerir. Form kartta bilgi olarak gösterilir.
       .map((e) => ({ g: { id: e.id, home: e.home, away: e.away, startsAt: e.startsAt, league: { name: e.country ? `${e.league} · ${countryName(e.country)}` : e.league } }, fair: { lam: e.lam, mkt: e.lam, src: e.src || '6q', note: e.note || '' }, form: e.form || null, site: e.site, edge: e.lam - e.site }));
-    if (items.length < 2) throw new Error('Bu saat aralığında adil oranı hesaplanmış yeterli maç yok. Başlama aralığını genişlet (24 ya da 48 sa).');
+    if (items.length < 2) throw new Error('Bu saat aralığında adil oranı hesaplanmış yeterli maç yok. Başlama aralığını genişlet (48 sa, 72 sa ya da 7 gün).');
     let n = 0;
 
     const sides = opts.side === 'BOTH' ? ['OVER', 'UNDER'] : [opts.side];
@@ -842,6 +867,7 @@
     const seen = new Set();
     const list = [];
     let from = 0;
+    let qTotal = 0;
     n = 0;
     for (let round = 0; round < 4 && pickDiverse(list).length < opts.count && from < cands.length; round++) {
       const pick = [];
@@ -851,9 +877,10 @@
         pick.push(x);
         for (const m of x.c) used.set(m.g.id, (used.get(m.g.id) || 0) + 1);
       }
+      qTotal += pick.length;
       const res = await pool(pick, 4, async (x) => {
         const r = await priceOf(x);
-        say(`Kuponların oranı soruluyor… ${++n}`);
+        say(`Kuponların oranı soruluyor… ${++n}/${qTotal}`);
         return r;
       });
       for (const x of res.flatMap((r) => (r ? [r, ...(r.alts || [])] : []))) {
@@ -875,6 +902,7 @@
   let busy = false;
   const state = { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, minLine: null, maxLine: null, minLegs: 2, maxLegs: 5, repeat: 1, stake: 1, leagues: [], useYz: 0, auto: 0, sizes: [2, 3, 4, 5], hours: 24, count: 10 };
   try { Object.assign(state, JSON.parse(localStorage.getItem('kkGoalMixOpts') || '{}')); delete state.formW; } catch { /* yok */ }
+  if (![12, 24, 48, 72, 168].includes(state.hours)) state.hours = 24; // eski 6 sa seçeneği kalktı
   // Goal Mix'in izin verdiği en çok maç (sitenin ayarı; okunamazsa 10).
   let maxLegsAllowed = 10;
   getJ('/goalmix/config').then((c) => { if (c?.maxMatches >= 2) maxLegsAllowed = Math.min(15, c.maxMatches); }).catch(() => {});
@@ -952,7 +980,7 @@
     ev: 'Değer = tutma olasılığı × oran − 1. Örnek: %60 olasılık ve 1.80 oran → 0.60 × 1.80 − 1 = +%8. Artı ise site adil orandan yüksek oran veriyor (uzun vadede lehine), eksi ise düşük veriyor. Tek kuponun tutacağını göstermez.',
     fair: 'Adil oran = 1 ÷ tutma olasılığı. Sitenin payı olmasaydı bu kupona verilmesi gereken oran.',
     prob: 'Tutma olasılığı: maçların normal Alt/Üst oranlarından payı çıkarılarak bulunan gol beklentisiyle hesaplanır. Oran yükseldikçe olasılık düşer (yaklaşık 1 ÷ oran).',
-    data: 'Ekranda görünenler değil, önümüzdeki 48 saatteki bütün Goal Mix maçları okunur. Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez (YZ tahmini dahil edilmedikçe).',
+    data: 'Ekranda görünenler değil, önümüzdeki 7 gündeki bütün Goal Mix maçları okunur (yakın maçların oranları 20 dakikada, 1–3 gün sonrakiler 2 saatte, daha uzaktakiler 6 saatte bir yenilenir). Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez (YZ tahmini dahil edilmedikçe).',
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
     auto: 'Açıkken Kuponları oluştur önce senin oran ve maç sayısı aralığında Alt/Üst ve maç sayısı kombinasyonlarını tarar; Öncelik\'e göre en iyi kupon setini veren ayarı seçer ve kuponları onunla oluşturur. Otomatik seçilen alanlar (Alt/Üst, çizgi) kilitlenir.',
     yz: 'Normal bültende Alt/Üst oranı olmayan maçlar için günde iki kez (00:00 ve 12:00) yapay zekâ beklenen gol tahmini yapar. Dahil: bu maçlar da kuponlara girer, maç satırında YZ etiketiyle. Tahmin, oranlardan çıkan beklentiden daha az isabetlidir.',
@@ -1119,13 +1147,19 @@
     const now = Date.now();
     const map = new Map();
     const labels = new Map();
-    for (const e of data?.events || []) {
+    // Bütün Goal Mix maçları sayılır; n = adil oranı hesaplanabilen (kupona girebilen), all = toplam.
+    const priced = new Set((data?.events || []).map((e) => e.id));
+    const seenIds = new Set();
+    for (const e of [...(data?.events || []), ...(data?.missing || [])]) {
+      if (seenIds.has(e.id)) continue;
+      seenIds.add(e.id);
       const t = Date.parse(e.startsAt);
       if (t <= now + 3 * 60 * 1000 || t >= now + state.hours * 3600 * 1000) continue;
       const k = leagueKey(e);
-      if (!map.has(k)) map.set(k, { label: leagueLabelOf(e), name: e.league || 'Diğer', country: e.country || '', logo: null, major: isMajor(e), n: 0 });
+      if (!map.has(k)) map.set(k, { label: leagueLabelOf(e), name: e.league || 'Diğer', country: e.country || '', logo: null, major: isMajor(e), n: 0, all: 0 });
       const v = map.get(k);
-      v.n++;
+      v.all++;
+      if (priced.has(e.id) || (e.src === 'yz' && state.useYz === 1)) v.n++;
       if (!v.logo && e.logoId) v.logo = e.logoId;
     }
     for (const v of map.values()) labels.set(v.label, (labels.get(v.label) || 0) + 1);
@@ -1133,7 +1167,7 @@
     for (const v of map.values()) {
       if (labels.get(v.label) > 1) { const i = (seen.get(v.label) || 0) + 1; seen.set(v.label, i); v.label = `${v.label} (${i})`; v.name = `${v.name} (${i})`; }
     }
-    for (const k of state.leagues) if (!map.has(k)) map.set(k, { label: k, name: k, country: '', logo: null, major: false, n: 0 });
+    for (const k of state.leagues) if (!map.has(k)) map.set(k, { label: k, name: k, country: '', logo: null, major: false, n: 0, all: 0 });
     return [...map.entries()].sort((x, y) => (y[1].major - x[1].major) || y[1].n - x[1].n || x[1].label.localeCompare(y[1].label, 'tr'));
   }
   const labelOfKey = (k) => leagueList().find(([key]) => key === k)?.[1].label || k;
@@ -1156,7 +1190,7 @@
     }
     lp.hidden = false;
     lp.innerHTML = '<div class="kk-lp-back"></div><section class="kk-lp-box" role="dialog" aria-label="Lig seç">'
-      + `<header class="kk-lp-head"><div><h3>Lig seç</h3><p>Seçili başlama aralığındaki (${state.hours} sa) ligler · boş seçim = bütün ligler</p></div><button type="button" class="kk-icon-btn kk-lp-x" aria-label="Kapat">${ICON.close}</button></header>`
+      + `<header class="kk-lp-head"><div><h3>Lig seç</h3><p>Goal Mix'te seçili başlama aralığındaki (${state.hours === 168 ? '7 gün' : `${state.hours} sa`}) ligler · sayı: kupona girebilen maç (adil oranı olan) / toplam · boş seçim = bütün ligler</p></div><button type="button" class="kk-icon-btn kk-lp-x" aria-label="Kapat">${ICON.close}</button></header>`
       + '<div class="kk-lp-tools"><input class="kk-input kk-lp-search" type="search" placeholder="Lig ya da ülke ara…">'
       + `<button type="button" class="kk-chip kk-lp-major">${ICON.star}Sadece major ligler</button><button type="button" class="kk-chip kk-lp-all">Tüm ligler</button><button type="button" class="kk-chip kk-lp-none">Seçimi temizle</button></div>`
       + '<div class="kk-lp-list"></div>'
@@ -1172,7 +1206,7 @@
     const shown = list.filter(([, v]) => !q || `${v.label} ${countryName(v.country)}`.toLocaleLowerCase('tr').includes(q));
     const card = ([key, v]) => `<button type="button" class="kk-lg${lpDraft.has(key) ? ' is-on' : ''}" data-key="${esc(key)}" aria-pressed="${lpDraft.has(key)}">`
       + `<i class="kk-lg-check" aria-hidden="true"></i>${logoHtml(v)}<span class="kk-lg-txt"><b>${esc(v.name)}</b><small>${esc(countryName(v.country) || 'Uluslararası')}</small></span>`
-      + `${v.major ? `<span class="kk-lg-major" title="Major lig">${ICON.star}</span>` : ''}<em>${v.n}</em></button>`;
+      + `${v.major ? `<span class="kk-lg-major" title="Major lig">${ICON.star}</span>` : ''}<em class="${v.n ? '' : 'is-zero'}" title="${v.n} maçın adil oranı var (kupona girebilir) · Goal Mix'te toplam ${v.all} maç">${v.n === v.all ? v.n : `${v.n}/${v.all}`}</em></button>`;
     const majors = shown.filter(([, v]) => v.major);
     const others = shown.filter(([, v]) => !v.major);
     lp.querySelector('.kk-lp-list').innerHTML = !list.length
@@ -1223,7 +1257,7 @@
         + `${field(`En az çizgi ${info(TIP.line)}`, `<input class="kk-input" name="minLine" type="number" inputmode="decimal" min="0.5" step="1" placeholder="${lock ? 'otomatik' : 'sınırsız'}" value="${lock ? '' : state.minLine ?? ''}"${dis}>`, lk)}`
         + `${field('En çok çizgi', `<input class="kk-input" name="maxLine" type="number" inputmode="decimal" min="0.5" step="1" placeholder="${lock ? 'otomatik' : 'sınırsız'}" value="${lock ? '' : state.maxLine ?? ''}"${dis}>`, lk)}</div>`)
       + section('Maçlar',
-        field('Başlama', seg('hours', state.hours, [[6, '6 sa'], [12, '12 sa'], [24, '24 sa'], [48, '48 sa']]))
+        field('Başlama', seg('hours', state.hours, [[12, '12 sa'], [24, '24 sa'], [48, '48 sa'], [72, '72 sa'], [168, '7 gün']]))
         + field('Lig', `<button type="button" class="kk-input kk-lg-btn">${leagueBtnHtml()}</button>`)
         + field(`YZ tahmini ${info(TIP.yz)}`, seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])));
   }
@@ -1424,13 +1458,44 @@
     if (lh) lh.innerHTML = `<span>${curList().length} kupon</span>${seg('order', state.order || 'prob', ORDERS)}`;
     showDetail();
   }
+  // Bekleme paneli: adım adı + yüzde çubuğu. Yüzde, toplama adımından (prog) ya da "a/b" ilerlemesinden gelir.
+  let uiStep = '';
   function say(t) {
-    modal.querySelector('.kk-main').innerHTML = `<div class="kk-wait"><div class="kk-spinner"></div><b>${esc(t)}</b><span>Bu sırada pencereyi kapatabilirsin; hesap sürer.</span></div>`;
+    uiStep = t;
+    const m = /(\d+)\/(\d+)/.exec(t);
+    const pct = prog ? prog.pct : m ? Math.round((100 * m[1]) / Math.max(1, m[2])) : null;
+    paintWait(t, pct);
+  }
+  function paintWait(t, pct) {
+    const main = modal?.querySelector('.kk-main');
+    if (!main) return;
+    const bar = pct != null ? `<div class="kk-prog"><i style="width:${pct}%"></i></div><em class="kk-prog-pct">%${pct}</em>` : '';
+    let w = main.querySelector('.kk-wait');
+    if (!w) { main.innerHTML = '<div class="kk-wait"></div>'; w = main.querySelector('.kk-wait'); }
+    w.innerHTML = `<div class="kk-spinner"></div><b>${esc(t)}</b>${bar}<span>${prog && !busy ? 'Maç verisi arka planda okunuyor; bitince kuponlar hesaplanacak.' : 'Bu sırada pencereyi kapatabilirsin; hesap sürer.'}</span>`;
+    paintGo(pct, t);
+  }
+  // Düğme: meşgulken içinde ince bir dolum çubuğu ve kısa durum + yüzde.
+  function paintGo(pct, t) {
+    const go = modal?.querySelector('.kk-go');
+    if (!go) return;
+    const on = busy || !!prog;
+    go.classList.toggle('is-busy', on);
+    if (!on) { go.innerHTML = 'Kuponları oluştur'; go.disabled = false; return; }
+    // Sadece arka planda veri okunuyorsa düğme basılabilir kalır: basınca toplama bitince kuponlar hesaplanır.
+    if (!busy) {
+      go.innerHTML = `<span class="kk-go-fill" style="width:${pct ?? 0}%"></span><span class="kk-go-txt">Kuponları oluştur · veri %${pct ?? 0}</span>`;
+      go.disabled = false;
+      return;
+    }
+    const short = String(t || uiStep || 'Hazırlanıyor').replace(/….*$/, '').replace(/\s+\d+\/\d+$/, '');
+    go.innerHTML = `<span class="kk-go-fill" style="width:${pct ?? 0}%"></span><span class="kk-go-txt">${esc(short)}${pct != null ? ` · %${pct}` : '…'}</span>`;
+    go.disabled = true;
   }
   function setBusy(on) {
     busy = on;
-    const go = modal?.querySelector('.kk-go');
-    if (go) { go.disabled = on; go.classList.toggle('is-busy', on); }
+    if (!on) uiStep = '';
+    paintGo(prog?.pct ?? null, prog?.text || uiStep);
   }
 
   // ---------- çalıştırma ----------
@@ -1466,6 +1531,7 @@
     tab = 'build';
     renderTabsOnly();
     setBusy(true);
+    say(prog ? prog.text : 'Kuponlar hazırlanıyor…');
     try {
       const { list, stats } = await build({ ...state, sizes: sizesOverride || [...state.sizes].sort((a, b) => a - b) }, say, force);
       lastList = list;
@@ -1529,6 +1595,14 @@
     document.body.appendChild(modal);
     renderForm();
     renderMain();
+    progSubs.add((p) => {
+      if (!modal || modal.hidden) return;
+      if (p && (busy || modal.querySelector('.kk-wait'))) paintWait(p.text, p.pct);
+      else paintGo(p?.pct ?? null, p?.text);
+      const sw = modal.querySelector('.kk-status-wrap');
+      if (sw) sw.innerHTML = p ? `<span class="kk-status is-busy"><i></i>Veri okunuyor · %${p.pct}</span>` : statusHtml();
+    });
+    if (prog) paintGo(prog.pct, prog.text);
     ensureData(false).then(() => { refreshLeagues(); modal.querySelector('.kk-status-wrap').innerHTML = statusHtml(); }).catch(() => {});
 
     modal.addEventListener('mouseover', (ev) => {
