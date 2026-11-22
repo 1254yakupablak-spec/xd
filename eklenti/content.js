@@ -1390,7 +1390,7 @@
       if (t.closest('.kk-dd-btn')) {
         const p = modal.querySelector('.kk-dd-panel');
         p.hidden = !p.hidden;
-        if (!p.hidden) { refreshLeagues(); p.querySelector('.kk-dd-search').focus(); }
+        if (!p.hidden) { refreshLeagues(); p.querySelector('.kk-dd-search').focus({ preventScroll: true }); p.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
         return;
       }
       if (t.closest('.kk-dd-clear')) { state.leagues = []; save(); refreshLeagues(); return; }
