@@ -437,3 +437,12 @@ select.kk-input option { background: #181d2c; color: #eef1f7; }
 .kk-prog-pct { color: var(--acc); font-style: normal; font-weight: 800; font-size: 13px; }
 .kk-status.is-busy i { background: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); animation: kk-pulse 1s ease-in-out infinite; }
 @keyframes kk-pulse { 50% { opacity: 0.35; } }
+
+/* 5.6: branş seçimi */
+.kk-sport { display: flex; gap: 4px; margin-left: 8px; padding: 4px; border-radius: var(--r2); background: var(--bg); }
+.kk-sport button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 0; border-radius: 9px; background: transparent; color: var(--mut); font-weight: 700; cursor: pointer; }
+.kk-sport button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.kk-sport button:hover:not(:disabled) { color: var(--tx); }
+.kk-sport button.is-on { background: var(--acc); color: #0b1220; }
+.kk-sport button:disabled { opacity: 0.45; cursor: not-allowed; }
+.kk-shell[data-sport="basketball"] .kk-logo { color: #fb923c; }
