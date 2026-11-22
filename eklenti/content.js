@@ -17,6 +17,13 @@
   const API = 'https://sb.6q.net/v1';
   const FOOTBALL = 6046;
   const OU_MARKET = 2; // sitenin "Under/Over" (maç sonu toplam gol) pazarı
+  // Branşlar: futbolda toplam gol Poisson, basketbolda toplam sayı normal dağılım (ortalama + sapma) varsayılır.
+  // Basketbolun bülten pazarı "Under/Over Including Overtime" (uzatmalar dahil), Goal Mix de uzatmalar dahil sayar.
+  const SPORTS = {
+    football: { key: 'football', label: 'Futbol', book: FOOTBALL, market: OU_MARKET, normal: false, dataKey: 'kkData', lockKey: 'kkLock', unit: 'gol', margin: 1.085, legs: 10 },
+    basketball: { key: 'basketball', label: 'Basketbol', book: 48242, market: 28, normal: true, dataKey: 'kkDataBb', lockKey: 'kkLockBb', unit: 'sayı', margin: 1.08, legs: 5 },
+  };
+  const SPORT_KEYS = Object.keys(SPORTS);
   const PAGE_RE = /\/sportsbook\/goal-mix/;
   const COLLECT_HOURS = 168; // arka planda bu kadar saat (7 gün) içinde başlayacak bütün maçlar toplanır
   const MAX_EVENTS = 1200;
@@ -127,6 +134,62 @@
     return w ? s / w : null;
   }
 
+  // Standart normal dağılım: Φ(z) ve tersi.
+  function Phi(z) {
+    const t = 1 / (1 + (0.3275911 * Math.abs(z)) / Math.SQRT2);
+    const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-(z * z) / 2);
+    return z >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
+  }
+  function invPhi(p) {
+    const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239];
+    const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+    const c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+    const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+    const tail = (q) => (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    if (p < 0.02425) return tail(Math.sqrt(-2 * Math.log(p)));
+    if (p > 1 - 0.02425) return -tail(Math.sqrt(-2 * Math.log(1 - p)));
+    const q = p - 0.5;
+    const r = q * q;
+    return ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q) / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+  // Basketbol: Alt/Üst çizgilerinden ortalama ve sapma. Her çizgide pay orantılı atılır, alt olasılığı p ise
+  // çizgi = ortalama + sapma × Φ⁻¹(p). Çizgiler bu doğruya ağırlıklı (dengeli çizgi daha ağır) oturtulur.
+  // Çizgiler sapmayı bulmaya yetmezse sd0 (yoksa maç başı 13 sayı) kullanılır.
+  function normFit(lines, sd0 = null, n = 1) {
+    const pts = [];
+    for (const { line, over, under } of lines) {
+      if (!(over > 1) || !(under > 1) || !Number.isFinite(line)) continue;
+      const p = (1 / under) / (1 / over + 1 / under);
+      if (p < 0.03 || p > 0.97) continue;
+      pts.push({ y: line, z: invPhi(p), w: Math.max(0.05, 1 - Math.abs(p - 0.5) * 2) });
+    }
+    if (!pts.length) return null;
+    const W = pts.reduce((t, x) => t + x.w, 0);
+    const mz = pts.reduce((t, x) => t + x.w * x.z, 0) / W;
+    const my = pts.reduce((t, x) => t + x.w * x.y, 0) / W;
+    const vz = pts.reduce((t, x) => t + x.w * (x.z - mz) ** 2, 0) / W;
+    let sd = vz > 0.01 ? pts.reduce((t, x) => t + x.w * (x.z - mz) * (x.y - my), 0) / W / vz : null;
+    const lo = 6 * Math.sqrt(n);
+    const hi = 30 * Math.sqrt(n);
+    if (!(sd >= lo && sd <= hi)) sd = sd0 || 13 * Math.sqrt(n);
+    return { mean: my - sd * mz, sd };
+  }
+  // P(toplam < çizgi): sd yoksa Poisson (futbol), varsa normal (basketbol).
+  const pUnder = (line, mean, sd) => (sd ? Phi((line - mean) / sd) : cdf(Math.floor(line), mean));
+  function underFn(mean, sd, K) {
+    if (sd) return (line) => Phi((line - mean) / sd);
+    const cs = cumPois(mean, K);
+    return (line) => cs[Math.floor(line)] ?? 1;
+  }
+  // Taranacak çizgi aralığı [ilk, son, K]: futbolda 0.5'ten beklentinin iki katına, basketbolda ortalama ± 4.5 sapma.
+  function lineSpan(a, b, sa, sb) {
+    if (!sa) { const K = Math.ceil(Math.max(a, b) * 2 + 12); return [0.5, K - 0.5, K]; }
+    const sd = Math.max(sa, sb || sa);
+    return [Math.max(0.5, Math.floor(Math.min(a, b) - 4.5 * sd) + 0.5), Math.ceil(Math.max(a, b) + 4.5 * sd) - 0.5, 0];
+  }
+  // Kuponun toplam sapması (maçlar bağımsız): √Σσ². Futbolda (sapma yok) null.
+  const sdOf = (legs, f) => (legs.some((x) => f(x)) ? Math.sqrt(legs.reduce((t, x) => t + (f(x) || 0) ** 2, 0)) : null);
+
   // ---------- adlar ----------
   const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -144,14 +207,16 @@
   const tag = (s) => (norm(s).match(/\b(u\d\d|ii|b|women|w)\b/g) || []).sort().join(',');
 
   // ---------- veri ----------
-  const cache = { gm: null, gmAt: 0, book: null, bookAt: 0, detail: new Map(), site: new Map() };
+  const mkCache = () => ({ gm: null, gmAt: 0, book: null, bookAt: 0, detail: new Map(), site: new Map() });
+  const caches = { football: mkCache(), basketball: mkCache() };
   const FRESH = 10 * 60 * 1000;
 
-  async function loadGoalMix() {
+  async function loadGoalMix(sp = 'football') {
+    const cache = caches[sp];
     if (cache.gm && Date.now() - cache.gmAt < FRESH) return cache.gm;
     const all = [];
     for (let p = 1; p <= 30; p++) {
-      const r = await getJ(`/goalmix/events?page=${p}&pageSize=100`);
+      const r = await getJ(`/goalmix/events?page=${p}&pageSize=100${sp === 'football' ? '' : `&sport=${sp}`}`);
       all.push(...(r.items || []));
       if (!r.items?.length || all.length >= (r.total || 0)) break;
     }
@@ -160,9 +225,10 @@
     return all;
   }
 
-  async function loadBook() {
+  async function loadBook(sp = 'football') {
+    const cache = caches[sp];
     if (cache.book && Date.now() - cache.bookAt < FRESH) return cache.book;
-    const leagues = (await getJ(`/sports/${FOOTBALL}/leagues`)).data || [];
+    const leagues = (await getJ(`/sports/${SPORTS[sp].book}/leagues`)).data || [];
     const lists = await pool(leagues, 8, async (l) => (await getJ(`/leagues/${l.id}/events?status=upcoming`)).data || []);
     cache.book = lists.flat().filter(Boolean);
     cache.bookAt = Date.now();
@@ -197,60 +263,77 @@
     return out;
   }
 
-  async function fairOf(bookId, startsAt = null) {
+  async function fairOf(bookId, startsAt = null, sp = 'football') {
+    const cache = caches[sp];
+    const S = SPORTS[sp];
     const hit = cache.detail.get(bookId);
     if (hit && Date.now() - hit.at < (startsAt ? refreshTtl(startsAt) : 20 * 60 * 1000)) return hit.v; // yakın maç 20 dk, uzak maç 2–6 sa
     const d = await getJ(`/events/${bookId}`);
-    const m = (d.markets || []).find((x) => x.marketTypeId === OU_MARKET && x.status === 'OPEN');
+    const m = (d.markets || []).find((x) => x.marketTypeId === S.market && x.status === 'OPEN');
     const by = {};
     for (const o of m?.outcomes || []) {
       if (!o.active) continue;
       const k = String(o.line);
       by[k] = by[k] || { line: Number(o.line) };
-      if (/^over$/i.test(o.name)) by[k].over = Number(o.price);
-      if (/^under$/i.test(o.name)) by[k].under = Number(o.price);
+      if (/^\s*over\b/i.test(o.name)) by[k].over = Number(o.price);
+      if (/^\s*under\b/i.test(o.name)) by[k].under = Number(o.price);
     }
     const lines = Object.values(by);
-    const lam = matchLambda(lines);
-    const near = lines.filter((x) => x.over && x.under).sort((a, b) => Math.abs(a.over - a.under) - Math.abs(b.over - b.under))[0] || null;
-    const v = lam ? { lam, near } : null;
+    let v = null;
+    if (S.normal) {
+      const f = normFit(lines);
+      v = f ? { lam: f.mean, sd: f.sd } : null;
+    } else {
+      const lam = matchLambda(lines);
+      v = lam ? { lam } : null;
+    }
     cache.detail.set(bookId, { v, at: Date.now() });
     return v;
   }
 
-  async function quote(ids) {
+  async function quote(ids, sp = 'football') {
     const r = await getJ(`/goalmix/quote?events=${encodeURIComponent([...ids].sort().join(','))}`);
     if (r.refused || (r.events || []).some((x) => x.available === false)) return null;
     const lines = (r.lines || []).map((l) => ({ line: Number(l.line), over: l.over == null ? null : Number(l.over), under: l.under == null ? null : Number(l.under) }));
+    if (SPORTS[sp].normal) { const f = normFit(lines, null, ids.length); return { lines, lam: f?.mean ?? null, sd: f?.sd ?? null }; }
     return { lines, lam: fitLambda(lines) };
   }
 
   // Sitenin Goal Mix'te her maç için varsaydığı gol beklentisi: üç maçlık bir üçgenden referans maçın
   // beklentisi bulunur, sonra her maç referansla birlikte sorulur (λ toplanır).
-  async function siteLambdas(items, onStep) {
+  // Basketbolda sapma da aynı yolla bulunur (varyanslar toplanır).
+  async function siteLambdas(items, onStep, sp = 'football') {
+    const cache = caches[sp];
+    const nrm = SPORTS[sp].normal;
     const startOf = new Map(items.map((x) => [x.g.id, x.g.startsAt]));
     const has = (id) => { const h = cache.site.get(id); return !!h && Date.now() - h.at < Math.max(SITE_FRESH, startOf.has(id) ? refreshTtl(startOf.get(id)) : 0); };
-    const put = (id, v) => cache.site.set(id, { v, at: Date.now() });
+    const put = (id, v, vr = null) => cache.site.set(id, { v, vr, at: Date.now() });
     const need = items.filter((x) => !has(x.g.id));
     if (need.length) {
       const pool3 = items.slice(0, 3);
       if (pool3.length < 3) return;
       const [a, b, c] = pool3;
-      const [ab, ac, bc] = await Promise.all([quote([a.g.id, b.g.id]), quote([a.g.id, c.g.id]), quote([b.g.id, c.g.id])]);
+      const [ab, ac, bc] = await Promise.all([quote([a.g.id, b.g.id], sp), quote([a.g.id, c.g.id], sp), quote([b.g.id, c.g.id], sp)]);
       if (!ab?.lam || !ac?.lam || !bc?.lam) throw new Error('Goal Mix fiyatı alınamadı');
       const la = (ab.lam + ac.lam - bc.lam) / 2;
-      put(a.g.id, la);
-      put(b.g.id, ab.lam - la);
-      put(c.g.id, ac.lam - la);
+      const va = nrm ? Math.max(25, (ab.sd ** 2 + ac.sd ** 2 - bc.sd ** 2) / 2) : null;
+      const vr = (q) => (nrm ? Math.max(25, q.sd ** 2 - va) : null);
+      put(a.g.id, la, va);
+      put(b.g.id, ab.lam - la, vr(ab));
+      put(c.g.id, ac.lam - la, vr(ac));
       const rest = items.filter((x) => !has(x.g.id));
       let done = 0;
       await pool(rest, 4, async (x) => {
-        const q = await quote([a.g.id, x.g.id]);
-        if (q?.lam) put(x.g.id, q.lam - la);
+        const q = await quote([a.g.id, x.g.id], sp);
+        if (q?.lam) put(x.g.id, q.lam - la, vr(q));
         onStep(++done, rest.length);
       });
     }
-    for (const x of items) x.site = cache.site.get(x.g.id)?.v ?? null;
+    for (const x of items) {
+      const h = cache.site.get(x.g.id);
+      x.site = h?.v ?? null;
+      x.siteSd = h?.vr ? Math.sqrt(h.vr) : null;
+    }
   }
 
   // Seçilen maç sayılarına göre aday havuzu: toplam kombinasyon ~60 bini geçmesin (10 maçlık kuponlarda havuz küçülür).
@@ -280,11 +363,11 @@
   const lineOk = (line, opts) => (opts.minLine == null || line >= opts.minLine - 1e-9) && (opts.maxLine == null || line <= opts.maxLine + 1e-9);
 
   // Aralıktaki bütün uygun çizgiler (en iyiden kötüye). Aynı maçlarla 7.5 Alt ve 8.5 Alt ayrı kupon olabilir.
-  function allLines(lines, lamFair, sides, minOdds, maxOdds, sort, opts = {}) {
+  function allLines(lines, lamFair, sides, minOdds, maxOdds, sort, opts = {}, sdFair = null) {
     const out = [];
     for (const l of lines) {
       if (!lineOk(l.line, opts)) continue;
-      const pu = cdf(Math.floor(l.line), lamFair);
+      const pu = pUnder(l.line, lamFair, sdFair);
       for (const side of sides) {
         const odds = side === 'OVER' ? l.over : l.under;
         if (!(odds >= minOdds) || odds > maxOdds) continue;
@@ -296,11 +379,11 @@
     return out.sort((a, b) => b.sc - a.sc);
   }
 
-  function bestLine(lines, lamFair, sides, minOdds, maxOdds, sort, opts = {}) {
+  function bestLine(lines, lamFair, sides, minOdds, maxOdds, sort, opts = {}, sdFair = null) {
     let best = null;
     for (const l of lines) {
       if (!lineOk(l.line, opts)) continue;
-      const pu = cdf(Math.floor(l.line), lamFair);
+      const pu = pUnder(l.line, lamFair, sdFair);
       for (const side of sides) {
         const odds = side === 'OVER' ? l.over : l.under;
         if (!(odds >= minOdds) || odds > maxOdds) continue;
@@ -322,14 +405,16 @@
     get: (k) => new Promise((r) => { try { chrome.storage.local.get(k, (x) => r(x?.[k] ?? null)); } catch { r(null); } }),
     set: (k, v) => new Promise((r) => { try { chrome.storage.local.set({ [k]: v }, () => r()); } catch { r(); } }),
   };
-  let data = null;
-  let collecting = null;
+  const datas = { football: null, basketball: null };
+  const collectingBy = {};
+  const D = () => datas[state.sport];
 
   // Kayıttaki değerler belleğe alınır: sayfa yenilense de aynı maçlar baştan sorulmaz.
-  function seed(d) {
+  function seed(d, sp = 'football') {
+    const cache = caches[sp];
     for (const e of d?.events || []) {
-      if (e.siteAt && !cache.site.has(e.id)) cache.site.set(e.id, { v: e.site, at: e.siteAt });
-      if (e.src === '6q' && e.bookId && e.lamAt && !cache.detail.has(e.bookId)) cache.detail.set(e.bookId, { v: { lam: e.lam }, at: e.lamAt });
+      if (e.siteAt && !cache.site.has(e.id)) cache.site.set(e.id, { v: e.site, vr: e.siteSd ? e.siteSd ** 2 : null, at: e.siteAt });
+      if (e.src === '6q' && e.bookId && e.lamAt && !cache.detail.has(e.bookId)) cache.detail.set(e.bookId, { v: { lam: e.lam, sd: e.sd || null }, at: e.lamAt });
     }
   }
 
@@ -433,39 +518,43 @@
   // ---------- ilerleme ----------
   // Veri toplama kim başlatırsa başlatsın (arka plan ya da düğme) ilerlemesi buradan yayılır; pencere açıksa düğmede
   // ve ana alanda yüzde olarak görünür.
-  let prog = null; // { pct, text }
+  const progs = {}; // branş → { pct, text }
   const progSubs = new Set();
-  function setProg(pct, text) {
-    prog = pct == null ? null : { pct: Math.max(0, Math.min(100, Math.round(pct))), text };
-    progSubs.forEach((f) => { try { f(prog); } catch { /* yok */ } });
+  function setProg(pct, text, sp = 'football') {
+    progs[sp] = pct == null ? null : { pct: Math.max(0, Math.min(100, Math.round(pct))), text };
+    progSubs.forEach((f) => { try { f(progs[sp], sp); } catch { /* yok */ } });
   }
+  const progFor = () => progs[state.sport] || null;
 
-  async function collect(say = () => {}) {
-    const st = (pct, t) => { setProg(pct, t); say(t); };
+  async function collect(say = () => {}, sp = 'football') {
+    const S = SPORTS[sp];
+    const foot = sp === 'football';
+    const pre = foot ? '' : `${S.label}: `;
+    const st = (pct, t) => { setProg(pct, pre + t, sp); say(pre + t); };
     const now = Date.now();
     st(2, 'Goal Mix maç listesi alınıyor…');
-    const gm = (await loadGoalMix()).filter((g) => {
+    const gm = (await loadGoalMix(sp)).filter((g) => {
       const t = Date.parse(g.startsAt);
       return t > now + 3 * 60 * 1000 && t < now + COLLECT_HOURS * 3600 * 1000;
     }).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)).slice(0, MAX_EVENTS);
 
     // Her maçın beklentisi 6q'nun normal bültenindeki Alt/Üst oranlarından.
-    await loadAliases();
+    if (foot) await loadAliases();
     const items = gm.map((g) => ({ g, fair: null }));
     st(8, 'Sitenin bülteni alınıyor…');
-    const pairs = pairUp(gm, await loadBook());
+    const pairs = pairUp(gm, await loadBook(sp));
     const byId = new Map(pairs.map((p) => [p.g.id, p.e]));
     let n = 0;
     await pool(items.filter((it) => byId.has(it.g.id)), 6, async (it) => {
       const e = byId.get(it.g.id);
-      const v = await fairOf(e.id, it.g.startsAt);
-      if (v?.lam) it.fair = { lam: v.lam, src: '6q', at: cache.detail.get(e.id)?.at || now, bookId: e.id };
+      const v = await fairOf(e.id, it.g.startsAt, sp);
+      if (v?.lam) it.fair = { lam: v.lam, sd: v.sd || null, src: '6q', at: caches[sp].detail.get(e.id)?.at || now, bookId: e.id };
       ++n;
       st(12 + (43 * n) / Math.max(1, byId.size), `Maç oranları okunuyor… ${n}/${byId.size}`);
     });
 
-    // Bültende Alt/Üst oranı olmayan maçlar: günlük görevin yazdığı YZ tahmini (varsa) kullanılır.
-    const yz = await loadYz();
+    // Bültende Alt/Üst oranı olmayan maçlar: günlük görevin yazdığı YZ tahmini (varsa) kullanılır (sadece futbol).
+    const yz = foot ? await loadYz() : {};
     for (const it of items) {
       const t = yz[it.g.id];
       if (!it.fair && t?.lam > 0.3 && t.lam < 9) it.fair = { lam: Number(t.lam), src: 'yz', at: Date.parse(t.at) || now, note: String(t.note || '').slice(0, 300) };
@@ -476,13 +565,15 @@
     }));
 
     let forms = new Map();
-    st(55, 'Takım formları okunuyor…');
-    try {
-      forms = await loadForms(items.map((it) => it.g), (t) => { const m = /(\d+)\/(\d+)/.exec(t); st(55 + (m ? (10 * m[1]) / Math.max(1, m[2]) : 0), t); });
-    } catch { /* form yoksa da devam */ }
+    if (foot) {
+      st(55, 'Takım formları okunuyor…');
+      try {
+        forms = await loadForms(items.map((it) => it.g), (t) => { const m = /(\d+)\/(\d+)/.exec(t); st(55 + (m ? (10 * m[1]) / Math.max(1, m[2]) : 0), t); });
+      } catch { /* form yoksa da devam */ }
+    }
     const priced = items.filter((it) => it.fair?.lam);
     st(65, 'Goal Mix fiyatları okunuyor…');
-    if (priced.length >= 3) await siteLambdas(priced, (i, t) => st(65 + (33 * i) / Math.max(1, t), `Goal Mix fiyatları okunuyor… ${i}/${t}`));
+    if (priced.length >= 3) await siteLambdas(priced, (i, t) => st(65 + (33 * i) / Math.max(1, t), `Goal Mix fiyatları okunuyor… ${i}/${t}`), sp);
     const events = priced.filter((x) => x.site != null && x.site > 0.2).map((x) => ({
       id: x.g.id,
       bookId: x.fair.bookId || null,
@@ -494,19 +585,22 @@
       country: x.g.country?.code || '',
       startsAt: x.g.startsAt,
       lam: x.fair.lam,
+      sd: x.fair.sd || null,
       src: x.fair.src,
       note: x.fair.note || '',
       lamAt: x.fair.at,
       form: forms.get(x.g.id) || null,
       site: x.site,
-      siteAt: cache.site.get(x.g.id)?.at || now,
+      siteSd: x.siteSd || null,
+      siteAt: caches[sp].site.get(x.g.id)?.at || now,
     }));
-    data = { at: Date.now(), total: gm.length, matched: pairs.length, formFound: forms.size, yzCount: events.filter((e) => e.src === 'yz').length, events, missing, v: DATA_V };
-    calLogMatches(events).catch(() => {});
-    await store.set(DATA_KEY, data);
-    setProg(null);
-    publishMissing();
-    return data;
+    const d = { at: Date.now(), sport: sp, total: gm.length, matched: pairs.length, formFound: forms.size, yzCount: events.filter((e) => e.src === 'yz').length, events, missing, v: DATA_V };
+    datas[sp] = d;
+    if (foot) calLogMatches(events).catch(() => {});
+    await store.set(S.dataKey, d);
+    setProg(null, null, sp);
+    if (foot) publishMissing();
+    return d;
   }
 
   // YZ tahmin dosyası (GitHub'da herkese açık): { at, matches: { <Goal Mix maç no>: { lam, note, at, home, away } } }.
@@ -518,6 +612,7 @@
   // Bültende oranı olmayan maçlar sayfada gizli bir JSON olarak durur (#kk-missing): günlük YZ tahmin görevi okur.
   // Sadece maç adları, lig ve saat içerir.
   function publishMissing() {
+    const data = datas.football;
     if (!data || !document.body) return;
     let el = document.getElementById('kk-missing');
     if (!el) {
@@ -531,16 +626,17 @@
     el.textContent = JSON.stringify({ at: new Date(data.at).toISOString(), total: data.total, missing: (data.missing || []).filter((m) => Date.parse(m.startsAt) < lim) });
   }
 
-  // Tek seferde bir toplama; force değilse veri tazeyse ya da başka sekme topluyorsa beklenmez.
-  async function ensureData(force, say) {
-    if (collecting) return collecting;
-    if (!data) { data = await store.get(DATA_KEY); seed(data); }
-    if (!force && fresh(data)) return data;
-    collecting = (async () => {
-      await store.set(LOCK_KEY, Date.now());
-      try { return await collect(say); } finally { collecting = null; if (prog) setProg(null); }
+  // Tek seferde bir toplama (branş başına); force değilse veri tazeyse ya da başka sekme topluyorsa beklenmez.
+  async function ensureData(force, say, sp = state.sport) {
+    if (collectingBy[sp]) return collectingBy[sp];
+    const S = SPORTS[sp];
+    if (!datas[sp]) { datas[sp] = await store.get(S.dataKey); seed(datas[sp], sp); }
+    if (!force && fresh(datas[sp])) return datas[sp];
+    collectingBy[sp] = (async () => {
+      await store.set(S.lockKey, Date.now());
+      try { return await collect(say, sp); } finally { collectingBy[sp] = null; if (progs[sp]) setProg(null, null, sp); }
     })();
-    return collecting;
+    return collectingBy[sp];
   }
 
   // ---------- kalibrasyon: tahminleri gerçek sonuçlarla ölçme ----------
@@ -657,18 +753,21 @@
   }
 
   async function backgroundTick() {
-    try {
-      if (collecting) return;
-      data = (await store.get(DATA_KEY)) || data;
-      seed(data);
-      publishMissing();
-      calUpdate().catch(() => {});
-      if (fresh(data)) return;
-      const lock = await store.get(LOCK_KEY);
-      if (lock && Date.now() - lock < 3 * 60 * 1000) return; // başka sekme topluyor
-      await ensureData(true);
-    } catch {
-      // Ağ hatası: bir sonraki turda tekrar denenir.
+    calUpdate().catch(() => {});
+    for (const sp of SPORT_KEYS) {
+      try {
+        if (collectingBy[sp]) continue;
+        const S = SPORTS[sp];
+        datas[sp] = (await store.get(S.dataKey)) || datas[sp];
+        seed(datas[sp], sp);
+        if (sp === 'football') publishMissing();
+        if (fresh(datas[sp])) continue;
+        const lock = await store.get(S.lockKey);
+        if (lock && Date.now() - lock < 3 * 60 * 1000) continue; // başka sekme topluyor
+        await ensureData(true, undefined, sp);
+      } catch {
+        // Ağ hatası: bir sonraki turda tekrar denenir.
+      }
     }
   }
 
@@ -680,19 +779,21 @@
   // kaldırılır.
   async function autoTune(opts, say) {
     const now = Date.now();
-    await ensureData(false, say);
+    const sp = opts.sport || 'football';
+    await ensureData(false, say, sp);
+    const data = datas[sp];
     if (!data?.events?.length) throw new Error('Maç verisi toplanamadı. Biraz sonra tekrar dene.');
     const items = data.events.filter((e) => {
       const t = Date.parse(e.startsAt);
       return t > now + 3 * 60 * 1000 && t < now + opts.hours * 3600 * 1000
         && (!opts.leagues?.length || leagueSelected(e, opts.leagues))
         && (opts.useYz === 1 || e.src !== 'yz');
-    }).map((e) => ({ lam: e.lam, site: e.site, edge: e.lam - e.site }));
+    }).map((e) => ({ lam: e.lam, site: e.site, sd: e.sd || null, siteSd: e.siteSd || null, edge: e.lam - e.site }));
     if (items.length < 2) throw new Error('Bu saat aralığında yeterli maç yok. Başlama aralığını genişlet.');
     const N = opts.count;
-    const MARGIN = 1.085;
+    const MARGIN = SPORTS[sp].margin;
     // Maç sayısı kullanıcının seçtiği aralıkta (en az – en çok) taranır.
-    const ks = (opts.sizes?.length ? opts.sizes : [2, 3, 4, 5]).filter((k) => k >= 2 && k <= Math.min(maxLegsAllowed, items.length));
+    const ks = (opts.sizes?.length ? opts.sizes : [2, 3, 4, 5]).filter((k) => k >= 2 && k <= Math.min(legMax[sp], items.length));
     const AUTO_BANDS = [[opts.minOdds, opts.maxOdds + 1e-9]];
     let best = null;
     for (const side of ['OVER', 'UNDER']) {
@@ -705,17 +806,19 @@
         for (const c of combos(top, k)) {
           const lf = c.reduce((t, x) => t + x.lam, 0);
           const ls = c.reduce((t, x) => t + x.site, 0);
-          const K = Math.ceil(Math.max(ls, lf) * 2 + 12);
-          const cs = cumPois(ls, K);
-          const cf = cumPois(lf, K);
+          const sf = sdOf(c, (x) => x.sd);
+          const ss = sdOf(c, (x) => x.siteSd) ?? sf;
+          const [lo, hi, K] = lineSpan(ls, lf, ss, sf);
+          const us = underFn(ls, ss, K);
+          const uf = underFn(lf, sf, K);
           const per = new Array(AUTO_BANDS.length).fill(null);
-          for (let line = 0.5; line <= K - 0.5; line += 1) {
-            const ps = side === 'OVER' ? 1 - cs[Math.floor(line)] : cs[Math.floor(line)];
+          for (let line = lo; line <= hi + 1e-9; line += 1) {
+            const ps = side === 'OVER' ? 1 - us(line) : us(line);
             if (ps < 1e-4) continue;
             const odds = 1 / (ps * MARGIN);
             const b = AUTO_BANDS.findIndex(([lo, hi]) => odds >= lo && odds < hi);
             if (b < 0) continue;
-            const pf = side === 'OVER' ? 1 - cf[Math.floor(line)] : cf[Math.floor(line)];
+            const pf = side === 'OVER' ? 1 - uf(line) : uf(line);
             const sc = score(pf, pf * odds - 1, opts.sort);
             if (per[b] == null || sc > per[b]) per[b] = sc;
           }
@@ -735,7 +838,9 @@
 
   async function build(opts, say, force = false) {
     const now = Date.now();
-    await ensureData(force, say);
+    const sp = opts.sport || 'football';
+    await ensureData(force, say, sp);
+    const data = datas[sp];
     if (!data?.events?.length) throw new Error('Maç verisi toplanamadı. Biraz sonra tekrar dene.');
     const items = data.events
       .filter((e) => {
@@ -745,14 +850,14 @@
           && (opts.useYz === 1 || e.src !== 'yz');
       })
       // Yüzdeler sadece oranlardan: oranlar formu zaten içerir. Form kartta bilgi olarak gösterilir.
-      .map((e) => ({ g: { id: e.id, home: e.home, away: e.away, startsAt: e.startsAt, league: { name: e.country ? `${e.league} · ${countryName(e.country)}` : e.league } }, fair: { lam: e.lam, mkt: e.lam, src: e.src || '6q', note: e.note || '' }, form: e.form || null, site: e.site, edge: e.lam - e.site }));
+      .map((e) => ({ g: { id: e.id, home: e.home, away: e.away, startsAt: e.startsAt, league: { name: e.country ? `${e.league} · ${countryName(e.country)}` : e.league } }, fair: { lam: e.lam, sd: e.sd || null, mkt: e.lam, src: e.src || '6q', note: e.note || '' }, form: e.form || null, site: e.site, siteSd: e.siteSd || null, edge: e.lam - e.site }));
     if (items.length < 2) throw new Error('Bu saat aralığında adil oranı hesaplanmış yeterli maç yok. Başlama aralığını genişlet (48 sa, 72 sa ya da 7 gün).');
     let n = 0;
 
     const sides = opts.side === 'BOTH' ? ['OVER', 'UNDER'] : [opts.side];
     // Kombinasyonlar önce yerel tahminle sıralanır (sitenin oranı ≈ kendi λ'sıyla Poisson + pay), en iyilerinin
     // gerçek Goal Mix oranı sorulur.
-    const MARGIN = 1.085;
+    const MARGIN = SPORTS[sp].margin;
     function localCands(avail, bySide = null) {
       const cands = [];
       for (const side of sides) {
@@ -765,18 +870,20 @@
             const ls = c.reduce((t, x) => t + x.site, 0);
             let best = null;
             // Bütün çizgiler (0.5'ten beklenen golün iki katına kadar) ya da kullanıcının çizgi aralığı taranır.
-            const K = Math.ceil(Math.max(ls, lf) * 2 + 12);
-            const cs = cumPois(ls, K);
-            const cf = cumPois(lf, K);
-            const lo = Math.max(0.5, opts.minLine ?? 0.5);
-            const hi = Math.min(K - 0.5, opts.maxLine ?? K - 0.5);
+            const sf = sdOf(c, (x) => x.fair.sd);
+            const ss = sdOf(c, (x) => x.siteSd) ?? sf;
+            const [l0, h0, K] = lineSpan(ls, lf, ss, sf);
+            const us = underFn(ls, ss, K);
+            const uf = underFn(lf, sf, K);
+            const lo = Math.max(l0, opts.minLine ?? l0);
+            const hi = Math.min(h0, opts.maxLine ?? h0);
             for (let line = lo; line <= hi + 1e-9; line += 1) {
-              const psU = cs[Math.floor(line)];
+              const psU = us(line);
               const ps = side === 'OVER' ? 1 - psU : psU;
               if (ps < 1e-4) continue;
               const odds = 1 / (ps * MARGIN);
               if (odds < opts.minOdds || odds > opts.maxOdds) continue;
-              const pfU = cf[Math.floor(line)];
+              const pfU = uf(line);
               const pf = side === 'OVER' ? 1 - pfU : pfU;
               const sc = score(pf, pf * odds - 1, opts.sort);
               if (best == null || sc > best) best = sc;
@@ -788,10 +895,11 @@
       return cands.sort((x, y) => y.est - x.est);
     }
     async function priceOf(x) {
-      const q = await quote(x.c.map((m) => m.g.id));
+      const q = await quote(x.c.map((m) => m.g.id), sp);
       if (!q) return null;
       const lf = x.c.reduce((t, m) => t + m.fair.lam, 0);
-      const all = allLines(q.lines, lf, [x.side], opts.minOdds, opts.maxOdds, opts.sort, opts).map((b) => ({ ...b, legs: x.c, lamFair: lf, lamSite: q.lam }));
+      const sf = sdOf(x.c, (m) => m.fair.sd);
+      const all = allLines(q.lines, lf, [x.side], opts.minOdds, opts.maxOdds, opts.sort, opts, sf).map((b) => ({ ...b, legs: x.c, lamFair: lf, sdFair: sf, lamSite: q.lam, sport: sp }));
       if (!all.length) return null;
       // En iyi çizgi + aynı maçlarla diğer uygun çizgiler (tekrarlı modda ayrı kupon olarak listelenir).
       return { ...all[0], alts: all.slice(1) };
@@ -900,15 +1008,35 @@
   let fab = null;
   let modal = null;
   let busy = false;
-  const state = { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, minLine: null, maxLine: null, minLegs: 2, maxLegs: 5, repeat: 1, stake: 1, leagues: [], useYz: 0, auto: 0, sizes: [2, 3, 4, 5], hours: 24, count: 10 };
-  try { Object.assign(state, JSON.parse(localStorage.getItem('kkGoalMixOpts') || '{}')); delete state.formW; } catch { /* yok */ }
-  if (![12, 24, 48, 72, 168].includes(state.hours)) state.hours = 24; // eski 6 sa seçeneği kalktı
-  // Goal Mix'in izin verdiği en çok maç (sitenin ayarı; okunamazsa 10).
-  let maxLegsAllowed = 10;
-  getJ('/goalmix/config').then((c) => { if (c?.maxMatches >= 2) maxLegsAllowed = Math.min(15, c.maxMatches); }).catch(() => {});
+  // Futbol ve basketbolun ayarları ayrı saklanır (branş değişince kendi ayarları gelir).
+  const DEFAULTS = {
+    football: { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, minLine: null, maxLine: null, minLegs: 2, maxLegs: 5, repeat: 1, stake: 1, leagues: [], useYz: 0, auto: 0, sizes: [2, 3, 4, 5], hours: 24, count: 10 },
+    basketball: { side: 'OVER', sort: 'PROB', minOdds: 1.5, maxOdds: 4, minLine: null, maxLine: null, minLegs: 2, maxLegs: 3, repeat: 1, stake: 1, leagues: [], useYz: 0, auto: 0, sizes: [2, 3], hours: 48, count: 10 },
+  };
+  const OPTS_KEY = (sp) => (sp === 'football' ? 'kkGoalMixOpts' : `kkGoalMixOpts_${sp}`);
+  const state = {};
+  function loadState(sp) {
+    for (const k of Object.keys(state)) delete state[k];
+    Object.assign(state, JSON.parse(JSON.stringify(DEFAULTS[sp])));
+    try { Object.assign(state, JSON.parse(localStorage.getItem(OPTS_KEY(sp)) || '{}')); } catch { /* yok */ }
+    delete state.formW;
+    state.sport = sp;
+    if (![12, 24, 48, 72, 168].includes(state.hours)) state.hours = DEFAULTS[sp].hours; // eski 6 sa seçeneği kalktı
+    if (sp !== 'football') state.useYz = 0;
+  }
+  loadState(SPORTS[localStorage.getItem('kkSport')] ? localStorage.getItem('kkSport') : 'football');
+  // Goal Mix'in izin verdiği en çok maç, branş başına (sitenin ayarı; okunamazsa futbol 10, basketbol 5).
+  const legMax = Object.fromEntries(SPORT_KEYS.map((k) => [k, SPORTS[k].legs]));
+  getJ('/goalmix/config').then((c) => {
+    for (const k of SPORT_KEYS) {
+      const m = c?.sports?.[k]?.maxMatches ?? (k === 'football' ? c?.maxMatches : null);
+      if (m >= 2) legMax[k] = Math.min(15, m);
+    }
+  }).catch(() => {});
+  const maxLegsNow = () => legMax[state.sport] || 10;
   const legRange = () => {
-    const a = Math.max(2, Math.min(state.minLegs || 2, maxLegsAllowed));
-    const b = Math.max(a, Math.min(state.maxLegs || a, maxLegsAllowed));
+    const a = Math.max(2, Math.min(state.minLegs || 2, maxLegsNow()));
+    const b = Math.max(a, Math.min(state.maxLegs || a, maxLegsNow()));
     return Array.from({ length: b - a + 1 }, (_, i) => a + i);
   };
 
@@ -921,6 +1049,7 @@
     copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
     trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg>',
     ball: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 4.5h-5L8 10z"/></svg>',
+    bball: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M5.7 5.7c2.8 3 2.8 9.6 0 12.6M18.3 5.7c-2.8 3-2.8 9.6 0 12.6"/></svg>',
     spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>',
   };
 
@@ -942,22 +1071,24 @@
       + `<span class="kk-leg-xg"><b>${f2(m.fair.lam)}${m.fair.src === 'yz' ? ` <em class="kk-yz" title="${esc(m.fair.note || 'Yapay zekâ tahmini')}">YZ</em>` : ''}</b><small>site ${f2(m.site)}</small></span>`
       + `${formHtml(m.form)}</li>`;
   }
-  const legsHead = () => `<li class="kk-leg kk-leg--head"><span>Saat</span><span>Maç</span><span>Beklenen gol ${info(TIP.xg)}</span><span>Son 5 maç ${info(TIP.formLeg)}</span></li>`;
+  const legsHead = () => `<li class="kk-leg kk-leg--head"><span>Saat</span><span>Maç</span><span>Beklenen ${SPORTS[state.sport].unit} ${info(TIP.xg)}</span><span>Son 5 maç ${info(TIP.formLeg)}</span></li>`;
 
   // Kuponun olasılığının nereden geldiğini anlatan kısa yorum (sayılardan üretilir).
   function commentText(c) {
+    const u = SPORTS[c.sport || 'football'].unit;
     const over = c.side === 'OVER';
     const need = over ? Math.ceil(c.line) : Math.floor(c.line);
     const gap = c.lamFair - c.line;
     const legs = [...c.legs].sort((a, b) => b.fair.lam - a.fair.lam);
     const name = (m) => `${m.g.home}-${m.g.away}`;
     const s = [];
-    s.push(`Bu ${c.legs.length} maçta toplam yaklaşık ${c.lamFair.toFixed(1)} gol bekleniyor; kupon ${over ? `en az ${need}` : `en fazla ${need}`} gol istiyor.`);
+    s.push(`Bu ${c.legs.length} maçta toplam yaklaşık ${c.lamFair.toFixed(1)} ${u} bekleniyor; kupon ${over ? `en az ${need}` : `en fazla ${need}`} ${u} istiyor.`);
+    if (c.sdFair) s.push(`Toplamın oynaklığı ±${c.sdFair.toFixed(1)} ${u} (maçların üçte ikisi bu aralıkta biter).`);
     const sideW = over ? (gap > 0 ? 'üstünde' : 'altında') : (gap < 0 ? 'altında' : 'üstünde');
     const helps = over ? gap > 0 : gap < 0;
-    s.push(`Beklenen gol çizginin ${Math.abs(gap).toFixed(1)} ${sideW}; ${helps ? 'bu kuponun lehine' : 'bu kuponun aleyhine'}, tutma olasılığı bu yüzden %${(c.p * 100).toFixed(0)}.`);
-    if (over) s.push(`En çok gol beklenen maç ${name(legs[0])} (${legs[0].fair.lam.toFixed(1)}). En zayıf halka ${name(legs[legs.length - 1])} (${legs[legs.length - 1].fair.lam.toFixed(1)} gol).`);
-    else s.push(`En büyük risk ${name(legs[0])}: tek başına ${legs[0].fair.lam.toFixed(1)} gol bekleniyor.`);
+    s.push(`Beklenen ${u} çizginin ${Math.abs(gap).toFixed(1)} ${sideW}; ${helps ? 'bu kuponun lehine' : 'bu kuponun aleyhine'}, tutma olasılığı bu yüzden %${(c.p * 100).toFixed(0)}.`);
+    if (over) s.push(`En çok ${u} beklenen maç ${name(legs[0])} (${legs[0].fair.lam.toFixed(1)}). En zayıf halka ${name(legs[legs.length - 1])} (${legs[legs.length - 1].fair.lam.toFixed(1)} ${u}).`);
+    else s.push(`En büyük risk ${name(legs[0])}: tek başına ${legs[0].fair.lam.toFixed(1)} ${u} bekleniyor.`);
     const withForm = c.legs.filter((m) => m.form?.lam);
     if (withForm.length) {
       const fl = withForm.reduce((t, m) => t + m.form.lam, 0);
@@ -970,7 +1101,7 @@
     if (Math.abs(diff) >= 0.1) {
       const lehine = over ? diff > 0 : diff < 0;
       const effect = !lehine ? 'bu fark oranı aleyhine çeviriyor' : c.ev > 0 ? 'bu fark oranı adil orandan yükseltiyor' : 'fark lehine ama sitenin payını karşılamaya yetmiyor';
-      s.push(`Site bu maçlara ${c.lamSite.toFixed(1)} gol biçmiş, normal maç oranları ${c.lamFair.toFixed(1)} gösteriyor; ${effect} (değer ${pct(c.ev)}).`);
+      s.push(`Site bu maçlara ${c.lamSite.toFixed(1)} ${u} biçmiş, normal maç oranları ${c.lamFair.toFixed(1)} gösteriyor; ${effect} (değer ${pct(c.ev)}).`);
     }
     return s.join(' ');
   }
@@ -980,12 +1111,12 @@
     ev: 'Değer = tutma olasılığı × oran − 1. Örnek: %60 olasılık ve 1.80 oran → 0.60 × 1.80 − 1 = +%8. Artı ise site adil orandan yüksek oran veriyor (uzun vadede lehine), eksi ise düşük veriyor. Tek kuponun tutacağını göstermez.',
     fair: 'Adil oran = 1 ÷ tutma olasılığı. Sitenin payı olmasaydı bu kupona verilmesi gereken oran.',
     prob: 'Tutma olasılığı: maçların normal Alt/Üst oranlarından payı çıkarılarak bulunan gol beklentisiyle hesaplanır. Oran yükseldikçe olasılık düşer (yaklaşık 1 ÷ oran).',
-    data: 'Ekranda görünenler değil, önümüzdeki 7 gündeki bütün Goal Mix maçları okunur (yakın maçların oranları 20 dakikada, 1–3 gün sonrakiler 2 saatte, daha uzaktakiler 6 saatte bir yenilenir). Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez (YZ tahmini dahil edilmedikçe).',
+    data: 'Ekranda görünenler değil, önümüzdeki 7 gündeki bütün Goal Mix maçları okunur (yakın maçların oranları 20 dakikada, 1–3 gün sonrakiler 2 saatte, daha uzaktakiler 6 saatte bir yenilenir). Adil oran 6q\'nun normal bültenindeki maç sonu Alt/Üst oranlarından hesaplanır: 1.5–4.5 arası dengeli çizgilerden payı atılmış olasılıklarla beklenen gol (Poisson) bulunur, ortancası alınır. Bültende Alt/Üst oranı olmayan maç kuponlara girmez (YZ tahmini dahil edilmedikçe). Basketbolda bültenin uzatmalar dahil Alt/Üst çizgilerinden maçın beklenen sayısı ve oynaklığı (normal dağılım) bulunur; Goal Mix de uzatmaları sayar.',
     order: 'Oluşan kuponları yeniden sıralar; hesap değişmez.',
     auto: 'Açıkken Kuponları oluştur önce senin oran ve maç sayısı aralığında Alt/Üst ve maç sayısı kombinasyonlarını tarar; Öncelik\'e göre en iyi kupon setini veren ayarı seçer ve kuponları onunla oluşturur. Otomatik seçilen alanlar (Alt/Üst, çizgi) kilitlenir.',
     yz: 'Normal bültende Alt/Üst oranı olmayan maçlar için günde iki kez (00:00 ve 12:00) yapay zekâ beklenen gol tahmini yapar. Dahil: bu maçlar da kuponlara girer, maç satırında YZ etiketiyle. Tahmin, oranlardan çıkan beklentiden daha az isabetlidir.',
-    line: 'Kuponun toplam gol çizgisi sınırı. Örnek: Alt, en az 5.5, en çok 8.5 → sadece 5.5, 6.5, 7.5, 8.5 Alt kuponlar. Boş = sınırsız. Tam sayı yazılırsa en az yukarı (6 → 6.5), en çok aşağı (6 → 5.5) yuvarlanır.',
-    xg: 'Maçın adil gol beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
+    line: 'Kuponun toplam gol (basketbolda sayı) çizgisi sınırı. Örnek: Alt, en az 5.5, en çok 8.5 → sadece 5.5, 6.5, 7.5, 8.5 Alt kuponlar. Boş = sınırsız. Tam sayı yazılırsa en az yukarı (6 → 6.5), en çok aşağı (6 → 5.5) yuvarlanır.',
+    xg: 'Maçın adil gol (basketbolda sayı) beklentisi (sitenin normal Alt/Üst oranlarından); altında Goal Mix\'in aynı maç için varsaydığı.',
     repeat: 'Tekrarlı: kuponların yarısı tamamen farklı maçlardan, kalan yarısı tekrara izin verilerek kurulur (bir maç en fazla 3 kupona girer). Tekrarsız: her maç en fazla bir kuponda. Ters çizgi: bir maç en fazla bir Üst ve bir Alt kupona girer. Tekrarsız ve ters çizgide istenenden az kupon çıkabilir.',
     set: 'Seçili kuponların birlikte hesabı: en az 1, en az 2… kuponun tutma olasılığı ve tam o kadar kupon tutarsa net kâr/zarar (ortalama; en kötü … en iyi). Kâra geçiş: ortalamada artıya geçmek için gereken en az tutan kupon sayısı. Her maçın golü adil beklentiyle 20.000 kez denendi; ortak maçlar birlikte sayıldı. Tahmindir, garanti değildir.',
     formLeg: 'Sadece bilgi, yüzdeye katılmaz (oranlar formu zaten içerir). Son 5 maç: attığı–yediği gol ortalaması, 2.5 üst biten maç sayısı ve sonuçlar (G galibiyet, B beraberlik, M mağlubiyet).',
@@ -998,7 +1129,9 @@
   function setChance(list, runs = 20000) {
     if (!list.length) return null;
     const ids = [...new Set(list.flatMap((c) => c.legs.map((m) => m.g.id)))];
-    const lam = ids.map((id) => list.flatMap((c) => c.legs).find((m) => m.g.id === id).fair.lam);
+    const legOf = (id) => list.flatMap((c) => c.legs).find((m) => m.g.id === id);
+    const lam = ids.map((id) => legOf(id).fair.lam);
+    const sds = ids.map((id) => legOf(id).fair.sd || 0);
     const idx = list.map((c) => c.legs.map((m) => ids.indexOf(m.g.id)));
     let seed = 20261119;
     const rnd = () => {
@@ -1008,12 +1141,13 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
     const poisson = (l) => { const L = Math.exp(-l); let k = 0; let p = rnd(); while (p > L) { k++; p *= rnd(); } return k; };
+    const gauss = () => { let u = 0; while (!u) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
     const byK = new Array(list.length + 1).fill(0);
     const payK = new Array(list.length + 1).fill(0);
     let pay = 0;
     const goals = new Array(ids.length);
     for (let i = 0; i < runs; i++) {
-      for (let j = 0; j < ids.length; j++) goals[j] = poisson(lam[j]);
+      for (let j = 0; j < ids.length; j++) goals[j] = sds[j] ? lam[j] + sds[j] * gauss() : poisson(lam[j]);
       let hits = 0;
       let p1 = 0;
       list.forEach((c, n) => {
@@ -1053,8 +1187,8 @@
   const isFav = (c) => favs.some((f) => keyOf(f) === keyOf(c));
   // Saklanacak sade kopya (gereksiz alanlar atılır).
   const snap = (c) => ({
-    side: c.side, line: c.line, odds: c.odds, p: c.p, fair: c.fair, ev: c.ev, lamFair: c.lamFair, lamSite: c.lamSite, savedAt: Date.now(),
-    legs: c.legs.map((m) => ({ g: { id: m.g.id, home: m.g.home, away: m.g.away, startsAt: m.g.startsAt, league: { name: m.g.league?.name || '' } }, fair: { lam: m.fair.lam, mkt: m.fair.mkt, src: m.fair.src, note: m.fair.note || '' }, site: m.site, form: m.form || null })),
+    sport: c.sport || 'football', side: c.side, line: c.line, odds: c.odds, p: c.p, fair: c.fair, ev: c.ev, lamFair: c.lamFair, sdFair: c.sdFair ?? null, lamSite: c.lamSite, savedAt: Date.now(),
+    legs: c.legs.map((m) => ({ g: { id: m.g.id, home: m.g.home, away: m.g.away, startsAt: m.g.startsAt, league: { name: m.g.league?.name || '' } }, fair: { lam: m.fair.lam, sd: m.fair.sd ?? null, mkt: m.fair.mkt, src: m.fair.src, note: m.fair.note || '' }, site: m.site, siteSd: m.siteSd ?? null, form: m.form || null })),
   });
   function toggleFav(c) {
     const k = keyOf(c);
@@ -1079,7 +1213,9 @@
   const offFav = new Set(); // hesaptan çıkarılan favoriler
   let selKey = null;
   let favSel = null;
-  const curList = () => (tab === 'favs' ? favs : lastList);
+  const sportOf = (c) => c.sport || 'football';
+  const favsCur = () => favs.filter((f) => sportOf(f) === state.sport);
+  const curList = () => (tab === 'favs' ? favsCur() : lastList);
   const curOff = () => (tab === 'favs' ? offFav : offSet);
 
   const ORDERS = [['prob', 'Olasılık'], ['ev', 'Değer'], ['oddsDesc', 'Oran ↓'], ['oddsAsc', 'Oran ↑'], ['legs', 'Maç'], ['time', 'Saat']];
@@ -1099,7 +1235,7 @@
   function seg(name, value, opts, disabled = false) {
     return `<div class="kk-seg" data-name="${name}" role="group">${opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${String(v) === String(value) ? 'is-on' : ''}"${disabled ? ' disabled' : ''}>${l}</button>`).join('')}</div>`;
   }
-  const legSelect = (name, v) => `<select class="kk-input" name="${name}">${Array.from({ length: maxLegsAllowed - 1 }, (_, i) => i + 2).map((k) => `<option value="${k}"${k === v ? ' selected' : ''}>${k} maç</option>`).join('')}</select>`;
+  const legSelect = (name, v) => `<select class="kk-input" name="${name}">${Array.from({ length: maxLegsNow() - 1 }, (_, i) => i + 2).map((k) => `<option value="${k}"${k === v ? ' selected' : ''}>${k} maç</option>`).join('')}</select>`;
   const COUNTS = [5, 10, 15, 20, 25, 30, 40, 50];
 
   // ---------- ülke / lig ----------
@@ -1123,12 +1259,22 @@
     ['X-EU', /^(uefa )?(champions league|europa league|conference league)\b/],
     ['GB-ENG', /^(premier league|championship)$/], ['ES', /^la ?liga$/], ['IT', /^serie a$/], ['DE', /^(2\. )?bundesliga$/],
     ['FR', /^ligue 1$/], ['NL', /^eredivisie$/], ['PT', /^(liga portugal|primeira liga)/], ['TR', /^super lig$/],
-    ['BE', /(jupiler )?pro league$/], ['GB-SCT', /^premiership$/], ['US', /^(mls|major league soccer)\b/], ['BR', /^serie a$/],
+    ['BE', /(jupiler )?pro league$/], ['GB-SCT', /^premiership$/], ['BR', /^serie a$/],
     ['AR', /^liga profesional/], ['SA', /^saudi professional league$/],
   ];
   const leagueNorm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const MAJOR_BB = [
+    ['US', /^(nba|ncaa)\b/], ['*', /^(euroleague|eurocup|basketball champions league)\b/], ['ES', /^(liga )?(acb|endesa)/],
+    ['IT', /^(lega ?a|lba|serie a)\b/], ['TR', /^(bsl|super lig|basketbol super ligi)/], ['DE', /^(bbl|basketball bundesliga|bundesliga)\b/],
+    ['FR', /^(lnb|pro a|betclic elite|elite)\b/], ['GR', /^(basket league|a1|greek basket)/],
+  ];
   function isMajor(e) {
     const n = leagueNorm(e.league);
+    if (state.sport === 'basketball') {
+      if (/women|kadin|u1\d|u2\d|youth|wnba/.test(n)) return false;
+      const cc = String(e.country || '').toUpperCase();
+      return MAJOR_BB.some(([c, re]) => (c === '*' || c === cc) && re.test(n));
+    }
     if (/women|kadin|u1\d|u2\d|youth|reserve|cup|kupa/.test(n) && !/champions league|europa league|conference league/.test(n)) return false;
     const c = String(e.country || '').toUpperCase();
     return MAJOR.some(([cc, re]) => cc === c && re.test(n));
@@ -1148,6 +1294,7 @@
     const map = new Map();
     const labels = new Map();
     // Bütün Goal Mix maçları sayılır; n = adil oranı hesaplanabilen (kupona girebilen), all = toplam.
+    const data = D();
     const priced = new Set((data?.events || []).map((e) => e.id));
     const seenIds = new Set();
     for (const e of [...(data?.events || []), ...(data?.missing || [])]) {
@@ -1259,11 +1406,12 @@
       + section('Maçlar',
         field('Başlama', seg('hours', state.hours, [[12, '12 sa'], [24, '24 sa'], [48, '48 sa'], [72, '72 sa'], [168, '7 gün']]))
         + field('Lig', `<button type="button" class="kk-input kk-lg-btn">${leagueBtnHtml()}</button>`)
-        + field(`YZ tahmini ${info(TIP.yz)}`, seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])));
+        + (state.sport === 'football' ? field(`YZ tahmini ${info(TIP.yz)}`, seg('useYz', state.useYz, [[0, 'Hariç'], [1, 'Dahil']])) : ''));
   }
 
   function save() {
-    localStorage.setItem('kkGoalMixOpts', JSON.stringify(state));
+    localStorage.setItem(OPTS_KEY(state.sport), JSON.stringify(state));
+    localStorage.setItem('kkSport', state.sport);
   }
   function readInputs() {
     if (!modal) return;
@@ -1360,7 +1508,7 @@
     const kp = (label, value, tip, cls = '') => `<div class="kk-kpi ${cls}"><small>${label} ${tip ? info(tip) : ''}</small><b>${value}</b></div>`;
     return `<div class="kk-detail">`
       + `<header class="kk-detail-head"><div><h3>${c.legs.length} maç · Toplam ${c.line} ${side}</h3>`
-      + `<p>Beklenen toplam gol <b>${f2(c.lamFair)}</b> · sitenin hesabı ${f2(c.lamSite)}${st ? ` · <span class="kk-tag kk-tag--${st.cls}">${st.txt}</span>` : ''}${c.savedAt ? ` · kaydedildi ${esc(day(c.savedAt))} ${esc(hm(c.savedAt))}` : ''}</p></div>`
+      + `<p>Beklenen toplam ${SPORTS[c.sport || 'football'].unit} <b>${f2(c.lamFair)}</b> · sitenin hesabı ${f2(c.lamSite)}${st ? ` · <span class="kk-tag kk-tag--${st.cls}">${st.txt}</span>` : ''}${c.savedAt ? ` · kaydedildi ${esc(day(c.savedAt))} ${esc(hm(c.savedAt))}` : ''}</p></div>`
       + `<span class="kk-odds kk-odds--lg">${c.odds.toFixed(2)}</span></header>`
       + `<div class="kk-detail-kpis">${kp('Tutma', `%${(c.p * 100).toFixed(1)}`, TIP.prob, 'is-accent')}${kp('Adil oran', c.fair.toFixed(2), TIP.fair)}${kp('Değer', pct(c.ev), TIP.ev, tone(c.ev))}</div>`
       + `<div class="kk-detail-actions"><button type="button" class="kk-btn kk-btn--ghost kk-star-btn${fav ? ' is-on' : ''}" data-key="${esc(keyOf(c))}">${ICON.star}<span>${fav ? 'Favorilerde' : 'Favorilere ekle'}</span></button>`
@@ -1370,6 +1518,7 @@
   }
 
   function statusHtml() {
+    const data = D();
     if (!data) return '<span class="kk-status">Veri toplanıyor…</span>';
     const mins = Math.round((Date.now() - data.at) / 60000);
     return `<span class="kk-status" title="${esc(TIP.data)}"><i></i>${data.events?.length || 0} maç hazır · ${mins < 1 ? 'az önce' : `${mins} dk önce`}</span>`;
@@ -1377,7 +1526,7 @@
 
   function renderMain() {
     const main = modal.querySelector('.kk-main');
-    modal.querySelector('.kk-tab[data-tab="favs"] em').textContent = favs.length;
+    modal.querySelector('.kk-tab[data-tab="favs"] em').textContent = favsCur().length;
     modal.querySelectorAll('.kk-tab').forEach((x) => x.classList.toggle('is-on', x.dataset.tab === tab));
     modal.querySelector('.kk-shell').classList.toggle('is-favs', tab !== 'build');
     modal.querySelector('.kk-status-wrap').innerHTML = statusHtml();
@@ -1415,7 +1564,7 @@
     try { await calUpdate(true); } catch { /* yine de göster */ }
     if (tab !== 'cal') return;
     const st = calStats();
-    const head = `<section class="kk-cal-intro"><div><h3>Kalibrasyon</h3><p>Eklentinin tahminleri gerçek sonuçlarla karşılaştırılır. Her veri toplamasında maçların maç öncesi tahmini, her oluşturmada kuponlar kaydedilir; maçlar bitince 6q bülteninden 90 dakikanın skoru okunur. Son ${CAL_DAYS} gün saklanır.</p></div>`
+    const head = `<section class="kk-cal-intro"><div><h3>Kalibrasyon · futbol</h3><p>Eklentinin tahminleri gerçek sonuçlarla karşılaştırılır. Her veri toplamasında maçların maç öncesi tahmini, her oluşturmada kuponlar kaydedilir; maçlar bitince 6q bülteninden 90 dakikanın skoru okunur. Son ${CAL_DAYS} gün saklanır.</p></div>`
       + `<div class="kk-cal-counts"><span><b>${st?.logged || 0}</b> maç kayıtlı</span><span><b>${st?.matches?.n || 0}</b> maç sonuçlandı</span><span><b>${st?.pending || 0}</b> maç sonuç bekliyor</span><span><b>${st?.coupons || 0}</b> / ${st?.loggedCoupons || 0} kupon sonuçlandı</span></div></section>`;
     if (!st || !st.matches) {
       main.innerHTML = head + `<div class="kk-empty-box">${ICON.spark}<b>Henüz sonuç yok</b><span>6q açıkken tahminler kendiliğinden kaydediliyor. İlk maçlar bittikten sonra (yaklaşık 2 saat) burada isabet oranları görünmeye başlar; anlamlı sonuç için birkaç gün beklemek gerekir.</span></div>`;
@@ -1458,12 +1607,12 @@
     if (lh) lh.innerHTML = `<span>${curList().length} kupon</span>${seg('order', state.order || 'prob', ORDERS)}`;
     showDetail();
   }
-  // Bekleme paneli: adım adı + yüzde çubuğu. Yüzde, toplama adımından (prog) ya da "a/b" ilerlemesinden gelir.
+  // Bekleme paneli: adım adı + yüzde çubuğu. Yüzde, toplama adımından (progFor()) ya da "a/b" ilerlemesinden gelir.
   let uiStep = '';
   function say(t) {
     uiStep = t;
     const m = /(\d+)\/(\d+)/.exec(t);
-    const pct = prog ? prog.pct : m ? Math.round((100 * m[1]) / Math.max(1, m[2])) : null;
+    const pct = progFor() ? progFor().pct : m ? Math.round((100 * m[1]) / Math.max(1, m[2])) : null;
     paintWait(t, pct);
   }
   function paintWait(t, pct) {
@@ -1472,14 +1621,14 @@
     const bar = pct != null ? `<div class="kk-prog"><i style="width:${pct}%"></i></div><em class="kk-prog-pct">%${pct}</em>` : '';
     let w = main.querySelector('.kk-wait');
     if (!w) { main.innerHTML = '<div class="kk-wait"></div>'; w = main.querySelector('.kk-wait'); }
-    w.innerHTML = `<div class="kk-spinner"></div><b>${esc(t)}</b>${bar}<span>${prog && !busy ? 'Maç verisi arka planda okunuyor; bitince kuponlar hesaplanacak.' : 'Bu sırada pencereyi kapatabilirsin; hesap sürer.'}</span>`;
+    w.innerHTML = `<div class="kk-spinner"></div><b>${esc(t)}</b>${bar}<span>${progFor() && !busy ? 'Maç verisi arka planda okunuyor; bitince kuponlar hesaplanacak.' : 'Bu sırada pencereyi kapatabilirsin; hesap sürer.'}</span>`;
     paintGo(pct, t);
   }
   // Düğme: meşgulken içinde ince bir dolum çubuğu ve kısa durum + yüzde.
   function paintGo(pct, t) {
     const go = modal?.querySelector('.kk-go');
     if (!go) return;
-    const on = busy || !!prog;
+    const on = busy || !!progFor();
     go.classList.toggle('is-busy', on);
     if (!on) { go.innerHTML = 'Kuponları oluştur'; go.disabled = false; return; }
     // Sadece arka planda veri okunuyorsa düğme basılabilir kalır: basınca toplama bitince kuponlar hesaplanır.
@@ -1494,8 +1643,48 @@
   }
   function setBusy(on) {
     busy = on;
+    paintSport();
     if (!on) uiStep = '';
-    paintGo(prog?.pct ?? null, prog?.text || uiStep);
+    paintGo(progFor()?.pct ?? null, progFor()?.text || uiStep);
+  }
+
+  // ---------- branş ----------
+  // Futbol ve basketbol ayrı: ayarlar, oluşturulan kuponlar, favoriler ve maç verisi branşa göre tutulur.
+  const stash = {};
+  const sportSeg = () => SPORT_KEYS.map((k) => `<button type="button" data-sport="${k}" class="${k === state.sport ? 'is-on' : ''}" aria-pressed="${k === state.sport}">${k === 'football' ? ICON.ball : ICON.bball}<span>${SPORTS[k].label}</span></button>`).join('');
+  function paintSport() {
+    modal?.querySelectorAll('.kk-sport button').forEach((b) => { const on = b.dataset.sport === state.sport; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on); b.disabled = busy && !on; });
+    modal?.querySelector('.kk-shell')?.setAttribute('data-sport', state.sport);
+  }
+  function switchSport(sp) {
+    if (busy || !SPORTS[sp] || sp === state.sport) return;
+    readInputs();
+    save();
+    stash[state.sport] = { lastList, lastStats, autoNote, selKey, favSel, off: [...offSet], offF: [...offFav] };
+    loadState(sp);
+    save();
+    const x = stash[sp] || {};
+    lastList = x.lastList || [];
+    lastStats = x.lastStats || null;
+    autoNote = x.autoNote || '';
+    selKey = x.selKey || null;
+    favSel = x.favSel || null;
+    offSet.clear(); (x.off || []).forEach((k) => offSet.add(k));
+    offFav.clear(); (x.offF || []).forEach((k) => offFav.add(k));
+    setK = null;
+    if (tab === 'cal' && sp !== 'football') tab = 'build';
+    const lp = modal.querySelector('.kk-lp');
+    if (lp) lp.hidden = true;
+    paintSport();
+    renderForm();
+    modal.querySelector('.kk-main').innerHTML = '';
+    renderMain();
+    paintGo(progFor()?.pct ?? null, progFor()?.text);
+    ensureData(false).then(() => {
+      if (state.sport !== sp || !modal) return;
+      refreshLeagues();
+      if (!progFor()) modal.querySelector('.kk-status-wrap').innerHTML = statusHtml();
+    }).catch(() => {});
   }
 
   // ---------- çalıştırma ----------
@@ -1531,11 +1720,11 @@
     tab = 'build';
     renderTabsOnly();
     setBusy(true);
-    say(prog ? prog.text : 'Kuponlar hazırlanıyor…');
+    say(progFor() ? progFor().text : 'Kuponlar hazırlanıyor…');
     try {
       const { list, stats } = await build({ ...state, sizes: sizesOverride || [...state.sizes].sort((a, b) => a - b) }, say, force);
       lastList = list;
-      calLogCoupons(list).catch(() => {});
+      if (state.sport === 'football') calLogCoupons(list).catch(() => {});
       lastStats = stats;
       offSet.clear();
       selKey = null;
@@ -1552,7 +1741,7 @@
   function renderTabsOnly() {
     modal.querySelectorAll('.kk-tab').forEach((x) => x.classList.toggle('is-on', x.dataset.tab === tab));
     modal.querySelector('.kk-shell').classList.toggle('is-favs', tab !== 'build');
-    modal.querySelector('.kk-tab[data-tab="favs"] em').textContent = favs.length;
+    modal.querySelector('.kk-tab[data-tab="favs"] em').textContent = favsCur().length;
   }
 
   // ---------- açıklama balonu ----------
@@ -1583,6 +1772,7 @@
       + '<section class="kk-shell" role="dialog" aria-modal="true" aria-label="Goal Mix kupon asistanı">'
       + '<header class="kk-top">'
       + `<div class="kk-brand"><span class="kk-logo">${ICON.ball}</span><div><h2>Kupon Asistanı</h2><p>Goal Mix · adil oranla kupon önerisi</p></div></div>`
+      + `<div class="kk-sport" role="group" aria-label="Branş">${sportSeg()}</div>`
       + '<nav class="kk-tabs" role="tablist"><button type="button" class="kk-tab is-on" data-tab="build" role="tab">Kupon oluştur</button>'
       + `<button type="button" class="kk-tab" data-tab="favs" role="tab">${ICON.star}Favoriler <em>0</em></button>`
       + '<button type="button" class="kk-tab" data-tab="cal" role="tab">Kalibrasyon</button></nav>'
@@ -1593,16 +1783,17 @@
       + '<p>Tahmindir, garanti değildir. Eklenti bahis yapmaz.</p></div></aside>'
       + '<main class="kk-main"></main></div></section>';
     document.body.appendChild(modal);
+    paintSport();
     renderForm();
     renderMain();
-    progSubs.add((p) => {
-      if (!modal || modal.hidden) return;
+    progSubs.add((p, sp) => {
+      if (!modal || modal.hidden || sp !== state.sport) return;
       if (p && (busy || modal.querySelector('.kk-wait'))) paintWait(p.text, p.pct);
       else paintGo(p?.pct ?? null, p?.text);
       const sw = modal.querySelector('.kk-status-wrap');
       if (sw) sw.innerHTML = p ? `<span class="kk-status is-busy"><i></i>Veri okunuyor · %${p.pct}</span>` : statusHtml();
     });
-    if (prog) paintGo(prog.pct, prog.text);
+    if (progFor()) paintGo(progFor().pct, progFor().text);
     ensureData(false).then(() => { refreshLeagues(); modal.querySelector('.kk-status-wrap').innerHTML = statusHtml(); }).catch(() => {});
 
     modal.addEventListener('mouseover', (ev) => {
@@ -1656,6 +1847,8 @@
     modal.addEventListener('click', (ev) => {
       const t = ev.target;
       if (t.closest('.kk-x') || t.classList.contains('kk-backdrop')) { modal.hidden = true; return; }
+      const spb = t.closest('.kk-sport button');
+      if (spb) { switchSport(spb.dataset.sport); return; }
       const tb = t.closest('.kk-tab');
       if (tb) { tab = tb.dataset.tab; renderMain(); return; }
       if (t.closest('.kk-refresh')) { run(true); return; }
@@ -1703,11 +1896,11 @@
       if (fc) {
         if (!fc.classList.contains('is-confirm')) {
           fc.classList.add('is-confirm');
-          fc.innerHTML = `${ICON.trash}Emin misin? ${favs.length} favori silinir · Evet, sil`;
+          fc.innerHTML = `${ICON.trash}Emin misin? ${favsCur().length} favori silinir · Evet, sil`;
           setTimeout(() => { if (fc.isConnected) { fc.classList.remove('is-confirm'); fc.innerHTML = `${ICON.trash}Tümünü temizle`; } }, 4000);
           return;
         }
-        favs = [];
+        favs = favs.filter((f) => sportOf(f) !== state.sport);
         offFav.clear();
         favSel = null;
         saveFavs();
