@@ -297,3 +297,15 @@ select.kk-input option { background: #181d2c; color: #eef1f7; }
   .kk-tabs { margin-left: 0; }
   .kk-brand p, .kk-status { display: none; }
 }
+
+/* 5.0.1: tam ekran; lig listesi kenar çubuğuna sığar */
+.kk-modal { place-items: stretch; }
+.kk-shell { width: 100vw; height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
+.kk-backdrop { background: var(--bg); backdrop-filter: none; }
+.kk-dd-btn { justify-content: space-between; text-align: left !important; }
+.kk-dd-btn span { flex: 1; text-align: left; }
+.kk-dd-panel { left: 0; right: 0; width: auto; max-height: min(420px, 60vh); }
+.kk-dd-item { align-items: flex-start; }
+.kk-dd-item span { white-space: normal; overflow: visible; line-height: 1.35; }
+.kk-dd-item input { margin-top: 2px; }
+.kk-dd-search { width: 100%; }
