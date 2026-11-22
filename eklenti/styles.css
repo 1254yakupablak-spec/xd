@@ -383,3 +383,44 @@ select.kk-input option { background: #181d2c; color: #eef1f7; }
 .kk-chip--danger { border-color: rgba(248, 113, 113, 0.35); color: #fca5a5; }
 .kk-chip--danger:hover { border-color: var(--down); color: var(--down); }
 .kk-chip--danger.is-confirm { border-color: var(--down); background: rgba(248, 113, 113, 0.15); color: #fff; }
+
+/* 5.3: lig seçim penceresi */
+.kk-lg-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; cursor: pointer; }
+.kk-lg-btn span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kk-lg-btn em { color: var(--acc); font-style: normal; font-size: 11.5px; font-weight: 800; }
+.kk-lp { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; }
+.kk-lp[hidden] { display: none; }
+.kk-lp-back { position: absolute; inset: 0; background: rgba(4, 6, 10, 0.7); backdrop-filter: blur(2px); }
+.kk-lp-box { position: relative; display: flex; flex-direction: column; width: min(920px, calc(100% - 32px)); height: min(760px, calc(100% - 48px)); border: 1px solid var(--line2); border-radius: var(--r3); background: var(--s1); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.kk-lp-head { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 10px; }
+.kk-lp-head > div { flex: 1; }
+.kk-lp-head h3 { margin: 0; font-size: 17px; font-weight: 800; }
+.kk-lp-head p { margin: 2px 0 0; color: var(--mut); font-size: 12px; }
+.kk-lp-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 18px 12px; border-bottom: 1px solid var(--line); }
+.kk-lp-tools .kk-lp-search { flex: 1; min-width: 220px; }
+.kk-lp-tools .kk-chip { min-height: 34px; padding: 6px 12px; }
+.kk-lp-major svg { fill: var(--acc); color: var(--acc); }
+.kk-lp-list { flex: 1; overflow-y: auto; padding: 4px 18px 16px; }
+.kk-lp-list h4 { margin: 14px 0 8px; color: var(--mut); font-size: 10.5px; font-weight: 800; letter-spacing: 0.7px; text-transform: uppercase; }
+.kk-lg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; }
+.kk-lg { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r2); background: var(--s2); color: var(--tx); text-align: left; cursor: pointer; transition: border-color 0.12s ease, background 0.12s ease; }
+.kk-lg:hover { border-color: var(--line2); background: var(--s3); }
+.kk-lg.is-on { border-color: rgba(214, 244, 90, 0.6); background: var(--acc-soft); }
+.kk-lg-check { flex: none; width: 16px; height: 16px; border: 2px solid var(--mut); border-radius: 4px; }
+.kk-lg.is-on .kk-lg-check { border-color: var(--acc); background: var(--acc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' stroke='%2311140a' stroke-width='2.4' fill='none'/%3E%3C/svg%3E") center / 11px no-repeat; }
+.kk-lg-logo { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 8px; background: #fff; overflow: hidden; }
+.kk-lg-logo img { width: 24px; height: 24px; object-fit: contain; }
+.kk-lg-logo.kk-lg-flag { background: var(--s3); font-size: 17px; line-height: 1; }
+.kk-lg-txt { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.kk-lg-txt b { overflow: hidden; font-size: 12.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.kk-lg-txt small { overflow: hidden; color: var(--mut); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.kk-lg-major { color: var(--acc); }
+.kk-lg-major svg { width: 13px; height: 13px; fill: var(--acc); }
+.kk-lg em { flex: none; min-width: 24px; padding: 1px 6px; border-radius: 999px; background: var(--bg); color: var(--tx2); font-style: normal; font-size: 11px; font-weight: 700; text-align: center; }
+.kk-lp-foot { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--s1); }
+.kk-lp-sum { flex: 1; color: var(--mut); font-size: 12.5px; }
+.kk-lp-sum b { color: var(--tx); }
+.kk-lp-foot .kk-btn--primary { width: auto; min-width: 160px; min-height: 40px; }
+.kk-lg-logo { background: #262c42; border: 1px solid var(--line); }
+.kk-lg-logo img { filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.4)); }
+.kk-lg-logo.kk-lg-flag { color: var(--tx2); font-size: 10px; font-weight: 800; letter-spacing: 0.2px; }
