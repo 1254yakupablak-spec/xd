@@ -1493,6 +1493,25 @@
     return `<div class="kk-set-detail"><small>En az <b>${setK}</b> kupon tutar</small><b>${pctTxt(r.atLeast[setK])}</b>`
       + `<span>tam ${setK} tutarsa <i class="${tone(x.avg)}">${money(x.avg)}</i></span>${range}</div>`;
   }
+  // Listedeki bütün kuponların metni (görünen sıra): her kupon başlık satırı + maçları, aralarında boş satır.
+  function allCopyText(list) {
+    return sortList(list).map((c, i) => {
+      const side = sideTxt(c.side).toLocaleUpperCase('tr');
+      const head = `${i + 1}) ${c.legs.length} maç · Toplam ${c.line} ${side} · ${c.odds.toFixed(2)} · tutma %${(c.p * 100).toFixed(0)}`;
+      const legs = [...c.legs].sort((a, b) => Date.parse(a.g.startsAt) - Date.parse(b.g.startsAt))
+        .map((m) => `${day(m.g.startsAt)} ${hm(m.g.startsAt)}  ${m.g.home} - ${m.g.away}`);
+      return [head, ...legs].join('\n');
+    }).join('\n\n');
+  }
+  function listHeadHtml() {
+    const list = curList();
+    const allFav = tab === 'build' && list.length && list.every(isFav);
+    const favBtn = tab === 'build'
+      ? `<button type="button" class="kk-chip kk-fav-all${allFav ? ' is-on' : ''}" title="Listedeki bütün kuponları favorilere ekle">${ICON.star}<span>${allFav ? 'Hepsi favoride' : 'Tümünü favorile'}</span></button>`
+      : '';
+    return `<div class="kk-list-top"><span>${list.length} kupon</span>${seg('order', state.order || 'prob', ORDERS)}</div>`
+      + `<div class="kk-list-acts"><button type="button" class="kk-chip kk-copy-all" title="Listedeki bütün kuponların maçlarını kopyala">${ICON.copy}<span>${tab === 'favs' ? 'Favorileri kopyala' : 'Tümünü kopyala'}</span></button>${favBtn}</div>`;
+  }
   function rowHtml(c, i) {
     const k = keyOf(c);
     const st = couponState(c);
@@ -1561,7 +1580,7 @@
         + (s?.short ? `<p class="kk-banner kk-banner--warn">İstenenden az kupon kurulabildi: bu oran/çizgi aralığında yeterli uygun kombinasyon yok.</p>` : '')
       : `<p class="kk-banner">${info(TIP.fav)} Favoriler kaydedildiği andaki oran ve olasılıklarla gösterilir. <span class="kk-banner-btns"><button type="button" class="kk-chip kk-fav-clean">Geçmiş maçlıları temizle</button><button type="button" class="kk-chip kk-chip--danger kk-fav-clear">${ICON.trash}Tümünü temizle</button></span></p>`;
     main.innerHTML = notes + setHtml()
-      + `<div class="kk-split"><section class="kk-list"><div class="kk-list-head"><span>${list.length} kupon</span>${seg('order', state.order || 'prob', ORDERS)}</div>`
+      + `<div class="kk-split"><section class="kk-list"><div class="kk-list-head">${listHeadHtml()}</div>`
       + `<div class="kk-rows">${sorted.map(rowHtml).join('')}</div></section><section class="kk-pane"></section></div>`;
     showDetail();
   }
@@ -1614,7 +1633,7 @@
     if (!rows) return renderMain();
     rows.innerHTML = sortList(curList()).map(rowHtml).join('');
     const lh = modal.querySelector('.kk-list-head');
-    if (lh) lh.innerHTML = `<span>${curList().length} kupon</span>${seg('order', state.order || 'prob', ORDERS)}`;
+    if (lh) lh.innerHTML = listHeadHtml();
     showDetail();
   }
   // Bekleme paneli: adım adı + yüzde çubuğu. Yüzde, toplama adımından (progFor()) ya da "a/b" ilerlemesinden gelir.
@@ -1949,6 +1968,31 @@
       if (t.closest('.kk-dd-clear')) { state.leagues = []; save(); refreshLeagues(); return; }
       if (t.closest('.kk-dd-close')) { modal.querySelector('.kk-dd-panel').hidden = true; return; }
       if (!t.closest('.kk-dd')) { const p = modal.querySelector('.kk-dd-panel'); if (p) p.hidden = true; }
+      const ca = t.closest('.kk-copy-all');
+      if (ca) {
+        const list = curList();
+        if (!list.length) return;
+        navigator.clipboard?.writeText(allCopyText(list)).then(() => {
+          const sp = ca.querySelector('span');
+          const old = sp.textContent;
+          sp.textContent = `${list.length} kupon kopyalandı`;
+          ca.classList.add('is-on');
+          setTimeout(() => { if (ca.isConnected) { sp.textContent = old; ca.classList.remove('is-on'); } }, 1600);
+        });
+        return;
+      }
+      const fa = t.closest('.kk-fav-all');
+      if (fa) {
+        const add = lastList.filter((c) => !isFav(c));
+        if (!add.length) return;
+        favs = [...add.map(snap), ...favs];
+        saveFavs();
+        redrawRows();
+        renderTabsOnly();
+        const sp = modal.querySelector('.kk-fav-all span');
+        if (sp) { sp.textContent = `${add.length} kupon eklendi`; setTimeout(() => { if (sp.isConnected) sp.textContent = 'Hepsi favoride'; }, 1600); }
+        return;
+      }
       const cp = t.closest('.kk-copy');
       if (cp) {
         navigator.clipboard?.writeText(cp.dataset.copy).then(() => {
