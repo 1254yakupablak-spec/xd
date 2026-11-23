@@ -446,3 +446,14 @@ select.kk-input option { background: #181d2c; color: #eef1f7; }
 .kk-sport button.is-on { background: var(--acc); color: #0b1220; }
 .kk-sport button:disabled { opacity: 0.45; cursor: not-allowed; }
 .kk-shell[data-sport="basketball"] .kk-logo { color: #fb923c; }
+
+/* 5.8: toplu kopyala / favorile */
+.kk-list-head { flex-direction: column; align-items: stretch; gap: 8px; }
+.kk-list-top { display: flex; align-items: center; gap: 10px; }
+.kk-list-top > span { flex: none; color: var(--mut); font-size: 12px; font-weight: 700; }
+.kk-list-top .kk-seg { flex: 1; }
+.kk-list-top .kk-seg button { min-height: 26px; padding: 3px 6px; font-size: 11.5px; }
+.kk-list-acts { display: flex; gap: 6px; }
+.kk-list-acts .kk-chip { flex: 1; justify-content: center; cursor: pointer; }
+.kk-list-acts .kk-chip.is-on { border-color: var(--acc); color: var(--acc); }
+.kk-fav-all svg { fill: currentColor; }
