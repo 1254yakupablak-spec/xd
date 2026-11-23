@@ -1,23 +1,7 @@
 {
- "at": "2026-11-23T21:06:41.127Z",
- "count": 66,
+ "at": "2026-11-23T23:48:19.233Z",
+ "count": 115,
  "matches": {
-  "01M7W091B0HRAQBJ56TXYWB46V": {
-   "lam": 2.6,
-   "note": "Macaristan 2. lig, küme düşen DVTK favori; Karcag formsuz",
-   "home": "DVTK",
-   "away": "Karcagi",
-   "startsAt": "2026-11-23T18:30:00.000Z",
-   "at": "2026-11-22T13:40:03.847Z"
-  },
-  "01M81FTKKH48RGC5BEFZQYQD86": {
-   "lam": 2.5,
-   "note": "İngiltere 6. lig, son eşleşme 1-1; Maidstone üst sırada",
-   "home": "Chelmsford",
-   "away": "Maidstone",
-   "startsAt": "2026-11-23T19:45:00.000Z",
-   "at": "2026-11-22T13:40:03.847Z"
-  },
   "01M77B7HW43H6AMPD9GR9RPJDF": {
    "lam": 2.7,
    "note": "MLS play-off ilk maçı, St. Louis ev sahibi, LAFC formsuz",
@@ -617,6 +601,465 @@
    "away": "Buducnost W",
    "startsAt": "2026-11-25T15:30:00.000Z",
    "at": "2026-11-23T21:06:39.822Z"
+  },
+  "01M845G2H03BA610G3B0XNYNA4": {
+   "sport": "football",
+   "lam": 2.7,
+   "note": "Endonezya kupası; son karşılaşma 3-1 bitti, ortalama ~2.7",
+   "home": "Garudayaksa",
+   "away": "PSS Sleman",
+   "startsAt": "2026-11-24T09:00:00.000Z",
+   "at": "2026-11-23T23:48:18.720Z"
+  },
+  "01M845T8MQM92EMN0N2RZPP4RW": {
+   "sport": "football",
+   "lam": 2.9,
+   "note": "Üst lig takımı alt lig rakibine karşı; Sumsel son maçta 4 yedi",
+   "home": "Persija Jakarta",
+   "away": "Sumsel United",
+   "startsAt": "2026-11-24T09:00:00.000Z",
+   "at": "2026-11-23T23:48:18.720Z"
+  },
+  "01M84BG3FNWCWP0A5S9758DWPV": {
+   "sport": "football",
+   "lam": 3.2,
+   "note": "U19 Gençlik Ligi; iki takım da alt sıralarda, savunmalar zayıf",
+   "home": "Bodo/Glimt U19",
+   "away": "LASK U19",
+   "startsAt": "2026-11-24T10:00:00.000Z",
+   "at": "2026-11-23T23:48:18.720Z"
+  },
+  "01M82YXWS52MRZ7RDWFTRWT30J": {
+   "sport": "football",
+   "lam": 2.8,
+   "note": "Bulgaristan 3. lig rezerv derbisi; veri az, lig tabanı ~2.8",
+   "home": "Cherno More II",
+   "away": "Fratria II",
+   "startsAt": "2026-11-24T11:00:00.000Z",
+   "at": "2026-11-23T23:48:18.720Z"
+  },
+  "01M845T8MQEEHB53ZDGQRWW6XA": {
+   "sport": "football",
+   "lam": 2.6,
+   "note": "Tayland 2. lig; son iki maç 2-2, lig ortalaması ~2.6",
+   "home": "Chanthaburi",
+   "away": "Pattaya United",
+   "startsAt": "2026-11-24T11:00:00.000Z",
+   "at": "2026-11-23T23:48:18.720Z"
+  },
+  "01M84C36A9HM8TTD49M96B47ZJ": {
+   "sport": "football",
+   "lam": 3.1,
+   "note": "U19 Gençlik Ligi; iki takım da orta-alt sırada, gençlik ort. ~3.1",
+   "home": "Galatasaray U19",
+   "away": "Aston Villa U19",
+   "startsAt": "2026-11-24T11:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845G2H06EGPVKT2551M0G13": {
+   "sport": "football",
+   "lam": 2.4,
+   "note": "Tayland 2. lig; aralarındaki maçlar az gollü (1-1), veri az",
+   "home": "Nakhon Pathom",
+   "away": "Chainat",
+   "startsAt": "2026-11-24T12:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845G2H0EDWN5N5ACQVB7AVZ": {
+   "sport": "football",
+   "lam": 2.7,
+   "note": "Endonezya kupası; üst lig takımı alt lig rakibine karşı",
+   "home": "Madura United",
+   "away": "Persela Lamongan",
+   "startsAt": "2026-11-24T12:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845T8MQY39P2BHK34XW2PP9": {
+   "sport": "football",
+   "lam": 2.7,
+   "note": "Endonezya kupası; iki üst lig takımı, ortalama ~2.7",
+   "home": "FC Bhayangkara",
+   "away": "Semen Padang",
+   "startsAt": "2026-11-24T12:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M83Z4T64RWFXDBFH19V1WQCT": {
+   "sport": "football",
+   "lam": 2.7,
+   "note": "Suudi 1. lig; Al Raed geçen sezon gollü oynadı",
+   "home": "Al Raed",
+   "away": "Al Okhdood",
+   "startsAt": "2026-11-24T12:15:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M83Z4T64DKSJSBBRHKW9WQ8Y": {
+   "sport": "football",
+   "lam": 2.5,
+   "note": "Suudi 1. lig; güncel veri az, lig tabanı ~2.5",
+   "home": "Al Orubah",
+   "away": "Al Najma",
+   "startsAt": "2026-11-24T12:20:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M83Z4T64VNV500FSDCSMH8DJ": {
+   "sport": "football",
+   "lam": 2.3,
+   "note": "Suudi 1. lig; son 4 maç beraberlik, Al Zulfi az gol yiyor",
+   "home": "Al Jabalain",
+   "away": "Al Zulfi",
+   "startsAt": "2026-11-24T12:20:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M832NMDPF7DE7P1F0BMFFZA6": {
+   "sport": "football",
+   "lam": 2.5,
+   "note": "Karadağ kupası; Sutjeska daha güçlü, lig az gollü; veri az",
+   "home": "Jedinstvo",
+   "away": "Sutjeska",
+   "startsAt": "2026-11-24T13:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M832NMDPSTAM2BPZ4H3HCDPT": {
+   "sport": "football",
+   "lam": 2.4,
+   "note": "Karadağ kupası; geçen sezon 1-0 ve 2-1, veri az",
+   "home": "Mornar Bar",
+   "away": "Jezero",
+   "startsAt": "2026-11-24T13:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845T8MQDJ8MMBD09WGC3P0F": {
+   "sport": "football",
+   "lam": 3.3,
+   "note": "U21 gelişim ligi gollü; son maç 3-2 bitti",
+   "home": "Charlton U21",
+   "away": "Coventry U21",
+   "startsAt": "2026-11-24T13:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84BG3FN0EA6FDYJVAQMAKSR": {
+   "sport": "football",
+   "lam": 3.3,
+   "note": "U19 Gençlik Ligi; Dortmund hücumu güçlü, gençlik ort. ~3.2",
+   "home": "Arsenal U19",
+   "away": "Dortmund U19",
+   "startsAt": "2026-11-24T13:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84HQFV04T0EV5S43EA6N2JZ": {
+   "sport": "football",
+   "lam": 3.1,
+   "note": "U19 Gençlik Ligi; Betis daha güçlü, gençlik ort. ~3.1",
+   "home": "Slovan Bratislava U19",
+   "away": "Betis U19",
+   "startsAt": "2026-11-24T13:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84RH93Q6BP0YKZZX4TKB3W0": {
+   "sport": "football",
+   "lam": 2.1,
+   "note": "Tunus 2. lig az gollü; geçen sezon 2-1 bitti",
+   "home": "Kalaa",
+   "away": "Korba",
+   "startsAt": "2026-11-24T13:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84RH93QJTY48F6FDSQ7G1DT": {
+   "sport": "football",
+   "lam": 2.1,
+   "note": "Tunus 2. lig az gollü; lig ortalaması ~2.1",
+   "home": "Jendouba Sport",
+   "away": "Ksour Essef",
+   "startsAt": "2026-11-24T13:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84RH93QK1392G3KC1C67MAY": {
+   "sport": "football",
+   "lam": 2,
+   "note": "Tunus 2. lig; aralarındaki maçlar 0-1, Ariana az gol yiyor",
+   "home": "Ariana",
+   "away": "JS Kairouan",
+   "startsAt": "2026-11-24T13:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84RH93QSJRTK6RR40T1AXQ6": {
+   "sport": "football",
+   "lam": 2.1,
+   "note": "Tunus 2. lig; son karşılaşmalar 1-1 ve 2-0",
+   "home": "Stade Gabesien",
+   "away": "Kasserine",
+   "startsAt": "2026-11-24T13:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84CBVKJSVG387DK5WPGRVT7": {
+   "sport": "football",
+   "lam": 2.6,
+   "note": "Özbekistan kupası; iki üst lig takımı, veri az",
+   "home": "OKMK",
+   "away": "Navbahor Namangan",
+   "startsAt": "2026-11-24T13:15:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84CPFH13XAQQP1JMGN0DJ5C": {
+   "sport": "football",
+   "lam": 2.6,
+   "note": "Özbekistan kupası; Lokomotiv biraz üstün, veri az",
+   "home": "Andijan",
+   "away": "Lok. Tashkent",
+   "startsAt": "2026-11-24T13:15:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845T8MQTHNXNSS91GN9VMG4": {
+   "sport": "football",
+   "lam": 3,
+   "note": "Dewa United çok daha güçlü; Persiraja son maçlarda gol yedi",
+   "home": "Persiraja Aceh",
+   "away": "Dewa United",
+   "startsAt": "2026-11-24T13:30:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845T8MQQRM5KMF94VFSMRMN": {
+   "sport": "football",
+   "lam": 2.9,
+   "note": "AFC ŞL2; ilk maç 2-2 bitti, iki takım da gol buluyor",
+   "home": "East Bengal",
+   "away": "Al Hussein",
+   "startsAt": "2026-11-24T13:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M7XH76C8Y2CST5N81BR13B89": {
+   "sport": "football",
+   "lam": 2.1,
+   "note": "İran 2. lig az gollü; veri az",
+   "home": "Shahin Bandar Ameri",
+   "away": "Naft M.I.S",
+   "startsAt": "2026-11-24T14:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M8402QTPQQV1VT4DYYBN1JZ7": {
+   "sport": "football",
+   "lam": 2.6,
+   "note": "Suudi 1. lig; Hajer alt sıralarda, çok gol yiyor",
+   "home": "Hajer",
+   "away": "Al Taee",
+   "startsAt": "2026-11-24T14:30:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84HZQGR4JESWY3W7RY39ZX9": {
+   "sport": "football",
+   "lam": 3.2,
+   "note": "U19 Gençlik Ligi; Real Madrid son şampiyon, gençlik ort. ~3.2",
+   "home": "Real Madrid U19",
+   "away": "PSV U19",
+   "startsAt": "2026-11-24T15:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84JE3C9R2NHPZQGQ628B068": {
+   "sport": "football",
+   "lam": 3.1,
+   "note": "U19 Gençlik Ligi; Feyenoord 3'te 3, iki güçlü hücum",
+   "home": "Feyenoord U19",
+   "away": "FC Porto U19",
+   "startsAt": "2026-11-24T15:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84JE3C9WF54Y0D8A9ZD8DBW": {
+   "sport": "football",
+   "lam": 3.3,
+   "note": "U19 Gençlik Ligi; City hücumu güçlü, gençlik ort. ~3.2",
+   "home": "Manchester City U19",
+   "away": "Napoli U19",
+   "startsAt": "2026-11-24T15:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M844SZK62Y3EC2YPC56VR8N7": {
+   "sport": "football",
+   "lam": 2.9,
+   "note": "Slovakya kupası; Zilina üstün ve gollü oynuyor",
+   "home": "Zilina",
+   "away": "Ruzomberok",
+   "startsAt": "2026-11-24T16:00:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M843H3FM5BDHPK1XAMSZ6FCM": {
+   "sport": "football",
+   "lam": 2.5,
+   "note": "G.Afrika ligi az gollü; Pirates son iç saha maçında 5-0 kazandı",
+   "home": "Orlando Pirates",
+   "away": "Golden Arrows",
+   "startsAt": "2026-11-24T17:30:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M83Z4T64EJX9EFNQ9689E9NP": {
+   "sport": "football",
+   "lam": 2.8,
+   "note": "İskoç Challenge Kupası; veri az, kupa ort. ~2.8",
+   "home": "Arbroath",
+   "away": "Airdrieonians",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M83Z4T64GEK38DB3VRVA7T4W": {
+   "sport": "football",
+   "lam": 2.7,
+   "note": "Fife derbisi kupa maçı; geçmiş 2-1 ve 2-0, veri az",
+   "home": "Dunfermline",
+   "away": "Kelty Hearts",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M83Z4T64P58SN4MZBW271WBS": {
+   "sport": "football",
+   "lam": 2.9,
+   "note": "Challenge Kupası; Queen's Park üst lig, veri az",
+   "home": "Clydebank FC",
+   "away": "Queen's Park",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M83ZSRRH57AE9K0BQ1Y9RX59": {
+   "sport": "football",
+   "lam": 2.9,
+   "note": "Challenge Kupası; Partick üstün, önceki tur 3-0 kazandı",
+   "home": "East Kilbride",
+   "away": "Partick Thistle",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845G2H02THH42E6JQWAD0AZ": {
+   "sport": "football",
+   "lam": 2.8,
+   "note": "Challenge Kupası; aralarındaki maçlar gollü, veri az",
+   "home": "Hamilton",
+   "away": "Cove Rangers",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845G2H0KRBYAH1VE9CDPXX6": {
+   "sport": "football",
+   "lam": 2.9,
+   "note": "Challenge Kupası; geçen sezon yarı finali 1-2, veri az",
+   "home": "Ayr",
+   "away": "Inverness",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845MN62TPK04YG3YECNZ4D5": {
+   "sport": "football",
+   "lam": 3,
+   "note": "Challenge Kupası; iki takım da önceki turda 2 ve 4 gol attı",
+   "home": "Ross County",
+   "away": "Stenhousemuir",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845T8MQGKK5KK0A4P6E7CJ9": {
+   "sport": "football",
+   "lam": 3,
+   "note": "Challenge Kupası; güç farkı büyük, Livingston favori",
+   "home": "Livingston",
+   "away": "Peterhead",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84F975KD3GH9W0AJ8GGMEWN": {
+   "sport": "football",
+   "lam": 3.3,
+   "note": "K.İrlanda Lig Kupası; amatör rakibe karşı güç farkı, veri az",
+   "home": "Moyola",
+   "away": "Ballymena",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84FEN2Q2NVPECQ2VBK6CTM5": {
+   "sport": "football",
+   "lam": 3.1,
+   "note": "K.İrlanda Lig Kupası; alt lig maçı gollü olur, veri az",
+   "home": "Limavady",
+   "away": "Rathfriland",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84FEN2Q86MZRCY63X5S9K7G": {
+   "sport": "football",
+   "lam": 2.5,
+   "note": "K.İrlanda Lig Kupası; iki güçlü takım, son maç 1-1, veri az",
+   "home": "Glentoran",
+   "away": "Larne",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84FEN2QGX0CWC9MSAQR3VVP": {
+   "sport": "football",
+   "lam": 2.9,
+   "note": "K.İrlanda Lig Kupası; Loughgall üst lig, veri az",
+   "home": "Loughgall",
+   "away": "Queens Univ.",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84FEN2QYAPHK38JZVWGMQWF": {
+   "sport": "football",
+   "lam": 2.8,
+   "note": "K.İrlanda Lig Kupası; son kupa finali 2-3, veri az",
+   "home": "Dungannon",
+   "away": "Coleraine",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84FKCRG70M2WVDFKA3PHKC5": {
+   "sport": "football",
+   "lam": 3.3,
+   "note": "K.İrlanda Lig Kupası; geçen sezon 3-6, güç farkı büyük",
+   "home": "H&W Welders",
+   "away": "Linfield",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84FVJJXA0X0XSATR27F0RX8": {
+   "sport": "football",
+   "lam": 2.7,
+   "note": "K.İrlanda Lig Kupası; denk güçler, veri az",
+   "home": "Carrick Rangers",
+   "away": "Glenavon",
+   "startsAt": "2026-11-24T19:45:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M83Z4T64K0BXVPSNGA67PH7P": {
+   "sport": "football",
+   "lam": 2.4,
+   "note": "Suudi 1. lig; son karşılaşma 1-1, veri az",
+   "home": "Al Anwar",
+   "away": "Al Jandal",
+   "startsAt": "2026-11-25T12:10:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M845VYHNTYN1F1A40FG9TPGY": {
+   "sport": "football",
+   "lam": 2.6,
+   "note": "Suudi 1. lig; geçen sezon 2-1 ve 0-3, veri az",
+   "home": "Al Bukiryah",
+   "away": "Al Wehda",
+   "startsAt": "2026-11-25T12:10:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M84055XS4HP1QAK0TPMZQ9NZ": {
+   "sport": "football",
+   "lam": 2.8,
+   "note": "Suudi 1. lig; Al Ula üstün, son maç 4-1 kazandı",
+   "home": "Al Ula",
+   "away": "Al Adalah",
+   "startsAt": "2026-11-25T15:10:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
+  },
+  "01M8144AHT3GZT6DXPY8MXJSWN": {
+   "sport": "football",
+   "lam": 3.1,
+   "note": "Meksika 3. lig; Ciervos son maçlarda 7'şer gol yedi",
+   "home": "Ciervos",
+   "away": "Vaqueros Reynosa",
+   "startsAt": "2026-11-25T21:30:00.000Z",
+   "at": "2026-11-23T23:48:18.721Z"
   }
  }
 }
