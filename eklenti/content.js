@@ -291,11 +291,30 @@
     return v;
   }
 
+  // Goal Mix ayarı (bir kez okunur): maç sınırları ve basketbolda sitenin gösterdiği çizgiler.
+  let cfgP = null;
+  const gmConfig = () => (cfgP ??= getJ('/goalmix/config').catch(() => { cfgP = null; return null; }));
+  // Site basketbolda fiyat servisinin bütün çizgilerini göstermez: sadece iki yönü de açık çizgiler ve ortadaki
+  // çizgiden maç sayısına göre adımlı olanlar (2 maç 4, 3 maç 6 … sayı arayla). Eklenti de sadece bunları önerir;
+  // yoksa önerilen çizgi sitede bulunmaz ve kullanıcı başka çizgiyi (başka oranı) seçmek zorunda kalır.
+  function siteLines(lines, sp, n, cfg) {
+    const o = cfg?.sports?.[sp]?.lines;
+    if (!o) return lines;
+    const r = [...lines].sort((a, b) => a.line - b.line);
+    let g = o.twoWayOnly ? r.filter((m) => m.over != null && m.under != null) : r;
+    const v = Math.round((o.stepMode === 'algo' ? o.stepTable?.[String(n)] ?? o.step : o.step) ?? 1);
+    const f = r.length ? r[Math.floor((r.length - 1) / 2)].line : null;
+    if (v > 1 && f != null) g = g.filter((m) => Math.round((m.line - f) * 2) % (v * 2) === 0);
+    return g;
+  }
   async function quote(ids, sp = 'football') {
     const r = await getJ(`/goalmix/quote?events=${encodeURIComponent([...ids].sort().join(','))}`);
     if (r.refused || (r.events || []).some((x) => x.available === false)) return null;
     const lines = (r.lines || []).map((l) => ({ line: Number(l.line), over: l.over == null ? null : Number(l.over), under: l.under == null ? null : Number(l.under) }));
-    if (SPORTS[sp].normal) { const f = normFit(lines, null, ids.length); return { lines, lam: f?.mean ?? null, sd: f?.sd ?? null }; }
+    if (SPORTS[sp].normal) {
+      const f = normFit(lines, null, ids.length); // sitenin beklentisi bütün çizgilerden
+      return { lines: siteLines(lines, sp, ids.length, await gmConfig()), lam: f?.mean ?? null, sd: f?.sd ?? null };
+    }
     return { lines, lam: fitLambda(lines) };
   }
 
@@ -1037,7 +1056,7 @@
   loadState(SPORTS[localStorage.getItem('kkSport')] ? localStorage.getItem('kkSport') : 'football');
   // Goal Mix'in izin verdiği en çok maç, branş başına (sitenin ayarı; okunamazsa futbol 10, basketbol 5).
   const legMax = Object.fromEntries(SPORT_KEYS.map((k) => [k, SPORTS[k].legs]));
-  getJ('/goalmix/config').then((c) => {
+  gmConfig().then((c) => {
     for (const k of SPORT_KEYS) {
       const m = c?.sports?.[k]?.maxMatches ?? (k === 'football' ? c?.maxMatches : null);
       if (m >= 2) legMax[k] = Math.min(15, m);
